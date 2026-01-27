@@ -1,0 +1,156 @@
+package com.kf7mxe.inglenook
+
+import com.lightningkite.services.data.*
+import com.lightningkite.services.database.HasId
+import kotlinx.datetime.*
+import kotlinx.serialization.Serializable
+import kotlin.time.Clock
+import kotlin.time.Instant
+import kotlin.uuid.Uuid
+
+// Jellyfin Server Configuration
+@Serializable
+data class JellyfinServerConfig(
+    val _id: Uuid = Uuid.random(),
+    val serverUrl: String,
+    val userId: String,
+    val username: String,
+    val accessToken: String,
+    val deviceId: String,
+    val serverId: String? = null,
+    val serverName: String? = null
+)
+
+// Audio Book representation from Jellyfin
+@Serializable
+data class AudioBook(
+    val id: String,
+    val title: String,
+    val sortTitle: String? = null,
+    val authors: List<String> = emptyList(),
+    val narrator: String? = null,
+    val description: String? = null,
+    val coverImageId: String? = null,
+    val duration: Long = 0L, // Duration in ticks (10,000 ticks = 1ms)
+    val chapters: List<Chapter> = emptyList(),
+    val userData: UserData? = null,
+    val seriesName: String? = null,
+    val seriesId: String? = null,
+    val indexNumber: Int? = null, // Book number in series
+    val year: Int? = null,
+    val libraryId: String? = null
+)
+
+// Chapter information
+@Serializable
+data class Chapter(
+    val name: String,
+    val startPositionTicks: Long,
+    val imageId: String? = null
+)
+
+// User playback data from Jellyfin
+@Serializable
+data class UserData(
+    val playbackPositionTicks: Long = 0L,
+    val playCount: Int = 0,
+    val isFavorite: Boolean = false,
+    val played: Boolean = false,
+    val lastPlayedDate: String? = null
+)
+
+// Author/Person representation
+@Serializable
+data class Author(
+    val id: String,
+    val name: String,
+    val imageId: String? = null,
+    val overview: String? = null
+)
+
+// Library/Collection
+@Serializable
+data class JellyfinLibrary(
+    val id: String,
+    val name: String,
+    val collectionType: String? = null,
+    val imageId: String? = null
+)
+
+// Local Bookshelf (stored on device)
+@GenerateDataClassPaths
+@Serializable
+data class Bookshelf(
+    override val _id: Uuid = Uuid.random(),
+    val name: String,
+    val bookIds: List<String> = emptyList(),
+    val coverImageUrl: String? = null,
+    val createdAt: Instant = Clock.System.now(),
+    val updatedAt: Instant = Clock.System.now()
+) : HasId<Uuid>
+
+// Local playback progress (stored on device for offline tracking)
+@GenerateDataClassPaths
+@Serializable
+data class PlaybackProgress(
+    override val _id: String, // bookId
+    val positionTicks: Long = 0L,
+    val lastPlayed: Instant = Clock.System.now(),
+    val duration: Long = 0L,
+    val synced: Boolean = false // Whether synced to Jellyfin
+) : HasId<String>
+
+// Downloaded book information
+@GenerateDataClassPaths
+@Serializable
+data class DownloadedBook(
+    override val _id: String, // bookId
+    val title: String,
+    val authors: List<String> = emptyList(),
+    val localFilePath: String,
+    val coverImagePath: String? = null,
+    val downloadedAt: Instant = Clock.System.now(),
+    val fileSize: Long = 0L,
+    val duration: Long = 0L,
+    val chapters: List<Chapter> = emptyList()
+) : HasId<String>
+
+// Download progress tracking
+@Serializable
+data class DownloadProgress(
+    val bookId: String,
+    val bytesDownloaded: Long,
+    val totalBytes: Long,
+    val status: DownloadStatus
+)
+
+@Serializable
+enum class DownloadStatus {
+    Pending,
+    Downloading,
+    Completed,
+    Failed,
+    Cancelled
+}
+
+// Theme preset enumeration
+@Serializable
+enum class ThemePreset {
+    Cozy,      // Forest green, warm background
+    Ocean,     // Blue tones
+    Midnight,  // Dark theme
+    Sunrise,   // Warm orange
+    Custom     // User customizable
+}
+
+// App settings stored locally
+@Serializable
+data class AppSettings(
+    val themePreset: ThemePreset = ThemePreset.Cozy,
+    val customAccentColor: String? = null,
+    val downloadOverWifiOnly: Boolean = true,
+    val playbackSpeed: Float = 1.0f,
+    val skipForwardSeconds: Int = 30,
+    val skipBackwardSeconds: Int = 15,
+    val sleepTimerMinutes: Int? = null
+)
