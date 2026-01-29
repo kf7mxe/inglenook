@@ -3,51 +3,69 @@ package com.kf7mxe.inglenook.screens
 import com.lightningkite.kiteui.models.*
 import com.lightningkite.kiteui.navigation.Page
 import com.lightningkite.kiteui.navigation.mainPageNavigator
-import com.lightningkite.kiteui.reactive.*
 import com.lightningkite.kiteui.views.ViewWriter
 import com.lightningkite.kiteui.views.centered
 import com.lightningkite.kiteui.views.direct.*
 import com.lightningkite.kiteui.views.expanding
-import com.lightningkite.kiteui.views.l2.applySafeInsets
-import com.kf7mxe.inglenook.*
+import com.lightningkite.kiteui.views.l2.icon
+import com.kf7mxe.inglenook.AudioBook
+import com.kf7mxe.inglenook.ViewMode
+import com.kf7mxe.inglenook.book
 import com.kf7mxe.inglenook.components.BookCard
 import com.kf7mxe.inglenook.components.BookListItem
+import com.kf7mxe.inglenook.dashboard
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
+import com.lightningkite.kiteui.Routable
+import com.lightningkite.kiteui.views.forEach
 import com.lightningkite.reactive.core.Signal
 import com.lightningkite.reactive.core.AppScope
+import com.lightningkite.reactive.core.Constant
+import com.lightningkite.reactive.core.Reactive
+import com.lightningkite.reactive.core.remember
 import kotlinx.coroutines.launch
-import kotlinx.serialization.Serializable
 
-enum class ViewMode { Grid, List }
-enum class BooksTab { Books, Bookshelves }
-
-@Serializable
-data class BooksPage(val unit: Unit = Unit) : Page {
-    override val title: ReactiveContext.() -> String = { "Books" }
+@Routable("/books")
+class BooksPage : Page {
+    override val title get() = Constant("Books")
 
     override fun ViewWriter.render() {
+        val isLoading = Signal(true)
         val books = Signal<List<AudioBook>>(emptyList())
-        val bookshelves = Signal<List<Bookshelf>>(emptyList())
         val searchQuery = Signal("")
         val viewMode = Signal(ViewMode.Grid)
-        val currentTab = Signal(BooksTab.Books)
-        val isLoading = Signal(true)
+        val errorMessage = Signal<String?>(null)
 
-        // Load books when page loads
-        AppScope.launch {
-            try {
-                val client = jellyfinClient.value
-                if (client != null) {
-                    val allBooks = client.getAllBooks()
-                    books.value = allBooks
-                }
-                // TODO: Load bookshelves from local storage
-            } catch (e: Exception) {
-                // Handle error
-            } finally {
-                isLoading.value = false
+        // Filter books based on search query
+        val filteredBooks: Reactive<List<AudioBook>> = remember {
+            val query = searchQuery.value.lowercase().trim()
+            if (query.isEmpty()) return@remember books.value
+            return@remember books.value.filter { book ->
+                book.title.lowercase().contains(query) ||
+                book.authors.any { it.lowercase().contains(query) } ||
+                book.seriesName?.lowercase()?.contains(query) == true
             }
         }
+
+        // Load books
+        fun loadBooks() {
+            isLoading.value = true
+            errorMessage.value = null
+            AppScope.launch {
+                try {
+                    val client = jellyfinClient.value
+                    if (client != null) {
+                        books.value = client.getAllBooks()
+                    }
+                } catch (e: Exception) {
+                    errorMessage.value = "Failed to load books: ${e.message}"
+                } finally {
+                    isLoading.value = false
+                }
+            }
+        }
+
+        // Initial load
+        loadBooks()
 
         col {
             gap = 0.rem
@@ -63,9 +81,11 @@ data class BooksPage(val unit: Unit = Unit) : Page {
                     content bind searchQuery
                 }
 
+                // View mode toggle
                 button {
                     icon {
-                        ::source { if (viewMode() == ViewMode.Grid) Icon.viewList else Icon.viewModule }
+                        ::source { if (viewMode() == ViewMode.Grid) Icon.menu else Icon.dashboard }
+                        description = "Toggle view"
                     }
                     onClick {
                         viewMode.value = if (viewMode.value == ViewMode.Grid) ViewMode.List else ViewMode.Grid
@@ -73,133 +93,63 @@ data class BooksPage(val unit: Unit = Unit) : Page {
                 }
             }
 
-            // Tab bar
-            row {
-                padding = Edges(horizontal = 1.rem, vertical = 0.5.rem)
-                gap = 0.5.rem
-
-                button {
-                    themeChoice = ThemeDerivation {
-                        if (currentTab.value == BooksTab.Books) it[SelectedSemantic]
-                        else it.withBack
-                    }.onNext
-                    text("Books")
-                    onClick { currentTab.value = BooksTab.Books }
-                }
-
-                button {
-                    themeChoice = ThemeDerivation {
-                        if (currentTab.value == BooksTab.Bookshelves) it[SelectedSemantic]
-                        else it.withBack
-                    }.onNext
-                    text("Bookshelves")
-                    onClick { currentTab.value = BooksTab.Bookshelves }
-                }
-            }
-
             separator()
 
-            // Content area
-            expanding.col {
+            expanding.frame {
+                // Loading state
                 shownWhen { isLoading() }.centered.activityIndicator()
 
-                // Books tab content
-                shownWhen { !isLoading() && currentTab() == BooksTab.Books }.expanding.col {
-                    val filteredBooks = remember {
-                        val query = searchQuery().lowercase()
-                        if (query.isBlank()) {
-                            books()
-                        } else {
-                            books().filter {
-                                it.title.lowercase().contains(query) ||
-                                it.authors.any { author -> author.lowercase().contains(query) }
-                            }
-                        }
+                // Error state
+                shownWhen { errorMessage() != null && !isLoading() }.centered.col {
+                    gap = 0.5.rem
+                    text { ::content { errorMessage() ?: "" } }
+                    button {
+                        text("Retry")
+                        onClick { loadBooks() }
                     }
+                }
 
-                    shownWhen { filteredBooks().isEmpty() }.centered.col {
+                // Content
+                shownWhen { !isLoading() && errorMessage() == null }.frame {
+                    // Empty state
+                    shownWhen { books().isEmpty() }.centered.col {
                         gap = 0.5.rem
+                        icon(Icon.book.copy(width = 3.rem, height = 3.rem), "Books")
                         text("No books found")
-                        shownWhen { searchQuery().isNotBlank() }.subtext("Try a different search term")
+                        subtext("Your audiobook library is empty")
                     }
 
-                    shownWhen { filteredBooks().isNotEmpty() && viewMode() == ViewMode.Grid }.scrolls.col {
+                    // No search results
+                    shownWhen { books().isNotEmpty() && filteredBooks().isEmpty() }.centered.col {
+                        gap = 0.5.rem
+                        icon(Icon.search.copy(width = 3.rem, height = 3.rem), "Search")
+                        text("No results found")
+                        subtext { ::content { "No books match \"${searchQuery()}\"" } }
+                    }
+
+                    // Books list/grid
+                    shownWhen { filteredBooks().isNotEmpty() }.scrolls.col {
                         padding = 1.rem
+                        gap = 1.rem
 
-                        // Grid layout using rows of cards
-                        reactiveSuspending {
-                            clearChildren()
-                            val booksToShow = filteredBooks()
-                            val chunkedBooks = booksToShow.chunked(3)
-
-                            for (rowBooks in chunkedBooks) {
-                                row {
-                                    gap = 1.rem
-                                    for (book in rowBooks) {
-                                        expanding.BookCard(book) {
-                                            mainPageNavigator.navigate(BookDetailPage(book.id))
-                                        }
-                                    }
-                                    // Fill empty space if row is incomplete
-                                    repeat(3 - rowBooks.size) {
-                                        expanding.space(1.0)
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    shownWhen { filteredBooks().isNotEmpty() && viewMode() == ViewMode.List }.scrolls.col {
-                        reactiveSuspending {
-                            clearChildren()
-                            for (book in filteredBooks()) {
-                                BookListItem(book) {
+                        // Grid view
+                        shownWhen { viewMode() == ViewMode.Grid }.row {
+                            gap = 1.rem
+                            forEach(filteredBooks ){ book ->
+                                BookCard(book) {
                                     mainPageNavigator.navigate(BookDetailPage(book.id))
                                 }
                             }
                         }
-                    }
-                }
 
-                // Bookshelves tab content
-                shownWhen { !isLoading() && currentTab() == BooksTab.Bookshelves }.expanding.col {
-                    padding = 1.rem
-                    gap = 1.rem
-
-                    shownWhen { bookshelves().isEmpty() }.centered.col {
-                        gap = 0.5.rem
-                        text("No bookshelves yet")
-                        subtext("Create a bookshelf to organize your audiobooks")
-
-                        button {
-                            row {
-                                gap = 0.5.rem
-                                icon(Icon.add, "Add")
-                                text("Create Bookshelf")
-                            }
-                            onClick {
-                                // TODO: Show create bookshelf dialog
-                            }
-                            themeChoice = ImportantSemantic.onNext
-                        }
-                    }
-
-                    shownWhen { bookshelves().isNotEmpty() }.scrolls.col {
-                        reactiveSuspending {
-                            clearChildren()
-                            for (shelf in bookshelves()) {
-                                button {
-                                    row {
-                                        gap = 1.rem
-                                        col {
-                                            text(shelf.name)
-                                            subtext("${shelf.bookIds.size} books")
-                                        }
-                                    }
-                                    onClick {
-                                        mainPageNavigator.navigate(BookshelfPage(shelf._id.toString()))
-                                    }
+                        // List view
+                        shownWhen { viewMode() == ViewMode.List }.col {
+                            gap = 0.5.rem
+                            forEach(filteredBooks ) { book ->
+                                BookListItem(book) {
+                                    mainPageNavigator.navigate(BookDetailPage(book.id))
                                 }
+                                separator()
                             }
                         }
                     }

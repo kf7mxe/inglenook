@@ -3,38 +3,49 @@ package com.kf7mxe.inglenook.screens
 import com.lightningkite.kiteui.models.*
 import com.lightningkite.kiteui.navigation.Page
 import com.lightningkite.kiteui.navigation.mainPageNavigator
-import com.lightningkite.kiteui.reactive.*
 import com.lightningkite.kiteui.views.ViewWriter
+import com.lightningkite.kiteui.views.card
 import com.lightningkite.kiteui.views.centered
 import com.lightningkite.kiteui.views.direct.*
 import com.lightningkite.kiteui.views.expanding
+import com.lightningkite.kiteui.views.l2.icon
 import com.kf7mxe.inglenook.*
+import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.jellyfin.jellyfinServerConfig
 import com.kf7mxe.inglenook.jellyfin.selectedLibraryId
-import com.kf7mxe.inglenook.jellyfin.jellyfinClient
+import com.lightningkite.kiteui.Routable
+import com.lightningkite.kiteui.views.forEach
 import com.lightningkite.reactive.core.Signal
 import com.lightningkite.reactive.core.AppScope
+import com.lightningkite.reactive.core.Constant
 import kotlinx.coroutines.launch
-import kotlinx.serialization.Serializable
 
-@Serializable
-data class SettingsPage(val unit: Unit = Unit) : Page {
-    override val title: ReactiveContext.() -> String = { "Settings" }
+
+@Routable("/settings")
+class SettingsPage : Page {
+    override val title get() = Constant("Settings")
 
     override fun ViewWriter.render() {
         val libraries = Signal<List<JellyfinLibrary>>(emptyList())
+        val isLoadingLibraries = Signal(false)
 
         // Load libraries
-        AppScope.launch {
-            try {
-                val client = jellyfinClient.value
-                if (client != null) {
-                    libraries.value = client.getLibraries()
+        fun loadLibraries() {
+            isLoadingLibraries.value = true
+            AppScope.launch {
+                try {
+                    val client = jellyfinClient.value
+                    if (client != null) {
+                        libraries.value = client.getLibraries()
+                    }
+                } finally {
+                    isLoadingLibraries.value = false
                 }
-            } catch (e: Exception) {
-                // Handle error
             }
         }
+
+        // Initial load
+        loadLibraries()
 
         scrolls.col {
             padding = 1.rem
@@ -51,20 +62,14 @@ data class SettingsPage(val unit: Unit = Unit) : Page {
                     row {
                         expanding.col {
                             gap = 0.rem
-                            text {
-                                ::content { jellyfinServerConfig()?.serverName ?: "Connected Server" }
-                            }
-                            subtext {
-                                ::content { jellyfinServerConfig()?.serverUrl ?: "" }
-                            }
-                            subtext {
-                                ::content { "Logged in as ${jellyfinServerConfig()?.username ?: "Unknown"}" }
-                            }
+                            text { ::content { jellyfinServerConfig()?.serverName ?: "Connected Server" } }
+                            subtext { ::content { jellyfinServerConfig()?.serverUrl ?: "" } }
+                            subtext { ::content { "Logged in as ${jellyfinServerConfig()?.username ?: "Unknown"}" } }
                         }
                         button {
                             text("Change")
                             onClick {
-                                mainPageNavigator.navigate(JellyfinSetupPage(editing = true))
+                                mainPageNavigator.navigate(JellyfinSetupPage())
                             }
                         }
                     }
@@ -78,45 +83,61 @@ data class SettingsPage(val unit: Unit = Unit) : Page {
                         }
                         onClick {
                             jellyfinServerConfig.value = null
+                            selectedLibraryId.value = null
                             mainPageNavigator.navigate(JellyfinSetupPage())
                         }
-                        themeChoice = ThemeDerivation { it.copy(foreground = Color.red).withBack }.onNext
+                        themeChoice += ThemeDerivation { it.copy(id = "danger", foreground = Color.red).withBack }
                     }
                 }
             }
 
-            // Library Selection
+            // Library Selection section
             col {
                 gap = 0.5.rem
                 h3 { content = "Library" }
 
                 card.col {
-                    gap = 0.5.rem
-                    text("Select which library to use for audiobooks")
+                    gap = 0.rem
 
-                    reactiveSuspending {
-                        clearChildren()
-                        val currentLibrary = selectedLibraryId()
+                    shownWhen { isLoadingLibraries() }.centered.row {
+                        padding = 1.rem
+                        activityIndicator()
+                        text("Loading libraries...")
+                    }
 
-                        for (library in libraries()) {
+                    shownWhen { !isLoadingLibraries() }.col {
+                        gap = 0.rem
+
+                        // "All Libraries" option
+                        button {
+                            row {
+                                padding = 0.5.rem
+                                expanding.text("All Libraries")
+                                shownWhen { selectedLibraryId() == null }.icon(Icon.check, "Selected")
+                            }
+                            onClick {
+                                selectedLibraryId.value = null
+                            }
+                            if (selectedLibraryId.value == null) {
+                                themeChoice += SelectedSemantic
+                            }
+                        }
+
+                        forEach(libraries) { library ->
+                            separator()
                             button {
                                 row {
+                                    padding = 0.5.rem
                                     expanding.text(library.name)
-                                    if (library.id == currentLibrary) {
-                                        icon(Icon.check, "Selected")
-                                    }
+                                    shownWhen { selectedLibraryId() == library.id }.icon(Icon.check, "Selected")
                                 }
                                 onClick {
                                     selectedLibraryId.value = library.id
                                 }
-                                if (library.id == currentLibrary) {
-                                    themeChoice = SelectedSemantic.onNext
+                                if (selectedLibraryId.value == library.id) {
+                                    themeChoice += SelectedSemantic
                                 }
                             }
-                        }
-
-                        if (libraries().isEmpty()) {
-                            text("No libraries found")
                         }
                     }
                 }
@@ -125,37 +146,39 @@ data class SettingsPage(val unit: Unit = Unit) : Page {
             // Theme section
             col {
                 gap = 0.5.rem
-                h3 { content = "Appearance" }
+                h3 { content = "Theme" }
 
                 card.col {
-                    gap = 0.5.rem
-                    text("Theme")
+                    gap = 0.rem
 
-                    row {
-                        gap = 0.5.rem
+                    for (preset in ThemePreset.entries) {
+                        if (preset == ThemePreset.Custom) continue // Skip custom for now
 
-                        for (preset in ThemePreset.entries.filter { it != ThemePreset.Custom }) {
-                            button {
-                                val presetTheme = createTheme(preset)
-                                col {
-                                    gap = 0.25.rem
-                                    sizedBox(SizeConstraints(width = 3.rem, height = 3.rem)) {
-                                        frame {
-                                            themeChoice = ThemeDerivation {
-                                                it.copy(background = presetTheme.accent).withBack
-                                            }.onNext
-                                        }
-                                    }
-                                    centered.subtext(preset.name)
+                        button {
+                            row {
+                                padding = 0.5.rem
+
+                                // Color preview
+                                sizedBox(SizeConstraints(width = 2.rem, height = 2.rem)).frame {
+                                    val presetTheme = createTheme(preset)
+                                    themeChoice += ThemeDerivation { presetTheme.withBack }
                                 }
-                                onClick {
-                                    currentThemePreset.value = preset
-                                    appTheme.value = presetTheme
-                                }
-                                if (currentThemePreset.value == preset) {
-                                    themeChoice = SelectedSemantic.onNext
-                                }
+
+                                expanding.text { content = preset.name }
+
+                                shownWhen { currentThemePreset() == preset }.icon(Icon.check, "Selected")
                             }
+                            onClick {
+                                currentThemePreset.value = preset
+                                appTheme.value = createTheme(preset)
+                            }
+                            if (currentThemePreset.value == preset) {
+                                themeChoice += SelectedSemantic
+                            }
+                        }
+
+                        if (preset != ThemePreset.entries.filter { it != ThemePreset.Custom }.last()) {
+                            separator()
                         }
                     }
                 }
@@ -180,46 +203,6 @@ data class SettingsPage(val unit: Unit = Unit) : Page {
                         onClick {
                             mainPageNavigator.navigate(DownloadsPage())
                         }
-                    }
-
-                    separator()
-
-                    row {
-                        expanding.col {
-                            text("Download over WiFi only")
-                            subtext("Prevent downloads on mobile data")
-                        }
-                        toggle {
-                            checked = true // TODO: Bind to actual setting
-                        }
-                    }
-                }
-            }
-
-            // Playback section
-            col {
-                gap = 0.5.rem
-                h3 { content = "Playback" }
-
-                card.col {
-                    gap = 0.5.rem
-
-                    row {
-                        expanding.col {
-                            text("Skip forward")
-                            subtext("Time to skip when pressing forward button")
-                        }
-                        text("30s") // TODO: Make configurable
-                    }
-
-                    separator()
-
-                    row {
-                        expanding.col {
-                            text("Skip backward")
-                            subtext("Time to skip when pressing backward button")
-                        }
-                        text("15s") // TODO: Make configurable
                     }
                 }
             }

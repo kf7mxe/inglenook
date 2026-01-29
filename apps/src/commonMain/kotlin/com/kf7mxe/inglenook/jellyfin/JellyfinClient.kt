@@ -10,9 +10,10 @@ import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
-class JellyfinClient(
+class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
     val serverUrl: String,
     private var accessToken: String? = null,
     private var userId: String? = null,
@@ -44,6 +45,7 @@ class JellyfinClient(
         return parts.joinToString(", ")
     }
 
+    @OptIn(ExperimentalUuidApi::class)
     suspend fun authenticate(username: String, password: String): JellyfinServerConfig {
         val response = client.post("$serverUrl/Users/AuthenticateByName") {
             contentType(ContentType.Application.Json)

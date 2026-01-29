@@ -247,3 +247,84 @@ val Icon.Companion.formatListNumbered get() = Icon(
     viewBoxHeight = 960,
     listOf("M120-80v-60h100v-30h-60v-60h60v-30H120v-60h120q17 0 28.5 11.5T280-280v40q0 17-11.5 28.5T240-200q17 0 28.5 11.5T280-160v40q0 17-11.5 28.5T240-80H120Zm0-280v-110q0-17 11.5-28.5T160-510h60v-30H120v-60h120q17 0 28.5 11.5T280-560v70q0 17-11.5 28.5T240-450h-60v30h100v60H120Zm60-280v-180h-60v-60h120v240h-60Zm180 440v-80h480v80H360Zm0-240v-80h480v80H360Zm0-240v-80h480v80H360Z")
 )
+
+val Icon.Companion.reverseThirtySeconds get() = Icon(
+    width = 1.5.rem,
+    height = 1.5.rem,
+    viewBoxMinX = 0,
+    viewBoxMinY = -960,
+    viewBoxWidth = 960,
+    viewBoxHeight = 960,
+    listOf("M480-80q-75 0-140.5-28.5t-114-77q-48.5-48.5-77-114T120-440h80q0 117 81.5 198.5T480-160q117 0 198.5-81.5T760-440q0-117-81.5-198.5T480-720h-6l62 62-56 58-160-160 160-160 56 58-62 62h6q75 0 140.5 28.5t114 77q48.5 48.5 77 114T840-440q0 75-28.5 140.5t-77 114q-48.5 48.5-114 77T480-80ZM300-320v-60h100v-40h-60v-40h60v-40H300v-60h120q17 0 28.5 11.5T460-520v160q0 17-11.5 28.5T420-320H300Zm240 0q-17 0-28.5-11.5T500-360v-160q0-17 11.5-28.5T540-560h80q17 0 28.5 11.5T660-520v160q0 17-11.5 28.5T620-320h-80Zm20-60h40v-120h-40v120Z")
+)
+
+val Icon.Companion.forwardThirtySeconds get() = Icon(
+    width = 1.5.rem,
+    height = 1.5.rem,
+    viewBoxMinX = 0,
+    viewBoxMinY = -960,
+    viewBoxWidth = 960,
+    viewBoxHeight = 960,
+    listOf("M300-320v-60h100v-40h-60v-40h60v-40H300v-60h120q17 0 28.5 11.5T460-520v160q0 17-11.5 28.5T420-320H300Zm240 0q-17 0-28.5-11.5T500-360v-160q0-17 11.5-28.5T540-560h80q17 0 28.5 11.5T660-520v160q0 17-11.5 28.5T620-320h-80Zm20-60h40v-120h-40v120ZM480-80q-75 0-140.5-28.5t-114-77q-48.5-48.5-77-114T120-440q0-75 28.5-140.5t77-114q48.5-48.5 114-77T480-800h6l-62-62 56-58 160 160-160 160-56-58 62-62h-6q-117 0-198.5 81.5T200-440q0 117 81.5 198.5T480-160q117 0 198.5-81.5T760-440h80q0 75-28.5 140.5t-77 114q-48.5 48.5-114 77T480-80Z")
+)
+
+// Checkmark icon
+val Icon.Companion.check get() = Icon(
+    width = 1.5.rem,
+    height = 1.5.rem,
+    viewBoxMinX = 0,
+    viewBoxMinY = -960,
+    viewBoxWidth = 960,
+    viewBoxHeight = 960,
+    listOf("M382-240 154-468l57-57 171 171 367-367 57 57-424 424Z")
+)
+
+// Stop icon
+val Icon.Companion.stop get() = Icon(
+    width = 1.5.rem,
+    height = 1.5.rem,
+    viewBoxMinX = 0,
+    viewBoxMinY = -960,
+    viewBoxWidth = 960,
+    viewBoxHeight = 960,
+    listOf("M240-240v-480h480v480H240Zm80-80h320v-320H320v320Zm0 0v-320 320Z")
+)
+
+// Edit icon
+val Icon.Companion.edit get() = Icon(
+    width = 1.5.rem,
+    height = 1.5.rem,
+    viewBoxMinX = 0,
+    viewBoxMinY = -960,
+    viewBoxWidth = 960,
+    viewBoxHeight = 960,
+    listOf("M200-200h57l391-391-57-57-391 391v57Zm-80 80v-170l528-527q12-11 26.5-17t30.5-6q16 0 31 6t26 18l55 56q12 11 17.5 26t5.5 30q0 16-5.5 30.5T817-647L290-120H120Zm640-584-56-56 56 56Zm-141 85-28-29 57 57-29-28Z")
+)
+
+val Icon.Companion.dashboard get() = Icon(
+    width = 1.5.rem,
+    height = 1.5.rem,
+    viewBoxMinX = 0,
+    viewBoxMinY = -960,
+    viewBoxWidth = 960,
+    viewBoxHeight = 960,
+    listOf("M520-600v-240h320v240H520ZM120-440v-400h320v400H120Zm400 320v-400h320v400H520Zm-400 0v-240h320v240H120Zm80-400h160v-240H200v240Zm400 320h160v-240H600v240Zm0-480h160v-80H600v80ZM200-200h160v-80H200v80Zm160-320Zm240-160Zm0 240ZM360-280Z")
+)
+val Icon.Companion.unfoldLess get() = Icon(
+    width = 1.5.rem,
+    height = 1.5.rem,
+    viewBoxMinX = 0,
+    viewBoxMinY = -960,
+    viewBoxWidth = 960,
+    viewBoxHeight = 960,
+    listOf("m356-160-56-56 180-180 180 180-56 56-124-124-124 124Zm124-404L300-744l56-56 124 124 124-124 56 56-180 180Z")
+)
+val Icon.Companion.unfoldMore get() = Icon(
+    width = 1.5.rem,
+    height = 1.5.rem,
+    viewBoxMinX = 0,
+    viewBoxMinY = -960,
+    viewBoxWidth = 960,
+    viewBoxHeight = 960,
+    listOf("M480-120 300-300l58-58 122 122 122-122 58 58-180 180ZM358-598l-58-58 180-180 180 180-58 58-122-122-122 122Z")
+)

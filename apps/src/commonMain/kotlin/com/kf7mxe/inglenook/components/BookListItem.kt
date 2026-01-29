@@ -1,12 +1,13 @@
 package com.kf7mxe.inglenook.components
 
 import com.lightningkite.kiteui.models.*
-import com.lightningkite.kiteui.reactive.*
 import com.lightningkite.kiteui.views.ViewWriter
 import com.lightningkite.kiteui.views.centered
 import com.lightningkite.kiteui.views.direct.*
 import com.lightningkite.kiteui.views.expanding
+import com.lightningkite.kiteui.views.l2.icon
 import com.kf7mxe.inglenook.AudioBook
+import com.kf7mxe.inglenook.book
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 
 fun ViewWriter.BookListItem(book: AudioBook, onClick: () -> Unit) {
@@ -16,7 +17,7 @@ fun ViewWriter.BookListItem(book: AudioBook, onClick: () -> Unit) {
             padding = 0.5.rem
 
             // Thumbnail
-            sizedBox(SizeConstraints(width = 4.rem, height = 6.rem)) {
+            sizedBox(SizeConstraints(width = 4.rem, height = 6.rem)).frame {
                 if (book.coverImageId != null) {
                     val client = jellyfinClient.value
                     image {
@@ -24,9 +25,6 @@ fun ViewWriter.BookListItem(book: AudioBook, onClick: () -> Unit) {
                         scaleType = ImageScaleType.Crop
                     }
                 } else {
-                    themeChoice = ThemeDerivation {
-                        it.copy(background = it.background.darken(0.1f)).withBack
-                    }.onNext
                     centered.icon(Icon.book, book.title)
                 }
             }
@@ -51,7 +49,7 @@ fun ViewWriter.BookListItem(book: AudioBook, onClick: () -> Unit) {
                         val seriesText = if (book.indexNumber != null) {
                             "${book.seriesName} #${book.indexNumber}"
                         } else {
-                            book.seriesName
+                            book.seriesName ?: ""
                         }
                         content = seriesText
                     }
@@ -64,14 +62,6 @@ fun ViewWriter.BookListItem(book: AudioBook, onClick: () -> Unit) {
                     val hours = totalSeconds / 3600
                     val minutes = (totalSeconds % 3600) / 60
                     content = if (hours > 0) "${hours}h ${minutes}m" else "${minutes}m"
-                }
-
-                // Progress bar if in progress
-                val progress = book.userData?.playbackPositionTicks ?: 0L
-                if (progress > 0L && book.duration > 0L) {
-                    progressBar {
-                        ratio = progress.toFloat() / book.duration
-                    }
                 }
             }
 

@@ -3,6 +3,8 @@ package com.kf7mxe.inglenook.storage
 import com.kf7mxe.inglenook.Bookshelf
 import com.lightningkite.kiteui.reactive.PersistentProperty
 import kotlin.time.Clock
+import kotlin.time.ExperimentalTime
+import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
 // Repository for managing local bookshelves
@@ -14,10 +16,12 @@ object BookshelfRepository {
         return storedBookshelves.value.sortedBy { it.name.lowercase() }
     }
 
+    @OptIn(ExperimentalUuidApi::class)
     fun getBookshelf(id: Uuid): Bookshelf? {
         return storedBookshelves.value.find { it._id == id }
     }
 
+    @OptIn(ExperimentalTime::class, ExperimentalUuidApi::class)
     fun createBookshelf(name: String): Bookshelf {
         val bookshelf = Bookshelf(
             _id = Uuid.random(),
@@ -30,6 +34,7 @@ object BookshelfRepository {
         return bookshelf
     }
 
+    @OptIn(ExperimentalTime::class, ExperimentalUuidApi::class)
     fun updateBookshelf(bookshelf: Bookshelf) {
         val updated = bookshelf.copy(updatedAt = Clock.System.now())
         storedBookshelves.value = storedBookshelves.value.map {
@@ -37,10 +42,12 @@ object BookshelfRepository {
         }
     }
 
+    @OptIn(ExperimentalUuidApi::class)
     fun deleteBookshelf(id: Uuid) {
         storedBookshelves.value = storedBookshelves.value.filter { it._id != id }
     }
 
+    @OptIn(ExperimentalUuidApi::class, ExperimentalTime::class)
     fun addBookToBookshelf(bookshelfId: Uuid, bookId: String) {
         val bookshelf = getBookshelf(bookshelfId) ?: return
         if (bookId !in bookshelf.bookIds) {
@@ -54,6 +61,7 @@ object BookshelfRepository {
         }
     }
 
+    @OptIn(ExperimentalUuidApi::class, ExperimentalTime::class)
     fun removeBookFromBookshelf(bookshelfId: Uuid, bookId: String) {
         val bookshelf = getBookshelf(bookshelfId) ?: return
         val updated = bookshelf.copy(

@@ -8,7 +8,7 @@ plugins {
     alias(libs.plugins.androidApp)
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.serialization)
-    alias(libs.plugins.kotlinCocoapods)
+//    alias(libs.plugins.kotlinCocoapods)
     alias(libs.plugins.kiteui)
     alias(libs.plugins.kjsplain)
     alias(libs.plugins.kfc)
@@ -24,9 +24,9 @@ repositories {
 kotlin {
     applyDefaultHierarchyTemplate()
     androidTarget()
-    iosX64()
-    iosArm64()
-    iosSimulatorArm64()
+//    iosX64()
+//    iosArm64()
+//    iosSimulatorArm64()
     js {
         binaries.executable()
         browser {
@@ -45,6 +45,8 @@ kotlin {
                 api(libs.csvDurable)
                 api(libs.lightningServer.client)
                 api(project(":shared"))
+                // Readable library for Constant
+                api("com.lightningkite:readable:2.0.0")
                 // Ktor client for Jellyfin API
                 implementation("io.ktor:ktor-client-core:3.0.3")
                 implementation("io.ktor:ktor-client-content-negotiation:3.0.3")
@@ -56,11 +58,11 @@ kotlin {
                 implementation("io.ktor:ktor-client-android:3.0.3")
             }
         }
-        val iosMain by getting {
-            dependencies {
-                implementation("io.ktor:ktor-client-darwin:3.0.3")
-            }
-        }
+//        val iosMain by getting {
+//            dependencies {
+//                implementation("io.ktor:ktor-client-darwin:3.0.3")
+//            }
+//        }
         val jsMain by getting {
             dependencies {
                 implementation("io.ktor:ktor-client-js:3.0.3")
@@ -75,31 +77,31 @@ kotlin {
         }
     }
 
-    cocoapods {
-        // Required properties
-        // Specify the required Pod version here. Otherwise, the Gradle project version is used.
-        version = "1.0"
-        summary = "Some description for a Kotlin/Native module"
-        homepage = "Link to a Kotlin/Native module homepage"
-        ios.deploymentTarget = "14.0"
-
-        // Optional properties
-        // Configure the Pod name here instead of changing the Gradle project name
-        name = "apps"
-
-        framework {
-            baseName = "apps"
-            export(project(":shared"))
-            export(libs.kiteui)
-            export(libs.lightningServer.client)
-//            podfile = project.file("../example-app-ios/Podfile")
-        }
-    }
-    compilerOptions {
-        optIn.add("kotlin.time.ExperimentalTime")
-        optIn.add("kotlin.uuid.ExperimentalUuidApi")
-        freeCompilerArgs.add("-Xcontext-parameters")
-    }
+//    cocoapods {
+//        // Required properties
+//        // Specify the required Pod version here. Otherwise, the Gradle project version is used.
+//        version = "1.0"
+//        summary = "Some description for a Kotlin/Native module"
+//        homepage = "Link to a Kotlin/Native module homepage"
+//        ios.deploymentTarget = "14.0"
+//
+//        // Optional properties
+//        // Configure the Pod name here instead of changing the Gradle project name
+//        name = "apps"
+//
+//        framework {
+//            baseName = "apps"
+//            export(project(":shared"))
+//            export(libs.kiteui)
+//            export(libs.lightningServer.client)
+////            podfile = project.file("../example-app-ios/Podfile")
+//        }
+//    }
+//    compilerOptions {
+//        optIn.add("kotlin.time.ExperimentalTime")
+//        optIn.add("kotlin.uuid.ExperimentalUuidApi")
+//        freeCompilerArgs.add("-Xcontext-parameters")
+//    }
 }
 
 android {

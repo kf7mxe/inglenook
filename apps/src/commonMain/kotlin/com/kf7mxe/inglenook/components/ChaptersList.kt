@@ -1,12 +1,13 @@
 package com.kf7mxe.inglenook.components
 
 import com.lightningkite.kiteui.models.*
-import com.lightningkite.kiteui.reactive.*
 import com.lightningkite.kiteui.views.ViewWriter
 import com.lightningkite.kiteui.views.centered
 import com.lightningkite.kiteui.views.direct.*
 import com.lightningkite.kiteui.views.expanding
+import com.lightningkite.kiteui.views.l2.icon
 import com.kf7mxe.inglenook.Chapter
+import com.kf7mxe.inglenook.playArrow
 
 fun ViewWriter.ChaptersList(
     chapters: List<Chapter>,
@@ -29,9 +30,6 @@ fun ViewWriter.ChaptersList(
                     // Chapter number
                     centered.text {
                         content = "${index + 1}"
-                        themeChoice = ThemeDerivation {
-                            it.copy(foreground = it.foreground.applyAlpha(0.6f)).withoutBack
-                        }.onNext
                     }
 
                     // Chapter name and duration
@@ -54,7 +52,7 @@ fun ViewWriter.ChaptersList(
                 onClick { onChapterClick(chapter) }
 
                 if (isCurrent) {
-                    themeChoice = SelectedSemantic.onNext
+                    themeChoice += SelectedSemantic
                 }
             }
 
@@ -72,8 +70,8 @@ private fun formatDuration(ticks: Long): String {
     val minutes = (totalSeconds % 3600) / 60
     val seconds = totalSeconds % 60
     return if (hours > 0) {
-        String.format("%d:%02d:%02d", hours, minutes, seconds)
+        "$hours:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}"
     } else {
-        String.format("%d:%02d", minutes, seconds)
+        "$minutes:${seconds.toString().padStart(2, '0')}"
     }
 }

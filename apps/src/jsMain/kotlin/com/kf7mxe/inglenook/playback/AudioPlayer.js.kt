@@ -66,34 +66,28 @@ class JsAudioPlayer : AudioPlayer {
         // This enables play/pause from browser UI and potentially lock screen
         try {
             js("""
-                if ('mediaSession' in navigator) {
-                    navigator.mediaSession.metadata = new MediaMetadata({
-                        title: book.title,
-                        artist: book.authors.join(', '),
-                        album: book.seriesName || 'Audiobook'
-                    });
+        if ('mediaSession' in navigator) {
+            navigator.mediaSession.metadata = new MediaMetadata({
+                title: title,
+                artist: artist,
+                album: album
+            });
 
-                    navigator.mediaSession.setActionHandler('play', function() {
-                        document.querySelector('audio')?.play();
-                    });
+            navigator.mediaSession.setActionHandler('play', function() {
+                var audio = document.querySelector('audio');
+                if (audio) audio.play();
+            });
 
-                    navigator.mediaSession.setActionHandler('pause', function() {
-                        document.querySelector('audio')?.pause();
-                    });
+            navigator.mediaSession.setActionHandler('pause', function() {
+                var audio = document.querySelector('audio');
+                if (audio) audio.pause();
+            });
 
-                    navigator.mediaSession.setActionHandler('seekbackward', function() {
-                        var audio = document.querySelector('audio');
-                        if (audio) audio.currentTime = Math.max(0, audio.currentTime - 15);
-                    });
-
-                    navigator.mediaSession.setActionHandler('seekforward', function() {
-                        var audio = document.querySelector('audio');
-                        if (audio) audio.currentTime = audio.currentTime + 30;
-                    });
-                }
-            """)
-        } catch (e: Exception) {
-            // Media Session API not available
+            // ... rest of your handlers
+        }
+    """)
+        } catch (e: Throwable) {
+            println("MediaSession setup failed: ${e.message}")
         }
     }
 }

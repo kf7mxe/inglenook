@@ -18,38 +18,14 @@ object ThemeColors {
 }
 
 fun createTheme(preset: ThemePreset, customColor: Color? = null): Theme {
-    return when (preset) {
-        ThemePreset.Cozy -> Theme.flat2("cozy", Angle(0.35f)).copy(
-            id = "cozy",
-            background = ThemeColors.warmPaper,
-            foreground = Color.fromHexString("#2d2d2d"),
-            accent = ThemeColors.cozyGreen
-        )
-        ThemePreset.Ocean -> Theme.flat2("ocean", Angle(0.55f)).copy(
-            id = "ocean",
-            background = Color.fromHexString("#e8f1f5"),
-            foreground = Color.fromHexString("#1a3a4a"),
-            accent = ThemeColors.oceanBlue
-        )
-        ThemePreset.Midnight -> Theme.flat2("midnight", Angle(0.7f)).copy(
-            id = "midnight",
-            background = ThemeColors.darkBackground,
-            foreground = Color.fromHexString("#e0e0e0"),
-            accent = Color.fromHexString("#7c8aff")
-        )
-        ThemePreset.Sunrise -> Theme.flat2("sunrise", Angle(0.1f)).copy(
-            id = "sunrise",
-            background = Color.fromHexString("#fff8f0"),
-            foreground = Color.fromHexString("#3d2c1e"),
-            accent = ThemeColors.sunriseOrange
-        )
-        ThemePreset.Custom -> Theme.flat2("custom", Angle(0.35f)).copy(
-            id = "custom",
-            background = ThemeColors.warmPaper,
-            foreground = Color.fromHexString("#2d2d2d"),
-            accent = customColor ?: ThemeColors.cozyGreen
-        )
+    val hue = when (preset) {
+        ThemePreset.Cozy -> Angle(0.35f)
+        ThemePreset.Ocean -> Angle(0.55f)
+        ThemePreset.Midnight -> Angle(0.7f)
+        ThemePreset.Sunrise -> Angle(0.1f)
+        ThemePreset.Custom -> Angle(0.35f)
     }
+    return Theme.flat2(preset.name.lowercase(), hue)
 }
 
 // Semantic definitions for the app

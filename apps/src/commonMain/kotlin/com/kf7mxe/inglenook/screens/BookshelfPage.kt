@@ -3,84 +3,119 @@ package com.kf7mxe.inglenook.screens
 import com.lightningkite.kiteui.models.*
 import com.lightningkite.kiteui.navigation.Page
 import com.lightningkite.kiteui.navigation.mainPageNavigator
-import com.lightningkite.kiteui.reactive.*
 import com.lightningkite.kiteui.views.ViewWriter
 import com.lightningkite.kiteui.views.centered
 import com.lightningkite.kiteui.views.direct.*
 import com.lightningkite.kiteui.views.expanding
-import com.kf7mxe.inglenook.*
+import com.lightningkite.kiteui.views.l2.icon
+import com.kf7mxe.inglenook.AudioBook
+import com.kf7mxe.inglenook.Bookshelf
+import com.kf7mxe.inglenook.ViewMode
+import com.kf7mxe.inglenook.book
+import com.kf7mxe.inglenook.check
 import com.kf7mxe.inglenook.components.BookCard
 import com.kf7mxe.inglenook.components.BookListItem
+import com.kf7mxe.inglenook.dashboard
+import com.kf7mxe.inglenook.edit
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.storage.BookshelfRepository
+import com.lightningkite.kiteui.Routable
+import com.lightningkite.kiteui.views.forEach
 import com.lightningkite.reactive.core.Signal
 import com.lightningkite.reactive.core.AppScope
+import com.lightningkite.reactive.core.Constant
+import com.lightningkite.reactive.core.Reactive
 import kotlinx.coroutines.launch
-import kotlinx.serialization.Serializable
+import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
-@Serializable
-data class BookshelfPage(val bookshelfId: String) : Page {
-    override val title: ReactiveContext.() -> String = { "" }
+@Routable("/bookshelf/{bookshelfId}")
+class BookshelfPage(val bookshelfId: String) : Page {
+    override val title: Reactive<String> = Constant("Bookshelf")
 
+    @OptIn(ExperimentalUuidApi::class)
     override fun ViewWriter.render() {
+        val isLoading = Signal(true)
         val bookshelf = Signal<Bookshelf?>(null)
         val books = Signal<List<AudioBook>>(emptyList())
         val viewMode = Signal(ViewMode.Grid)
-        val editMode = Signal(false)
-        val isLoading = Signal(true)
+        val isEditing = Signal(false)
+        val errorMessage = Signal<String?>(null)
 
         // Load bookshelf and its books
-        AppScope.launch {
-            try {
-                val uuid = Uuid.parse(bookshelfId)
-                bookshelf.value = BookshelfRepository.getBookshelf(uuid)
+        fun loadData() {
+            isLoading.value = true
+            errorMessage.value = null
+            AppScope.launch {
+                try {
+                    val uuid = Uuid.parse(bookshelfId)
+                    val shelf = BookshelfRepository.getBookshelf(uuid)
+                    bookshelf.value = shelf
 
-                val client = jellyfinClient.value
-                val shelf = bookshelf.value
-                if (client != null && shelf != null) {
-                    val bookList = mutableListOf<AudioBook>()
-                    for (bookId in shelf.bookIds) {
-                        try {
-                            val book = client.getBook(bookId)
-                            if (book != null) {
-                                bookList.add(book)
+                    if (shelf != null && shelf.bookIds.isNotEmpty()) {
+                        // Fetch book details from Jellyfin
+                        val client = jellyfinClient.value
+                        if (client != null) {
+                            val loadedBooks = shelf.bookIds.mapNotNull { bookId ->
+                                try {
+                                    client.getBook(bookId)
+                                } catch (e: Exception) {
+                                    null
+                                }
                             }
-                        } catch (e: Exception) {
-                            // Skip books that can't be loaded
+                            books.value = loadedBooks
                         }
+                    } else {
+                        books.value = emptyList()
                     }
-                    books.value = bookList
+                } catch (e: Exception) {
+                    errorMessage.value = "Failed to load bookshelf: ${e.message}"
+                } finally {
+                    isLoading.value = false
                 }
-            } catch (e: Exception) {
-                // Handle error
-            } finally {
-                isLoading.value = false
             }
         }
+
+        // Remove book from bookshelf
+        fun removeBook(bookId: String) {
+            AppScope.launch {
+                try {
+                    val uuid = Uuid.parse(bookshelfId)
+                    BookshelfRepository.removeBookFromBookshelf(uuid, bookId)
+                    books.value = books.value.filter { it.id != bookId }
+                } catch (e: Exception) {
+                    // Ignore error
+                }
+            }
+        }
+
+        // Initial load
+        loadData()
 
         col {
             gap = 0.rem
 
-            // Header with title and actions
+            // Header with shelf name and actions
             row {
                 padding = 1.rem
                 gap = 0.5.rem
 
-                expanding.h2 {
-                    ::content { bookshelf()?.name ?: "Bookshelf" }
-                }
+                expanding.h2 { ::content { bookshelf()?.name ?: "Bookshelf" } }
 
+                // Edit toggle
                 button {
                     icon {
-                        ::source { if (editMode()) Icon.check else Icon.edit }
+                        ::source { if (isEditing()) Icon.check else Icon.edit }
+                        ::description { if (isEditing()) "Done" else "Edit" }
                     }
-                    onClick { editMode.value = !editMode.value }
+                    onClick { isEditing.value = !isEditing.value }
                 }
 
+                // View mode toggle
                 button {
                     icon {
-                        ::source { if (viewMode() == ViewMode.Grid) Icon.viewList else Icon.viewModule }
+                        ::source { if (viewMode() == ViewMode.Grid) Icon.menu else Icon.dashboard }
+                        description = "Toggle view"
                     }
                     onClick {
                         viewMode.value = if (viewMode.value == ViewMode.Grid) ViewMode.List else ViewMode.Grid
@@ -90,117 +125,73 @@ data class BookshelfPage(val bookshelfId: String) : Page {
 
             separator()
 
-            // Content
-            expanding.col {
+            expanding.frame {
+                // Loading state
                 shownWhen { isLoading() }.centered.activityIndicator()
 
-                shownWhen { !isLoading() && bookshelf() == null }.centered.col {
+                // Error state
+                shownWhen { errorMessage() != null && !isLoading() }.centered.col {
                     gap = 0.5.rem
-                    text("Bookshelf not found")
+                    text { ::content { errorMessage() ?: "" } }
                     button {
-                        text("Go Back")
-                        onClick { mainPageNavigator.goBack() }
+                        text("Retry")
+                        onClick { loadData() }
                     }
                 }
 
-                shownWhen { !isLoading() && bookshelf() != null }.expanding.col {
+                // Content
+                shownWhen { !isLoading() && errorMessage() == null }.frame {
+                    // Empty state
                     shownWhen { books().isEmpty() }.centered.col {
-                        gap = 0.5.rem
+                        gap = 1.rem
+                        icon(Icon.book.copy(width = 3.rem, height = 3.rem), "Books")
                         text("No books in this bookshelf")
-                        button {
-                            row {
-                                gap = 0.5.rem
-                                icon(Icon.add, "Add")
-                                text("Add Books")
-                            }
-                            onClick {
-                                // TODO: Show add books dialog
-                            }
-                            themeChoice = ImportantSemantic.onNext
-                        }
+                        subtext("Add books from the book detail page")
                     }
 
-                    shownWhen { books().isNotEmpty() && viewMode() == ViewMode.Grid }.scrolls.col {
+                    // Books list/grid
+                    shownWhen { books().isNotEmpty() }.scrolls.col {
                         padding = 1.rem
+                        gap = 1.rem
 
-                        reactiveSuspending {
-                            clearChildren()
-                            val chunked = books().chunked(3)
-                            for (rowBooks in chunked) {
-                                row {
-                                    gap = 1.rem
-                                    for (book in rowBooks) {
-                                        expanding.col {
-                                            BookCard(book) {
-                                                if (!editMode.value) {
-                                                    mainPageNavigator.navigate(BookDetailPage(book.id))
-                                                }
-                                            }
-                                            shownWhen { editMode() }.button {
-                                                centered.icon(Icon.delete, "Remove")
-                                                onClick {
-                                                    AppScope.launch {
-                                                        val shelf = bookshelf.value
-                                                        if (shelf != null) {
-                                                            val updatedShelf = shelf.copy(
-                                                                bookIds = shelf.bookIds - book.id
-                                                            )
-                                                            BookshelfRepository.updateBookshelf(updatedShelf)
-                                                            bookshelf.value = updatedShelf
-                                                            books.value = books.value - book
-                                                        }
-                                                    }
-                                                }
-                                                themeChoice = ThemeDerivation { it.copy(foreground = Color.red).withBack }.onNext
-                                            }
-                                        }
-                                    }
-                                    repeat(3 - rowBooks.size) {
-                                        expanding.space(1.0)
-                                    }
+                        // Grid view
+                        shownWhen { viewMode() == ViewMode.Grid && !isEditing() }.row {
+                            gap = 1.rem
+                            forEach(books) { book ->
+                                BookCard(book) {
+                                    mainPageNavigator.navigate(BookDetailPage(book.id))
                                 }
                             }
                         }
-                    }
 
-                    shownWhen { books().isNotEmpty() && viewMode() == ViewMode.List }.scrolls.col {
-                        reactiveSuspending {
-                            clearChildren()
-                            for (book in books()) {
+                        // List view (also used for editing)
+                        shownWhen { viewMode() == ViewMode.List || isEditing() }.col {
+                            gap = 0.5.rem
+                            forEach(books) { book ->
                                 row {
                                     gap = 0.5.rem
 
-                                    expanding.BookListItem(book) {
-                                        if (!editMode.value) {
-                                            mainPageNavigator.navigate(BookDetailPage(book.id))
+                                    // Remove button (when editing)
+                                    shownWhen { isEditing() }.button {
+                                        icon(Icon.remove, "Remove")
+                                        onClick {
+                                            removeBook(book.id)
                                         }
+                                        themeChoice += ThemeDerivation { it.copy(id = "danger", foreground = Color.red).withoutBack }
                                     }
 
-                                    shownWhen { editMode() }.button {
-                                        icon(Icon.delete, "Remove")
-                                        onClick {
-                                            AppScope.launch {
-                                                val shelf = bookshelf.value
-                                                if (shelf != null) {
-                                                    val updatedShelf = shelf.copy(
-                                                        bookIds = shelf.bookIds - book.id
-                                                    )
-                                                    BookshelfRepository.updateBookshelf(updatedShelf)
-                                                    bookshelf.value = updatedShelf
-                                                    books.value = books.value - book
-                                                }
+                                    expanding.frame {
+                                        BookListItem(book) {
+                                            if (!isEditing.value) {
+                                                mainPageNavigator.navigate(BookDetailPage(book.id))
                                             }
                                         }
-                                        themeChoice = ThemeDerivation { it.copy(foreground = Color.red).withBack }.onNext
                                     }
                                 }
+                                separator()
                             }
                         }
                     }
-
-                    // FAB to add books
-                    shownWhen { !editMode() && books().isNotEmpty() }
-                    // TODO: Implement floating action button
                 }
             }
         }
