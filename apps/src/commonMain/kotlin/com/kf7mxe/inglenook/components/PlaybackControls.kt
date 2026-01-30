@@ -8,21 +8,52 @@ import com.lightningkite.kiteui.views.expanding
 import com.lightningkite.kiteui.views.l2.icon
 import com.kf7mxe.inglenook.*
 import com.kf7mxe.inglenook.playback.PlaybackState
+import com.lightningkite.reactive.core.Signal
 
 fun ViewWriter.PlaybackControls(compact: Boolean = false) {
+    // Create a signal for the seek bar that syncs with PlaybackState
+    val seekRatio = Signal(0f)
+
+    // Track if we're currently seeking (to avoid feedback loops)
+    var isSeeking = false
+
+    // Sync seekRatio from PlaybackState when not seeking
+    PlaybackState.positionTicks.addListener {
+        if (!isSeeking) {
+            val position = PlaybackState.positionTicks.value
+            val duration = PlaybackState.duration.value
+            seekRatio.value = if (duration > 0) position.toFloat() / duration else 0f
+        }
+    }
+    PlaybackState.duration.addListener {
+        if (!isSeeking) {
+            val position = PlaybackState.positionTicks.value
+            val duration = PlaybackState.duration.value
+            seekRatio.value = if (duration > 0) position.toFloat() / duration else 0f
+        }
+    }
+
+    // When seekRatio changes (from user interaction), seek in PlaybackState
+    seekRatio.addListener {
+        if (isSeeking) {
+            val newPosition = (seekRatio.value * PlaybackState.duration.value).toLong()
+            PlaybackState.seek(newPosition)
+        }
+    }
+
     col {
         gap = if (compact) 0.5.rem else 1.rem
 
-        // Progress bar with time
+        // Seek bar with time
         col {
             gap = 0.25.rem
 
-            progressBar {
-                ::ratio {
-                    val position = PlaybackState.positionTicks()
-                    val duration = PlaybackState.duration()
-                    if (duration > 0) position.toFloat() / duration else 0f
-                }
+            slider {
+                min = 0f
+                max = 1f
+                value bind seekRatio
+                // Note: The slider will update seekRatio when dragged
+                // We use the isSeeking flag to distinguish user vs programmatic changes
             }
 
             row {

@@ -32,11 +32,11 @@ class AuthorsPage : Page {
         val viewMode = Signal(ViewMode.Grid)
         val errorMessage = Signal<String?>(null)
 
-        // Filter authors based on search query
+        // Filter authors based on search query - use () for reactive access
         val filteredAuthors: Reactive<List<Author>> = remember {
-            val query = searchQuery.value.lowercase().trim()
-            if (query.isEmpty()) return@remember authors.value
-            return@remember authors.value.filter { author ->
+            val query = searchQuery().lowercase().trim()
+            if (query.isEmpty()) return@remember authors()
+            return@remember authors().filter { author ->
                 author.name.lowercase().contains(query)
             }
         }
@@ -163,13 +163,20 @@ fun ViewWriter.AuthorCard(author: Author, onClick: () -> Unit) {
             // Author image/avatar
             sizedBox(SizeConstraints(width = 6.rem, height = 6.rem)).frame {
                 if (author.imageId != null) {
-                    val client = jellyfinClient.value
                     image {
-                        source = ImageRemote(client?.getImageUrl(author.imageId) ?: "")
+                        ::source {
+                            val client = jellyfinClient()
+                            if (client != null && author.imageId != null) {
+                                ImageRemote(client.getImageUrl(author.imageId, author.id))
+                            } else null
+                        }
                         scaleType = ImageScaleType.Crop
                     }
                 } else {
-                    centered.icon(Icon.person.copy(width = 3.rem, height = 3.rem), author.name)
+                    centered.icon {
+                        source = Icon.person.copy(width = 3.rem, height = 3.rem)
+                        description = author.name
+                    }
                 }
             }
 
@@ -193,13 +200,20 @@ fun ViewWriter.AuthorListItem(author: Author, onClick: () -> Unit) {
             // Thumbnail
             sizedBox(SizeConstraints(width = 4.rem, height = 4.rem)).frame {
                 if (author.imageId != null) {
-                    val client = jellyfinClient.value
                     image {
-                        source = ImageRemote(client?.getImageUrl(author.imageId) ?: "")
+                        ::source {
+                            val client = jellyfinClient()
+                            if (client != null && author.imageId != null) {
+                                ImageRemote(client.getImageUrl(author.imageId, author.id))
+                            } else null
+                        }
                         scaleType = ImageScaleType.Crop
                     }
                 } else {
-                    centered.icon(Icon.person.copy(width = 2.rem, height = 2.rem), author.name)
+                    centered.icon {
+                        source = Icon.person.copy(width = 2.rem, height = 2.rem)
+                        description = author.name
+                    }
                 }
             }
 

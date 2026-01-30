@@ -176,6 +176,26 @@ class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
         return items.map { it.toAudioBook() }
     }
 
+    suspend fun getSuggestedBooks(): List<AudioBook> {
+        val uid = userId ?: return emptyList()
+
+        val url = buildString {
+            append("$serverUrl/Users/$uid/Suggestions")
+            append("?IncludeItemTypes=AudioBook")
+            append("&Fields=Chapters,Overview,People")
+            append("&Limit=10")
+        }
+
+        val response = client.get(url) {
+            header("X-Emby-Authorization", getAuthHeader())
+        }
+
+        if (!response.status.isSuccess()) return emptyList()
+
+        val itemsResponse: ItemsResponse = response.body()
+        return itemsResponse.Items.map { it.toAudioBook() }
+    }
+
     suspend fun getBook(itemId: String): AudioBook? {
         val uid = userId ?: return null
 
@@ -315,6 +335,97 @@ class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
         }
     }
 
+    // Quick Connect methods
+
+    /**
+     * Initiates a Quick Connect session.
+     * Returns a Secret (for API calls) and Code (6-digit code to display to user).
+     */
+    suspend fun initiateQuickConnect(): QuickConnectResult {
+        val response = client.post("$serverUrl/QuickConnect/Initiate") {
+            header("X-Emby-Authorization", getAuthHeader())
+        }
+
+        if (!response.status.isSuccess()) {
+            throw Exception("Failed to initiate Quick Connect: ${response.status}")
+        }
+
+        return response.body()
+    }
+
+    /**
+     * Checks the status of a Quick Connect request.
+     * Returns true if the user has authorized the request on the server.
+     */
+    suspend fun checkQuickConnectStatus(secret: String): Boolean {
+        val response = client.get("$serverUrl/QuickConnect/Connect") {
+            header("X-Emby-Authorization", getAuthHeader())
+            parameter("Secret", secret)
+        }
+
+        if (!response.status.isSuccess()) {
+            return false
+        }
+
+        val result: QuickConnectResult = response.body()
+        return result.Authenticated == true
+    }
+
+    /**
+     * Authenticates using a Quick Connect secret after the user has authorized it.
+     * Returns a JellyfinServerConfig on success.
+     */
+    @OptIn(ExperimentalUuidApi::class)
+    suspend fun authenticateWithQuickConnect(secret: String): JellyfinServerConfig {
+        val response = client.post("$serverUrl/Users/AuthenticateWithQuickConnect") {
+            header("X-Emby-Authorization", getAuthHeader())
+            contentType(ContentType.Application.Json)
+            setBody(QuickConnectAuthRequest(secret))
+        }
+
+        if (!response.status.isSuccess()) {
+            throw Exception("Quick Connect authentication failed: ${response.status}")
+        }
+
+        val authResponse: AuthenticateResponse = response.body()
+
+        accessToken = authResponse.AccessToken
+        userId = authResponse.User.Id
+
+        // Get server info for name
+        val serverInfo = getServerInfo()
+
+        return JellyfinServerConfig(
+            _id = Uuid.random(),
+            serverUrl = serverUrl,
+            userId = authResponse.User.Id,
+            username = authResponse.User.Name,
+            accessToken = authResponse.AccessToken,
+            deviceId = deviceId,
+            serverId = serverInfo?.Id,
+            serverName = serverInfo?.ServerName
+        )
+    }
+
+    /**
+     * Checks if Quick Connect is enabled on the server.
+     */
+    suspend fun isQuickConnectEnabled(): Boolean {
+        return try {
+            val response = client.get("$serverUrl/QuickConnect/Enabled") {
+                header("X-Emby-Authorization", getAuthHeader())
+            }
+            if (response.status.isSuccess()) {
+                // Response is just "true" or "false" as plain text
+                response.bodyAsText().trim().lowercase() == "true"
+            } else {
+                false
+            }
+        } catch (e: Exception) {
+            false
+        }
+    }
+
     private fun JellyfinItem.toAudioBook(): AudioBook {
         return AudioBook(
             id = Id,
@@ -427,3 +538,15 @@ data class PlaybackProgressInfo(val ItemId: String, val PositionTicks: Long, val
 
 @Serializable
 data class PlaybackStopInfo(val ItemId: String, val PositionTicks: Long)
+
+// Quick Connect DTOs
+@Serializable
+data class QuickConnectResult(
+    val Secret: String? = null,
+    val Code: String? = null,
+    val Authenticated: Boolean? = null,
+    val DateAdded: String? = null
+)
+
+@Serializable
+data class QuickConnectAuthRequest(val Secret: String)

@@ -27,6 +27,7 @@ class DashboardPage : Page {
     override fun ViewWriter.render() {
         val isLoading = Signal(true)
         val inProgressBooks = Signal<List<AudioBook>>(emptyList())
+        val recommendedBooks = Signal<List<AudioBook>>(emptyList())
         val recentlyAddedBooks = Signal<List<AudioBook>>(emptyList())
         val errorMessage = Signal<String?>(null)
 
@@ -36,6 +37,8 @@ class DashboardPage : Page {
                 if (client != null) {
                     // Load in-progress books
                     inProgressBooks.value = client.getInProgressBooks()
+                    // Load recommended books
+                    recommendedBooks.value = client.getSuggestedBooks()
                     // Load recently added books
                     recentlyAddedBooks.value = client.getRecentlyAddedBooks()
                 }
@@ -67,6 +70,7 @@ class DashboardPage : Page {
                                 val client = jellyfinClient.value
                                 if (client != null) {
                                     inProgressBooks.value = client.getInProgressBooks()
+                                    recommendedBooks.value = client.getSuggestedBooks()
                                     recentlyAddedBooks.value = client.getRecentlyAddedBooks()
                                 }
                             } catch (e: Exception) {
@@ -105,6 +109,28 @@ class DashboardPage : Page {
                     }
                 }
 
+                // Recommended For You Section
+                shownWhen { recommendedBooks().isNotEmpty() }.col {
+                    gap = 0.75.rem
+
+                    row {
+                        expanding.h3 { content = "Recommended For You" }
+                        link {
+                            text("See All")
+                            to = { BooksPage() }
+                        }
+                    }
+
+                    scrollingHorizontally.row {
+                        gap = 1.rem
+                        forEach(recommendedBooks) { book ->
+                            BookCard(book) {
+                                mainPageNavigator.navigate(BookDetailPage(book.id))
+                            }
+                        }
+                    }
+                }
+
                 // Recently Added Section
                 shownWhen { recentlyAddedBooks().isNotEmpty() }.col {
                     gap = 0.75.rem
@@ -128,7 +154,7 @@ class DashboardPage : Page {
                 }
 
                 // Empty state when no books
-                shownWhen { inProgressBooks().isEmpty() && recentlyAddedBooks().isEmpty() }.centered.col {
+                shownWhen { inProgressBooks().isEmpty() && recommendedBooks().isEmpty() && recentlyAddedBooks().isEmpty() }.centered.col {
                     padding = 2.rem
                     gap = 1.rem
 

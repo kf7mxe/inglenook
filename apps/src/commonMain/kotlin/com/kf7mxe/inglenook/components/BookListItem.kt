@@ -19,13 +19,20 @@ fun ViewWriter.BookListItem(book: AudioBook, onClick: () -> Unit) {
             // Thumbnail
             sizedBox(SizeConstraints(width = 4.rem, height = 6.rem)).frame {
                 if (book.coverImageId != null) {
-                    val client = jellyfinClient.value
                     image {
-                        source = ImageRemote(client?.getImageUrl(book.coverImageId) ?: "")
+                        ::source {
+                            val client = jellyfinClient()
+                            if (client != null && book.coverImageId != null) {
+                                ImageRemote(client.getImageUrl(book.coverImageId, book.id))
+                            } else null
+                        }
                         scaleType = ImageScaleType.Crop
                     }
                 } else {
-                    centered.icon(Icon.book, book.title)
+                    centered.icon {
+                        source = Icon.book
+                        description = book.title
+                    }
                 }
             }
 

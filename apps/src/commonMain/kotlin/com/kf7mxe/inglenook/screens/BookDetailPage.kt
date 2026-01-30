@@ -83,15 +83,19 @@ class BookDetailPage(val bookId: String) : Page {
 
                         // Cover image
                         sizedBox(SizeConstraints(width = 8.rem, height = 12.rem)).frame {
-                            val currentBook = book.value
-                            if (currentBook?.coverImageId != null) {
-                                val client = jellyfinClient.value
-                                image {
-                                    source = ImageRemote(client?.getImageUrl(currentBook.coverImageId) ?: "")
-                                    scaleType = ImageScaleType.Crop
+                            shownWhen { book()?.coverImageId != null }.image {
+                                ::source {
+                                    val currentBook = book()
+                                    val client = jellyfinClient()
+                                    if (client != null && currentBook?.coverImageId != null) {
+                                        ImageRemote(client.getImageUrl(currentBook.coverImageId, currentBook.id))
+                                    } else null
                                 }
-                            } else {
-                                centered.icon(Icon.book.copy(width = 4.rem, height = 4.rem), "Book cover")
+                                scaleType = ImageScaleType.Crop
+                            }
+                            shownWhen { book()?.coverImageId == null }.centered.icon {
+                                source = Icon.book.copy(width = 4.rem, height = 4.rem)
+                                description = "Book cover"
                             }
                         }
 
@@ -181,8 +185,7 @@ class BookDetailPage(val bookId: String) : Page {
 
                         // Download button
                         shownWhen { book() != null }.frame {
-                            val currentBook = book.value
-                            if (currentBook != null) {
+                            book.value?.let { currentBook ->
                                 DownloadButton(currentBook)
                             }
                         }
@@ -213,9 +216,9 @@ class BookDetailPage(val bookId: String) : Page {
                             onClick { showChapters.value = !showChapters.value }
                         }
 
-                        shownWhen { showChapters() }.col {
-                            val currentBook = book.value
-                            if (currentBook != null && currentBook.chapters.isNotEmpty()) {
+                        shownWhen { showChapters() && book()?.chapters?.isNotEmpty() == true }.col {
+                            // Use reactive access for chapters
+                            book.value?.let { currentBook ->
                                 // Get current playback position for this book
                                 val currentPosition = if (PlaybackState.currentBook.value?.id == currentBook.id) {
                                     PlaybackState.positionTicks.value

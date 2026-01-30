@@ -18,13 +18,20 @@ fun ViewWriter.BookCard(book: AudioBook, onClick: () -> Unit) {
             // Cover image
             sizedBox(SizeConstraints(width = 8.rem, height = 12.rem)).frame {
                 if (book.coverImageId != null) {
-                    val client = jellyfinClient.value
                     image {
-                        source = ImageRemote(client?.getImageUrl(book.coverImageId) ?: "")
+                        ::source {
+                            val client = jellyfinClient()
+                            if (client != null && book.coverImageId != null) {
+                                ImageRemote(client.getImageUrl(book.coverImageId, book.id))
+                            } else null
+                        }
                         scaleType = ImageScaleType.Crop
                     }
                 } else {
-                    centered.icon(Icon.book, book.title)
+                    centered.icon {
+                        source = Icon.book
+                        description = book.title
+                    }
                 }
             }
 
