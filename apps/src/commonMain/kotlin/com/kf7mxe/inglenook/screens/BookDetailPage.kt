@@ -10,6 +10,7 @@ import com.lightningkite.kiteui.views.expanding
 import com.lightningkite.kiteui.views.l2.icon
 import com.kf7mxe.inglenook.*
 import com.kf7mxe.inglenook.components.ChaptersList
+import com.kf7mxe.inglenook.components.DownloadButton
 import com.kf7mxe.inglenook.components.PlaybackControls
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.playback.PlaybackState
@@ -178,11 +179,11 @@ class BookDetailPage(val bookId: String) : Page {
                             themeChoice += ImportantSemantic
                         }
 
-                        button {
-                            icon(Icon.download, "Download")
-                            onClick {
-                                // Navigate to downloads or start download
-                                mainPageNavigator.navigate(DownloadsPage())
+                        // Download button
+                        shownWhen { book() != null }.frame {
+                            val currentBook = book.value
+                            if (currentBook != null) {
+                                DownloadButton(currentBook)
                             }
                         }
                     }

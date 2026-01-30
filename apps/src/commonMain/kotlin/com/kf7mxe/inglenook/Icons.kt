@@ -328,3 +328,47 @@ val Icon.Companion.unfoldMore get() = Icon(
     viewBoxHeight = 960,
     listOf("M480-120 300-300l58-58 122 122 122-122 58 58-180 180ZM358-598l-58-58 180-180 180 180-58 58-122-122-122 122Z")
 )
+
+// Check circle (completed state)
+val Icon.Companion.checkCircle get() = Icon(
+    width = 1.5.rem,
+    height = 1.5.rem,
+    viewBoxMinX = 0,
+    viewBoxMinY = -960,
+    viewBoxWidth = 960,
+    viewBoxHeight = 960,
+    listOf("m424-296 282-282-56-56-226 226-114-114-56 56 170 170Zm56 216q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z")
+)
+
+// Cloud download (downloading state)
+val Icon.Companion.cloudDownload get() = Icon(
+    width = 1.5.rem,
+    height = 1.5.rem,
+    viewBoxMinX = 0,
+    viewBoxMinY = -960,
+    viewBoxWidth = 960,
+    viewBoxHeight = 960,
+    listOf("M260-160q-91 0-155.5-63T40-377q0-78 47-139t123-78q25-92 100-149t170-57q117 0 198.5 81.5T760-520q69 8 114.5 59.5T920-340q0 75-52.5 127.5T740-160H520v-286l72 72 56-56-168-168-168 168 56 56 72-72v286H260Zm0-80h100v-240h200v240h180q42 0 71-29t29-71q0-42-29-71t-71-29h-60v-80q0-83-58.5-141.5T480-720q-83 0-141.5 58.5T280-520h-20q-58 0-99 41t-41 99q0 58 41 99t99 41Zm220-240Z")
+)
+
+// Schedule/pending (waiting state)
+val Icon.Companion.schedule get() = Icon(
+    width = 1.5.rem,
+    height = 1.5.rem,
+    viewBoxMinX = 0,
+    viewBoxMinY = -960,
+    viewBoxWidth = 960,
+    viewBoxHeight = 960,
+    listOf("m612-292 56-56-148-148v-184h-80v216l172 172ZM480-80q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-400Zm0 320q133 0 226.5-93.5T800-480q0-133-93.5-226.5T480-800q-133 0-226.5 93.5T160-480q0 133 93.5 226.5T480-160Z")
+)
+
+// Error icon (failed state)
+val Icon.Companion.errorIcon get() = Icon(
+    width = 1.5.rem,
+    height = 1.5.rem,
+    viewBoxMinX = 0,
+    viewBoxMinY = -960,
+    viewBoxWidth = 960,
+    viewBoxHeight = 960,
+    listOf("M480-280q17 0 28.5-11.5T520-320q0-17-11.5-28.5T480-360q-17 0-28.5 11.5T440-320q0 17 11.5 28.5T480-280Zm-40-160h80v-240h-80v240Zm40 360q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z")
+)

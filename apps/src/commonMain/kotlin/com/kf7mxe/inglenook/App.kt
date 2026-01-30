@@ -25,7 +25,9 @@ import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.jellyfin.jellyfinServerConfig
 import com.kf7mxe.inglenook.playback.PlaybackState
 import com.kf7mxe.inglenook.screens.*
+import com.lightningkite.kiteui.views.closeThisPopover
 import com.lightningkite.kiteui.views.dynamicTheme
+import com.lightningkite.kiteui.views.l2.overlayFrame
 import com.lightningkite.reactive.context.invoke
 import com.lightningkite.reactive.context.onRemove
 import com.lightningkite.reactive.core.AppScope
@@ -52,6 +54,9 @@ data class NavLink(
     val destination: () -> Page
 )
 
+val openNowPlaying = Signal(false)
+
+
 fun ViewWriter.app(navigator: PageNavigator, dialog: PageNavigator) {
     val mainNavPages = listOf(
         NavLink("Home", Icon.home) { DashboardPage() },
@@ -70,8 +75,9 @@ fun ViewWriter.app(navigator: PageNavigator, dialog: PageNavigator) {
         }
     }
 
+
     appBase(navigator, dialog) {
-        frame {
+
             OuterSemantic.onNext.col {
                 beforeNextElementSetup {
                     applySafeInsets(bottom = false)
@@ -99,20 +105,20 @@ fun ViewWriter.app(navigator: PageNavigator, dialog: PageNavigator) {
                 }
 
                 // Main content area with coordinator frame for bottom sheet
-                expanding.coordinatorFrame {
-                    coordinatorFrame = this
                     expanding.navigatorView(navigator)
 
-                    // Now playing bottom sheet - only show when something is playing
-                    // and not on setup page
+                        // Now playing bottom sheet - only show when something is playing
+                        // and not on setup page
 //                    shownWhen {
 //                        val currentPage = mainPageNavigator.currentPage()
 //                        val hasBook = PlaybackState.currentBook() != null
 //                        hasBook && currentPage !is JellyfinSetupPage
 //                    }.
-                    nowPlaying(BottomSheetState.COLLAPSED)
-                }
+                        //            shownWhen { openNowPlaying() }.
+//                    nowPlaying(BottomSheetState.PARTIALLY_EXPANDED)
 
+
+                shownWhen { !openNowPlaying() }.nowPlayingPreview()
                 // Bottom navigation bar
                 beforeNextElementSetup {
                     applySafeInsets(top = false)
@@ -120,7 +126,13 @@ fun ViewWriter.app(navigator: PageNavigator, dialog: PageNavigator) {
                     val currentPage = mainPageNavigator.currentPage()
                     currentPage !is JellyfinSetupPage && !AppState.softInputOpen()
                 }.bottomBar(mainNavPages)
-            }
+
+
+
+
+
+
+
         }
     }
 }
@@ -146,37 +158,98 @@ fun ViewWriter.bottomBar(navItems: List<NavLink>) {
     }
 }
 
-fun ViewWriter.nowPlaying(startState: BottomSheetState) {
-    coordinatorFrame?.bottomSheet(
-        peekSize = 1.rem,
-        partialRatio = 0.2f,
-        startState = BottomSheetState.COLLAPSED
+
+fun ViewWriter.nowPlayingPreview() {
+                    // Mini player row (collapsed view)
+                row {
+                    padding = 0.75.rem
+                    gap = 0.75.rem
+
+
+                    expanding.button {
+                        expanding.row{
+                        // Thumbnail
+                        sizedBox(SizeConstraints(width = 3.rem, height = 3.rem)).frame {
+                            image {
+                                rView::shown{
+                                    PlaybackState.currentBook() != null
+                                }
+                                ::source {
+                                    PlaybackState.currentBook()?.coverImageId?.let { id ->
+                                        ImageRemote(id)
+                                    }
+                                }
+                                scaleType = ImageScaleType.Crop
+                            }
+                            centered.icon {
+                                ::shown {
+                                    PlaybackState.currentBook() == null
+                                }
+                                source = Icon.book
+                            }
+
+                        }
+
+                        // Title and author
+                        expanding.col {
+                            gap = 0.25.rem
+                            text {
+                                ::content { PlaybackState.currentBook()?.title ?: "" }
+                                ellipsis = true
+                            }
+                            subtext {
+                                ::content { PlaybackState.currentBook()?.authors?.joinToString(", ") ?: "" }
+                                ellipsis = true
+                            }
+                        }
+                    }
+                        onClick {
+//                            openNowPlaying.set(true)
+                            nowPlaying()
+                        }
+                    }
+
+                    // Play/Pause button
+                    button {
+                        centered.icon {
+                            ::source { if (PlaybackState.isPlaying()) Icon.pause else Icon.playArrow }
+                            ::description { if (PlaybackState.isPlaying()) "Pause" else "Play" }
+                        }
+                        onClick { PlaybackState.togglePlayPause() }
+                    }
+                }
+}
+
+fun ViewWriter.nowPlaying() {
+    println("DEBUG coordinatorFram ${coordinatorFrame}")
+    coordinatorFrame?.openBottomSheet(
+        halfScreenRatio = 0.5f
     ) {
-        with(this@bottomSheet.split()) {
-            card.col {
-                applySafeInsets(top = false, bottom = true)
+            col {
+//                applySafeInsets(top = false, bottom = true)
                 gap = 0.0.rem
                 padding = 0.rem
 
-                // Collapsed state header with drag handle
-                centered.button {
-                    gap = 0.rem
-                    padding = 0.5.rem
-                    col {
-                        gap = 0.rem
-                        centered.icon(Icon.dragHandle, "Drag")
-                    }
-                    onClick {
-                        if (it.state() == BottomSheetState.COLLAPSED) {
-                            it.state.set(BottomSheetState.PARTIALLY_EXPANDED)
-                        } else {
-                            it.state.set(BottomSheetState.COLLAPSED)
-                        }
-                    }
-                }
-
+//                // Collapsed state header with drag handle
+//                centered.button {
+//                    gap = 0.rem
+//                    padding = 0.5.rem
+//                    col {
+//                        gap = 0.rem
+//                        centered.icon(Icon.dragHandle, "Drag")
+//                    }
+//
+//                }
+//                //debuging
+////                text{
+////                    ::content{
+////                        it.state().name
+////                    }
+////                }
+//
                 // Mini player row (collapsed view)
-                shownWhen { it.state() == BottomSheetState.COLLAPSED }.row {
+//                shownWhen { it.state() == BottomSheetState.COLLAPSED }.
+                row {
                     padding = 0.75.rem
                     gap = 0.75.rem
 
@@ -225,7 +298,8 @@ fun ViewWriter.nowPlaying(startState: BottomSheetState) {
                 }
 
                 // Expanded view with full controls
-                shownWhen { it.state() != BottomSheetState.COLLAPSED }.expanding.scrolls.col {
+//                shownWhen { it.state() != BottomSheetState.COLLAPSED }.expanding.scrolls.
+                col {
                     padding = 1.rem
                     gap = 1.5.rem
 
@@ -301,10 +375,10 @@ fun ViewWriter.nowPlaying(startState: BottomSheetState) {
                 }
 
                 onRemove {
+                    openNowPlaying.value  = false
                     // Re-add the bottom sheet when it's removed
-                    nowPlaying(BottomSheetState.COLLAPSED)
+//                    nowPlaying(BottomSheetState.COLLAPSED)
                 }
             }
         }
-    }
 }

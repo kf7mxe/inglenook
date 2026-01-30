@@ -11,7 +11,11 @@ version = "1.0-SNAPSHOT"
 
 kotlin {
     applyDefaultHierarchyTemplate()
-    androidTarget()
+    androidTarget {
+        compilerOptions {
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+        }
+    }
     jvm()
     js(IR) {
         browser()

@@ -23,7 +23,11 @@ repositories {
 
 kotlin {
     applyDefaultHierarchyTemplate()
-    androidTarget()
+    androidTarget {
+        compilerOptions {
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+        }
+    }
 //    iosX64()
 //    iosArm64()
 //    iosSimulatorArm64()
@@ -56,6 +60,10 @@ kotlin {
         val androidMain by getting {
             dependencies {
                 implementation("io.ktor:ktor-client-android:3.0.3")
+                // Media3 for audio playback
+                implementation("androidx.media3:media3-exoplayer:1.5.1")
+                implementation("androidx.media3:media3-session:1.5.1")
+                implementation("androidx.media3:media3-ui:1.5.1")
             }
         }
 //        val iosMain by getting {

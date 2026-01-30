@@ -2,14 +2,16 @@ package com.kf7mxe.inglenook.playback
 
 import com.kf7mxe.inglenook.AudioBook
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
+import kotlinx.browser.window
 import org.w3c.dom.Audio
-import kotlinx.browser.document
+import org.w3c.dom.events.Event
 
 actual fun createAudioPlayer(): AudioPlayer = JsAudioPlayer()
 
 class JsAudioPlayer : AudioPlayer {
     private var audioElement: Audio? = null
     private var currentBookId: String? = null
+    private var positionUpdateInterval: Int? = null
 
     override fun play(book: AudioBook, startPositionTicks: Long) {
         // Stop any existing playback
@@ -22,6 +24,22 @@ class JsAudioPlayer : AudioPlayer {
 
         // Create audio element
         audioElement = Audio(streamUrl).apply {
+            // Set up event handlers
+            onended = { _: Event ->
+                PlaybackState.onPlaybackComplete()
+            }
+
+            ontimeupdate = { _: Event ->
+                val currentTimeSeconds = currentTime
+                val positionTicks = (currentTimeSeconds * 10_000_000).toLong()
+                PlaybackState.onPositionUpdate(positionTicks)
+            }
+
+            // Error handling is done via the error event listener
+            addEventListener("error", { event ->
+                console.log("Audio error:", event)
+            })
+
             // Seek to start position
             currentTime = startPositionTicks.toDouble() / 10_000_000.0 // Convert ticks to seconds
 
@@ -42,10 +60,16 @@ class JsAudioPlayer : AudioPlayer {
     }
 
     override fun stop() {
+        positionUpdateInterval?.let { window.clearInterval(it) }
+        positionUpdateInterval = null
+
         audioElement?.pause()
         audioElement?.src = ""
         audioElement = null
         currentBookId = null
+
+        // Clear media session
+        clearMediaSession()
     }
 
     override fun seek(positionTicks: Long) {
@@ -63,31 +87,69 @@ class JsAudioPlayer : AudioPlayer {
 
     private fun setupMediaSession(book: AudioBook) {
         // Use Media Session API for browser media controls
-        // This enables play/pause from browser UI and potentially lock screen
+        try {
+            val title = book.title
+            val artist = book.authors.joinToString(", ")
+            val coverUrl = book.coverImageId?.let { id ->
+                jellyfinClient.value?.getImageUrl(id)
+            }
+
+            js("""
+                if ('mediaSession' in navigator) {
+                    navigator.mediaSession.metadata = new MediaMetadata({
+                        title: title,
+                        artist: artist,
+                        artwork: coverUrl ? [{ src: coverUrl, sizes: '512x512', type: 'image/jpeg' }] : []
+                    });
+
+                    navigator.mediaSession.setActionHandler('play', function() {
+                        var audio = document.querySelector('audio');
+                        if (audio) audio.play();
+                    });
+
+                    navigator.mediaSession.setActionHandler('pause', function() {
+                        var audio = document.querySelector('audio');
+                        if (audio) audio.pause();
+                    });
+
+                    navigator.mediaSession.setActionHandler('seekbackward', function() {
+                        var audio = document.querySelector('audio');
+                        if (audio) audio.currentTime = Math.max(0, audio.currentTime - 30);
+                    });
+
+                    navigator.mediaSession.setActionHandler('seekforward', function() {
+                        var audio = document.querySelector('audio');
+                        if (audio) audio.currentTime = audio.currentTime + 30;
+                    });
+
+                    navigator.mediaSession.setActionHandler('stop', function() {
+                        var audio = document.querySelector('audio');
+                        if (audio) {
+                            audio.pause();
+                            audio.currentTime = 0;
+                        }
+                    });
+                }
+            """)
+        } catch (e: Throwable) {
+            console.log("MediaSession setup failed: ${e.message}")
+        }
+    }
+
+    private fun clearMediaSession() {
         try {
             js("""
-        if ('mediaSession' in navigator) {
-            navigator.mediaSession.metadata = new MediaMetadata({
-                title: title,
-                artist: artist,
-                album: album
-            });
-
-            navigator.mediaSession.setActionHandler('play', function() {
-                var audio = document.querySelector('audio');
-                if (audio) audio.play();
-            });
-
-            navigator.mediaSession.setActionHandler('pause', function() {
-                var audio = document.querySelector('audio');
-                if (audio) audio.pause();
-            });
-
-            // ... rest of your handlers
-        }
-    """)
+                if ('mediaSession' in navigator) {
+                    navigator.mediaSession.metadata = null;
+                    navigator.mediaSession.setActionHandler('play', null);
+                    navigator.mediaSession.setActionHandler('pause', null);
+                    navigator.mediaSession.setActionHandler('seekbackward', null);
+                    navigator.mediaSession.setActionHandler('seekforward', null);
+                    navigator.mediaSession.setActionHandler('stop', null);
+                }
+            """)
         } catch (e: Throwable) {
-            println("MediaSession setup failed: ${e.message}")
+            // Ignore
         }
     }
 }

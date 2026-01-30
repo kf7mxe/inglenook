@@ -9,6 +9,7 @@ import com.lightningkite.kiteui.printStackTrace2
 import com.lightningkite.kiteui.reactive.*
 import com.lightningkite.reactive.context.*
 import com.kf7mxe.inglenook.jellyfin.initializeJellyfinClient
+import com.kf7mxe.inglenook.screens.AutoRoutes
 
 class MainActivity : KiteUiActivity() {
     companion object {
