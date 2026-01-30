@@ -135,18 +135,34 @@ enum class DownloadStatus {
 
 // Theme preset enumeration
 @Serializable
-enum class ThemePreset {
-    Cozy,      // Forest green, warm background
-    Ocean,     // Blue tones
-    Midnight,  // Dark theme
-    Sunrise,   // Warm orange
-    Custom     // User customizable
+enum class ThemePreset(val displayName: String, val allowsCustomization: Boolean = true) {
+    Cozy("Cozy", true),           // Forest green, warm background
+    Ocean("Ocean", true),          // Blue tones
+    Midnight("Midnight", true),    // Dark theme
+    Sunrise("Sunrise", true),      // Warm orange
+    Material("Material", true),    // Material design style
+    Hackerman("Hackerman", true),  // Terminal/monochrome style
+    Clouds("Clouds", true),        // Soft rounded style
+    Obsidian("Obsidian", true),    // Dark with gradients
+    Custom("Custom", true)         // Fully user customizable
 }
+
+// Theme settings for customization
+@Serializable
+data class ThemeSettings(
+    val primaryColor: String? = null,      // Hex color for accent
+    val secondaryColor: String? = null,    // Hex color for background tint
+    val accentColor: String? = null,       // Hex color for outlines
+    val baseOpacity: Float = 0.9f,         // Background opacity (0-1)
+    val opacityStep: Float = 0.1f,         // Opacity increase per card level
+    val outlineOpacity: Float = 0.6f       // Outline visibility (0-1)
+)
 
 // App settings stored locally
 @Serializable
 data class AppSettings(
     val themePreset: ThemePreset = ThemePreset.Cozy,
+    val themeSettings: ThemeSettings = ThemeSettings(),
     val customAccentColor: String? = null,
     val downloadOverWifiOnly: Boolean = true,
     val playbackSpeed: Float = 1.0f,

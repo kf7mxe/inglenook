@@ -25,6 +25,7 @@ import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.jellyfin.jellyfinServerConfig
 import com.kf7mxe.inglenook.playback.PlaybackState
 import com.kf7mxe.inglenook.screens.*
+import com.kf7mxe.inglenook.theming.createTheme
 import com.lightningkite.kiteui.views.closeThisPopover
 import com.lightningkite.kiteui.views.dynamicTheme
 import com.lightningkite.kiteui.views.l2.overlayFrame

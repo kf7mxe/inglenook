@@ -9,7 +9,9 @@ import com.lightningkite.kiteui.views.centered
 import com.lightningkite.kiteui.views.direct.*
 import com.lightningkite.kiteui.views.expanding
 import com.lightningkite.kiteui.views.l2.icon
+import com.lightningkite.kiteui.views.dynamicTheme
 import com.kf7mxe.inglenook.*
+import com.kf7mxe.inglenook.theming.createTheme
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.jellyfin.jellyfinServerConfig
 import com.kf7mxe.inglenook.jellyfin.selectedLibraryId
@@ -146,14 +148,20 @@ class SettingsPage : Page {
             // Theme section
             col {
                 gap = 0.5.rem
-                h3 { content = "Theme" }
+
+                row {
+                    expanding.h3 { content = "Theme" }
+                    link {
+                        text("Customize")
+                        to = { ThemeSettingsPage() }
+                    }
+                }
 
                 card.col {
                     gap = 0.rem
 
-                    for (preset in ThemePreset.entries) {
-                        if (preset == ThemePreset.Custom) continue // Skip custom for now
-
+                    // Show first 4 presets as quick options
+                    for (preset in ThemePreset.entries.take(4)) {
                         button {
                             row {
                                 padding = 0.5.rem
@@ -164,7 +172,7 @@ class SettingsPage : Page {
                                     themeChoice += ThemeDerivation { presetTheme.withBack }
                                 }
 
-                                expanding.text { content = preset.name }
+                                expanding.text { content = preset.displayName }
 
                                 shownWhen { currentThemePreset() == preset }.icon(Icon.check, "Selected")
                             }
@@ -172,14 +180,26 @@ class SettingsPage : Page {
                                 currentThemePreset.value = preset
                                 appTheme.value = createTheme(preset)
                             }
-                            if (currentThemePreset.value == preset) {
-                                themeChoice += SelectedSemantic
+                            dynamicTheme {
+                                if (currentThemePreset() == preset) SelectedSemantic else null
                             }
                         }
 
-                        if (preset != ThemePreset.entries.filter { it != ThemePreset.Custom }.last()) {
+                        if (preset != ThemePreset.entries.take(4).last()) {
                             separator()
                         }
+                    }
+
+                    separator()
+
+                    // Link to full theme settings
+                    link {
+                        row {
+                            padding = 0.5.rem
+                            expanding.text { content = "More themes & customization..." }
+                            icon(Icon.chevronRight, "More")
+                        }
+                        to = { ThemeSettingsPage() }
                     }
                 }
             }
