@@ -14,13 +14,14 @@ import com.kf7mxe.inglenook.components.BookCard
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.lightningkite.kiteui.Routable
 import com.lightningkite.kiteui.views.direct.scrollsHorizontally
-import com.lightningkite.kiteui.views.forEach
+import com.lightningkite.kiteui.views.forEachUpdating
+import com.lightningkite.reactive.context.invoke
 import com.lightningkite.reactive.core.Signal
 import com.lightningkite.reactive.core.AppScope
 import com.lightningkite.reactive.core.Constant
 import kotlinx.coroutines.launch
 
-@Routable("/dashboard")
+@Routable("/")
 class DashboardPage : Page {
     override val title get() = Constant("Home")
 
@@ -95,15 +96,15 @@ class DashboardPage : Page {
                         expanding.h3 { content = "Continue Listening" }
                         link {
                             text("See All")
-                            to = { BooksPage() }
+                            to = { LibraryPage() }
                         }
                     }
 
                     scrollingHorizontally.row {
                         gap = 1.rem
-                        forEach(inProgressBooks) { book ->
+                        forEachUpdating(inProgressBooks) { book ->
                             BookCard(book) {
-                                mainPageNavigator.navigate(BookDetailPage(book.id))
+                                mainPageNavigator.navigate(BookDetailPage(book.invoke().id))
                             }
                         }
                     }
@@ -117,15 +118,15 @@ class DashboardPage : Page {
                         expanding.h3 { content = "Recommended For You" }
                         link {
                             text("See All")
-                            to = { BooksPage() }
+                            to = { LibraryPage() }
                         }
                     }
 
                     scrollingHorizontally.row {
                         gap = 1.rem
-                        forEach(recommendedBooks) { book ->
+                        forEachUpdating(recommendedBooks) { book ->
                             BookCard(book) {
-                                mainPageNavigator.navigate(BookDetailPage(book.id))
+                                mainPageNavigator.navigate(BookDetailPage(book.invoke().id))
                             }
                         }
                     }
@@ -139,15 +140,15 @@ class DashboardPage : Page {
                         expanding.h3 { content = "Recently Added" }
                         link {
                             text("See All")
-                            to = { BooksPage() }
+                            to = { LibraryPage() }
                         }
                     }
 
                     scrollsHorizontally.row {
                         gap = 1.rem
-                        forEach(recentlyAddedBooks) { book ->
+                        forEachUpdating(recentlyAddedBooks) { book ->
                             BookCard(book) {
-                                mainPageNavigator.navigate(BookDetailPage(book.id))
+                                mainPageNavigator.navigate(BookDetailPage(book.invoke().id))
                             }
                         }
                     }
@@ -157,7 +158,6 @@ class DashboardPage : Page {
                 shownWhen { inProgressBooks().isEmpty() && recommendedBooks().isEmpty() && recentlyAddedBooks().isEmpty() }.centered.col {
                     padding = 2.rem
                     gap = 1.rem
-
                     icon(Icon.book.copy(width = 4.rem, height = 4.rem), "Books")
                     h3 { content = "No Books Found" }
                     text { content = "Your audiobook library appears to be empty." }

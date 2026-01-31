@@ -10,7 +10,7 @@ fun main() {
     // Initialize Jellyfin client from stored config
     initializeJellyfinClient()
 
-    root(appTheme.value) {
+    root(appTheme) {
         app(PageNavigator { AutoRoutes }, PageNavigator { AutoRoutes })
     }
 }

@@ -1,18 +1,14 @@
 package com.kf7mxe.inglenook
 
-import com.lightningkite.kiteui.*
 import com.lightningkite.kiteui.models.*
 import com.lightningkite.kiteui.navigation.Page
 import com.lightningkite.kiteui.navigation.PageNavigator
-import com.lightningkite.kiteui.navigation.dialogPageNavigator
 import com.lightningkite.kiteui.navigation.mainPageNavigator
 import com.lightningkite.kiteui.reactive.*
 import com.lightningkite.kiteui.views.ViewWriter
 import com.lightningkite.kiteui.views.atStart
 import com.lightningkite.kiteui.views.bar
-import com.lightningkite.kiteui.views.card
 import com.lightningkite.kiteui.views.centered
-import com.lightningkite.kiteui.views.compact
 import com.lightningkite.kiteui.views.direct.*
 import com.lightningkite.kiteui.views.expanding
 import com.lightningkite.kiteui.views.l2.appBase
@@ -26,13 +22,12 @@ import com.kf7mxe.inglenook.jellyfin.jellyfinServerConfig
 import com.kf7mxe.inglenook.playback.PlaybackState
 import com.kf7mxe.inglenook.screens.*
 import com.kf7mxe.inglenook.theming.createTheme
-import com.lightningkite.kiteui.views.closeThisPopover
+import com.lightningkite.kiteui.views.card
 import com.lightningkite.kiteui.views.dynamicTheme
-import com.lightningkite.kiteui.views.l2.overlayFrame
-import com.lightningkite.reactive.context.invoke
 import com.lightningkite.reactive.context.onRemove
 import com.lightningkite.reactive.core.AppScope
 import com.lightningkite.reactive.core.Signal
+import io.ktor.client.request.invoke
 import kotlinx.coroutines.launch
 
 // Default theme - Cozy forest green
@@ -55,14 +50,14 @@ data class NavLink(
     val destination: () -> Page
 )
 
-val openNowPlaying = Signal(false)
+val isNowPlayingOpen = Signal(false)
 
 
 fun ViewWriter.app(navigator: PageNavigator, dialog: PageNavigator) {
     val mainNavPages = listOf(
         NavLink("Home", Icon.home) { DashboardPage() },
-        NavLink("Books", Icon.book) { BooksPage() },
-        NavLink("Authors", Icon.person) { AuthorsPage() },
+        NavLink("Library", Icon.collectionsBookmark) { LibraryPage() },
+        NavLink("Bookshelf", Icon.book) { BookshelfPage() },
         NavLink("Settings", Icon.settings) { SettingsPage() },
     )
 
@@ -76,13 +71,13 @@ fun ViewWriter.app(navigator: PageNavigator, dialog: PageNavigator) {
         }
     }
 
-
     appBase(navigator, dialog) {
 
-            OuterSemantic.onNext.col {
-                beforeNextElementSetup {
-                    applySafeInsets(bottom = false)
-                }
+        OuterSemantic.onNext.frame {
+            applySafeInsets(bottom = false)
+
+            col {
+
 
                 // Top bar with back button and title
                 bar.frame {
@@ -106,20 +101,20 @@ fun ViewWriter.app(navigator: PageNavigator, dialog: PageNavigator) {
                 }
 
                 // Main content area with coordinator frame for bottom sheet
-                    expanding.navigatorView(navigator)
+                expanding.navigatorView(navigator)
 
-                        // Now playing bottom sheet - only show when something is playing
-                        // and not on setup page
+                // Now playing bottom sheet - only show when something is playing
+                // and not on setup page
 //                    shownWhen {
 //                        val currentPage = mainPageNavigator.currentPage()
 //                        val hasBook = PlaybackState.currentBook() != null
 //                        hasBook && currentPage !is JellyfinSetupPage
 //                    }.
-                        //            shownWhen { openNowPlaying() }.
+                //            shownWhen { openNowPlaying() }.
 //                    nowPlaying(BottomSheetState.PARTIALLY_EXPANDED)
 
 
-                shownWhen { !openNowPlaying() }.nowPlayingPreview()
+                shownWhen { !isNowPlayingOpen() && PlaybackState.currentBook() != null }.nowPlayingPreview()
                 // Bottom navigation bar
                 beforeNextElementSetup {
                     applySafeInsets(top = false)
@@ -129,17 +124,13 @@ fun ViewWriter.app(navigator: PageNavigator, dialog: PageNavigator) {
                 }.bottomBar(mainNavPages)
 
 
-
-
-
-
-
+            }
         }
     }
 }
 
 fun ViewWriter.bottomBar(navItems: List<NavLink>) {
-    unpadded.row {
+    bar.unpadded.row {
         padding = 0.5.rem
         gap = 0.dp
         for (navLink in navItems) {
@@ -161,75 +152,76 @@ fun ViewWriter.bottomBar(navItems: List<NavLink>) {
 
 
 fun ViewWriter.nowPlayingPreview() {
-                    // Mini player row (collapsed view)
-                row {
-                    padding = 0.75.rem
-                    gap = 0.75.rem
+    // Mini player row (collapsed view)
+
+    card.row {
 
 
-                    expanding.button {
-                        expanding.row{
-                        // Thumbnail
-                        sizedBox(SizeConstraints(width = 3.rem, height = 3.rem)).frame {
-                            image {
-                                rView::shown{
-                                    PlaybackState.currentBook() != null
+        expanding.button {
+            expanding.row {
+                // Thumbnail
+                sizeConstraints(width = 3.rem, height = 3.rem).frame {
+                    image {
+                        ::source {
+                            val client = jellyfinClient()
+
+                            PlaybackState.currentBook()?.let { book ->
+                                book.coverImageId?.let { coverImageId ->
+                                    client?.getImageUrl(coverImageId, book.id)?.let { ImageRemote(it) }
                                 }
-                                ::source {
-                                    PlaybackState.currentBook()?.coverImageId?.let { id ->
-                                        ImageRemote(id)
-                                    }
-                                }
-                                scaleType = ImageScaleType.Crop
-                            }
-                            centered.icon {
-                                ::shown {
-                                    PlaybackState.currentBook() == null
-                                }
-                                source = Icon.book
-                            }
-
-                        }
-
-                        // Title and author
-                        expanding.col {
-                            gap = 0.25.rem
-                            text {
-                                ::content { PlaybackState.currentBook()?.title ?: "" }
-                                ellipsis = true
-                            }
-                            subtext {
-                                ::content { PlaybackState.currentBook()?.authors?.joinToString(", ") ?: "" }
-                                ellipsis = true
                             }
                         }
+                        scaleType = ImageScaleType.Crop
                     }
-                        onClick {
-//                            openNowPlaying.set(true)
-                            nowPlaying()
+                    centered.icon {
+                        ::shown {
+                            PlaybackState.currentBook() == null
                         }
+                        source = Icon.book
                     }
 
-                    // Play/Pause button
-                    button {
-                        centered.icon {
-                            ::source { if (PlaybackState.isPlaying()) Icon.pause else Icon.playArrow }
-                            ::description { if (PlaybackState.isPlaying()) "Pause" else "Play" }
-                        }
-                        onClick { PlaybackState.togglePlayPause() }
+                }
+
+                // Title and author
+                expanding.col {
+                    gap = 0.25.rem
+                    text {
+                        ::content { PlaybackState.currentBook()?.title ?: "" }
+                        ellipsis = true
+                    }
+                    subtext {
+                        ::content { PlaybackState.currentBook()?.authors?.joinToString(", ") ?: "" }
+                        ellipsis = true
                     }
                 }
+            }
+            onClick {
+//                           openNowPlaying.set(true)
+                nowPlaying()
+            }
+        }
+
+        // Play/Pause button
+        button {
+            centered.icon {
+                ::source { if (PlaybackState.isPlaying()) Icon.pause else Icon.playArrow }
+                ::description { if (PlaybackState.isPlaying()) "Pause" else "Play" }
+            }
+            onClick { PlaybackState.togglePlayPause() }
+        }
+    }
 }
 
 fun ViewWriter.nowPlaying() {
     println("DEBUG coordinatorFram ${coordinatorFrame}")
     coordinatorFrame?.openBottomSheet(
-        halfScreenRatio = 0.5f
+        halfScreenRatio = 0.9f,
+        dim = false
     ) {
-            col {
+        card.col {
 //                applySafeInsets(top = false, bottom = true)
-                gap = 0.0.rem
-                padding = 0.rem
+            gap = 0.0.rem
+            padding = 0.rem
 
 //                // Collapsed state header with drag handle
 //                centered.button {
@@ -248,138 +240,147 @@ fun ViewWriter.nowPlaying() {
 ////                    }
 ////                }
 //
-                // Mini player row (collapsed view)
+            // Mini player row (collapsed view)
 //                shownWhen { it.state() == BottomSheetState.COLLAPSED }.
-                row {
-                    padding = 0.75.rem
-                    gap = 0.75.rem
+//            row {
+//                padding = 0.75.rem
+//                gap = 0.75.rem
+//
+//                // Thumbnail
+//                sizedBox(SizeConstraints(width = 3.rem, height = 3.rem)).frame {
+//                    image {
+//
+//                        ::source {
+//                            val client = jellyfinClient()
+//                            PlaybackState.currentBook()?.let { book ->
+//                                book.coverImageId?.let { coverImageId ->
+//                                    client?.getImageUrl(coverImageId, book.id)?.let { ImageRemote(it) }
+//                                }
+//                            }
+//                        }
+//                        scaleType = ImageScaleType.Crop
+//                    }
+//                    centered.icon {
+//                        ::shown {
+//                            PlaybackState.currentBook() == null
+//                        }
+//                        source = Icon.book
+//                    }
+//
+//                }
+//
+//                // Title and author
+//                expanding.col {
+//                    gap = 0.25.rem
+//                    text {
+//                        ::content { PlaybackState.currentBook()?.title ?: "" }
+//                        ellipsis = true
+//                    }
+//                    subtext {
+//                        ::content { PlaybackState.currentBook()?.authors?.joinToString(", ") ?: "" }
+//                        ellipsis = true
+//                    }
+//                }
+//
+//                // Play/Pause button
+//                button {
+//                    centered.icon {
+//                        ::source { if (PlaybackState.isPlaying()) Icon.pause else Icon.playArrow }
+//                        ::description { if (PlaybackState.isPlaying()) "Pause" else "Play" }
+//                    }
+//                    onClick { PlaybackState.togglePlayPause() }
+//                }
+//            }
 
-                    // Thumbnail
-                    sizedBox(SizeConstraints(width = 3.rem, height = 3.rem)).frame {
-                            image {
-                                rView::shown{
-                                    PlaybackState.currentBook() != null
-                                }
-                                ::source {
-                                    PlaybackState.currentBook()?.coverImageId?.let{id ->
-                                        ImageRemote(id)
-                                    }
-                                    }
-                                scaleType = ImageScaleType.Crop
-                            }
-                            centered.icon{
-                                ::shown {
-                                    PlaybackState.currentBook() == null
-                                }
-                                source =Icon.book}
-
-                    }
-
-                    // Title and author
-                    expanding.col {
-                        gap = 0.25.rem
-                        text {
-                            ::content { PlaybackState.currentBook()?.title ?: "" }
-                            ellipsis = true
-                        }
-                        subtext {
-                            ::content { PlaybackState.currentBook()?.authors?.joinToString(", ") ?: "" }
-                            ellipsis = true
-                        }
-                    }
-
-                    // Play/Pause button
-                    button {
-                        centered.icon {
-                            ::source { if (PlaybackState.isPlaying()) Icon.pause else Icon.playArrow }
-                            ::description { if (PlaybackState.isPlaying()) "Pause" else "Play" }
-                        }
-                        onClick { PlaybackState.togglePlayPause() }
-                    }
-                }
-
-                // Expanded view with full controls
+            // Expanded view with full controls
 //                shownWhen { it.state() != BottomSheetState.COLLAPSED }.expanding.scrolls.
-                col {
-                    padding = 1.rem
-                    gap = 1.5.rem
+            col {
+                padding = 1.rem
+                gap = 1.5.rem
 
-                    // Large cover image
-                    centered.sizedBox(SizeConstraints(maxWidth = 16.rem, maxHeight = 16.rem)).frame {
-                            image {
-                                rView::shown{
-                                    PlaybackState.currentBook() != null
+                // Large cover image
+                centered.sizeConstraints(maxWidth = 16.rem, maxHeight = 16.rem).frame {
+                    sizeConstraints(maxWidth = 16.rem, maxHeight = 16.rem).image {
+                        rView::shown{
+                            PlaybackState.currentBook() != null
+                        }
+                        ::source {
+                            val client = jellyfinClient()
+                            println("DEBUG PlaybackState.currentBook()?.coverImageId ${PlaybackState.currentBook()?.coverImageId}")
+
+                            PlaybackState.currentBook()?.let { book ->
+                                book.coverImageId?.let { coverImageId ->
+                                    client?.getImageUrl(coverImageId, book.id)?.let { ImageRemote(it) }
                                 }
-                                ::source {                            PlaybackState.currentBook()?.coverImageId?.let{id ->
-                                    ImageRemote(id)
-                                } }
-                                scaleType = ImageScaleType.Fit
                             }
-                            centered.icon{
-                                ::shown {
-                                    PlaybackState.currentBook() == null
-                                }
-                                source = Icon.book.copy(width = 8.rem, height = 8.rem)
+                        }
+                        scaleType = ImageScaleType.Fit
+                    }
+                    centered.icon {
+                        ::shown {
+                            PlaybackState.currentBook() == null
+                        }
+                        source = Icon.book.copy(width = 8.rem, height = 8.rem)
+                    }
+
+                }
+
+                // Title and author
+                centered.col {
+                    gap = 0.25.rem
+                    centered.h2 {
+                        ::content { PlaybackState.currentBook()?.title ?: "No book playing" }
+                    }
+                    centered.subtext {
+                        ::content { PlaybackState.currentBook()?.authors?.joinToString(", ") ?: "" }
+                    }
+                }
+
+                // Current chapter info
+                centered.text {
+                    ::content {
+                        PlaybackState.currentChapter()?.name ?: ""
+                    }
+                }
+
+                // Playback controls
+                PlaybackControls(compact = false)
+
+                // Playback speed selector
+                centered.row {
+                    gap = 0.5.rem
+                    text("Speed:")
+                    for (speed in listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f)) {
+                        button {
+                            text("${speed}x")
+                            onClick { PlaybackState.setPlaybackSpeed(speed) }
+                            dynamicTheme {
+                                if (PlaybackState.playbackSpeed() == speed) ImportantSemantic else null
                             }
-
-                    }
-
-                    // Title and author
-                    centered.col {
-                        gap = 0.25.rem
-                        centered.h2 {
-                            ::content { PlaybackState.currentBook()?.title ?: "No book playing" }
-                        }
-                        centered.subtext {
-                            ::content { PlaybackState.currentBook()?.authors?.joinToString(", ") ?: "" }
                         }
                     }
+                }
 
-                    // Current chapter info
-                    centered.text {
-                        ::content {
-                            PlaybackState.currentChapter()?.name ?: ""
-                        }
-                    }
-
-                    // Playback controls
-                    PlaybackControls(compact = false)
-
-                    // Playback speed selector
-                    centered.row {
+                // Stop button
+                centered.button {
+                    row {
                         gap = 0.5.rem
-                        text("Speed:")
-                        for (speed in listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f)) {
-                            button {
-                                text("${speed}x")
-                                onClick { PlaybackState.setPlaybackSpeed(speed) }
-                                dynamicTheme {
-                                    if(PlaybackState.playbackSpeed() == speed) ImportantSemantic else null
-                                }
-                            }
-                        }
+                        icon(Icon.stop, "Stop")
+                        text("Stop Playback")
                     }
-
-                    // Stop button
-                    centered.button {
-                        row {
-                            gap = 0.5.rem
-                            icon(Icon.stop, "Stop")
-                            text("Stop Playback")
-                        }
-                        onClick { PlaybackState.stop() }
-                        themeChoice += ThemeDerivation { it.copy(id = "danger", foreground = Color.red).withoutBack }
-                    }
-
-                    // Spacer at bottom
-                    space(2.0)
+                    onClick { PlaybackState.stop() }
+                    themeChoice += ThemeDerivation { it.copy(id = "danger", foreground = Color.red).withoutBack }
                 }
 
-                onRemove {
-                    openNowPlaying.value  = false
-                    // Re-add the bottom sheet when it's removed
+                // Spacer at bottom
+                space(2.0)
+            }
+
+            onRemove {
+                isNowPlayingOpen.value = false
+                // Re-add the bottom sheet when it's removed
 //                    nowPlaying(BottomSheetState.COLLAPSED)
-                }
             }
         }
+    }
 }

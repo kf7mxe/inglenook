@@ -161,7 +161,7 @@ class SettingsPage : Page {
                     gap = 0.rem
 
                     // Show first 4 presets as quick options
-                    for (preset in ThemePreset.entries.take(4)) {
+                    for (preset in ThemePreset.entries) {
                         button {
                             row {
                                 padding = 0.5.rem
@@ -185,7 +185,7 @@ class SettingsPage : Page {
                             }
                         }
 
-                        if (preset != ThemePreset.entries.take(4).last()) {
+                        if (preset != ThemePreset.entries.last()) {
                             separator()
                         }
                     }
@@ -196,7 +196,7 @@ class SettingsPage : Page {
                     link {
                         row {
                             padding = 0.5.rem
-                            expanding.text { content = "More themes & customization..." }
+                            expanding.text { content = "Customization..." }
                             icon(Icon.chevronRight, "More")
                         }
                         to = { ThemeSettingsPage() }
