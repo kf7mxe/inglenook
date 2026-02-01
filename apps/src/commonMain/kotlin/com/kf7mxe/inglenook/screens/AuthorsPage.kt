@@ -14,7 +14,9 @@ import com.kf7mxe.inglenook.components.BookCard
 import com.kf7mxe.inglenook.components.BookListItem
 import com.kf7mxe.inglenook.dashboard
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
+import com.kf7mxe.inglenook.viewMode
 import com.lightningkite.kiteui.Routable
+import com.lightningkite.kiteui.views.fieldTheme
 import com.lightningkite.kiteui.views.forEach
 import com.lightningkite.kiteui.views.l2.RecyclerViewPlacerVerticalGrid
 import com.lightningkite.kiteui.views.l2.children
@@ -33,7 +35,6 @@ class AuthorsPage : Page {
 
     override fun ViewWriter.render() {
         val searchQuery = Signal("")
-        val viewMode = Signal(ViewMode.Grid)
 //        val errorMessage = Signal<String?>(null)
 
         // Load authors
@@ -53,14 +54,10 @@ class AuthorsPage : Page {
 
 
         col {
-            gap = 0.rem
 
             // Search bar and view toggle
             row {
-                padding = 1.rem
-                gap = 0.5.rem
-
-                expanding.textInput {
+                expanding.fieldTheme.textInput {
                     hint = "Search authors..."
                     keyboardHints = KeyboardHints(KeyboardCase.None, KeyboardType.Text)
                     content bind searchQuery
@@ -78,7 +75,6 @@ class AuthorsPage : Page {
                 }
             }
 
-            separator()
 
             // Loading state
             shownWhen { !authors.state().ready }.centered.activityIndicator()
@@ -96,7 +92,6 @@ class AuthorsPage : Page {
             // Content
             // Empty state
             shownWhen { authors.state().ready && authors().isEmpty() }.centered.col {
-                gap = 0.5.rem
                 icon(Icon.person.copy(width = 3.rem, height = 3.rem), "Authors")
                 text("No authors found")
                 subtext("Your audiobook library has no authors")
@@ -104,7 +99,6 @@ class AuthorsPage : Page {
 
             // No search results
             shownWhen { authors.state().ready && authors().isNotEmpty() && filteredAuthors().isEmpty() }.centered.col {
-                gap = 0.5.rem
                 icon(Icon.search.copy(width = 3.rem, height = 3.rem), "Search")
                 text("No results found")
                 subtext { ::content { "No authors match \"${searchQuery()}\"" } }
@@ -172,8 +166,6 @@ class AuthorsPage : Page {
 fun ViewWriter.AuthorCard(author: Reactive<Author>, onClick: suspend () -> Unit) {
     button {
         col {
-            gap = 0.5.rem
-
             // Author image/avatar
             sizedBox(SizeConstraints(width = 6.rem, height = 6.rem)).frame {
                 image {
@@ -210,9 +202,6 @@ fun ViewWriter.AuthorCard(author: Reactive<Author>, onClick: suspend () -> Unit)
 fun ViewWriter.AuthorListItem(author: Reactive<Author>, onClick: suspend () -> Unit) {
     button {
         row {
-            gap = 1.rem
-            padding = 0.5.rem
-
             // Thumbnail
             sizedBox(SizeConstraints(width = 4.rem, height = 4.rem)).frame {
                 image {
@@ -237,7 +226,6 @@ fun ViewWriter.AuthorListItem(author: Reactive<Author>, onClick: suspend () -> U
 
             // Author info
             expanding.col {
-                gap = 0.25.rem
                 text {
                     ::content { author().name }
                     ellipsis = true

@@ -28,7 +28,9 @@ data class AudioBook(
     val title: String,
     val sortTitle: String? = null,
     val authors: List<String> = emptyList(),
+    val authorInfos: List<AuthorInfo> = emptyList(), // Authors with IDs for linking
     val narrator: String? = null,
+    val narratorId: String? = null, // Narrator ID for linking
     val description: String? = null,
     val coverImageId: String? = null,
     val duration: Long = 0L, // Duration in ticks (10,000 ticks = 1ms)
@@ -66,6 +68,13 @@ data class Author(
     val name: String,
     val imageId: String? = null,
     val overview: String? = null
+)
+
+// Author info stored with audiobook (name + optional id for linking)
+@Serializable
+data class AuthorInfo(
+    val name: String,
+    val id: String? = null
 )
 
 // Library/Collection
@@ -133,6 +142,18 @@ enum class DownloadStatus {
     Cancelled
 }
 
+// Bookmark for audiobooks
+@GenerateDataClassPaths
+@Serializable
+data class Bookmark(
+    override val _id: Uuid = Uuid.random(),
+    val bookId: String,
+    val positionTicks: Long,
+    val note: String? = null,
+    val chapterName: String? = null, // For display purposes
+    val createdAt: Instant = Clock.System.now()
+) : HasId<Uuid>
+
 // Theme preset enumeration
 @Serializable
 enum class ThemePreset(val displayName: String, val allowsCustomization: Boolean = true) {
@@ -155,7 +176,15 @@ data class ThemeSettings(
     val accentColor: String? = null,       // Hex color for outlines
     val baseOpacity: Float = 0.9f,         // Background opacity (0-1)
     val opacityStep: Float = 0.1f,         // Opacity increase per card level
-    val outlineOpacity: Float = 0.6f       // Outline visibility (0-1)
+    val outlineOpacity: Float = 0.6f,      // Outline visibility (0-1)
+    // Layout customizations
+    val cornerRadius: Float = 0.5f,        // Corner radius in rem
+    val padding: Float = 0.75f,            // Padding in rem
+    val gap: Float = 0.75f,                // Gap between elements in rem
+    val elevation: Float = 0f,             // Elevation in dp
+    val outlineWidth: Float = 1f,          // Outline width in dp
+    // Wallpaper
+    val wallpaperPath: String? = null      // Local file path for wallpaper
 )
 
 // App settings stored locally

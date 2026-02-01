@@ -22,6 +22,11 @@ object PlaybackState {
     // Current chapter tracking
     val currentChapter = Signal<Chapter?>(null)
 
+    // Sleep timer
+    val sleepTimerMinutesRemaining = Signal<Int?>(null) // null = no timer, >0 = minutes remaining
+    val sleepTimerMode = Signal<SleepTimerMode?>(null) // Tracks what mode was set
+    private var sleepTimerJob: Job? = null
+
     // Skip amounts in ticks (10,000 ticks = 1ms)
     private const val SKIP_FORWARD_TICKS = 30 * 10_000_000L // 30 seconds
     private const val SKIP_BACKWARD_TICKS = 15 * 10_000_000L // 15 seconds
@@ -178,7 +183,12 @@ object PlaybackState {
         }
 
         val position = positionTicks.value
-        currentChapter.value = chapters.lastOrNull { it.startPositionTicks <= position }
+        val previousChapter = currentChapter.value
+        val newChapter = chapters.lastOrNull { it.startPositionTicks <= position }
+        currentChapter.value = newChapter
+
+        // Check sleep timer for end of chapter mode
+        checkEndOfChapterSleepTimer(previousChapter, newChapter)
     }
 
     private fun startProgressSync() {
@@ -227,6 +237,71 @@ object PlaybackState {
         }
         stop()
     }
+
+    // Sleep timer functions
+    fun setSleepTimer(mode: SleepTimerMode) {
+        cancelSleepTimer()
+        sleepTimerMode.value = mode
+
+        when (mode) {
+            is SleepTimerMode.Minutes -> {
+                sleepTimerMinutesRemaining.value = mode.minutes
+                startSleepTimerCountdown()
+            }
+            SleepTimerMode.EndOfChapter -> {
+                // Will be handled in chapter change detection
+                sleepTimerMinutesRemaining.value = null
+            }
+        }
+    }
+
+    fun cancelSleepTimer() {
+        sleepTimerJob?.cancel()
+        sleepTimerJob = null
+        sleepTimerMinutesRemaining.value = null
+        sleepTimerMode.value = null
+    }
+
+    private fun startSleepTimerCountdown() {
+        sleepTimerJob?.cancel()
+        sleepTimerJob = AppScope.launch {
+            while (true) {
+                delay(60_000) // Wait 1 minute
+
+                val remaining = sleepTimerMinutesRemaining.value
+                if (remaining == null || remaining <= 0) {
+                    break
+                }
+
+                if (isPlaying.value) {
+                    val newRemaining = remaining - 1
+                    sleepTimerMinutesRemaining.value = newRemaining
+
+                    if (newRemaining <= 0) {
+                        // Timer expired - pause playback
+                        pause()
+                        cancelSleepTimer()
+                        break
+                    }
+                }
+            }
+        }
+    }
+
+    private fun checkEndOfChapterSleepTimer(previousChapter: Chapter?, newChapter: Chapter?) {
+        val mode = sleepTimerMode.value
+        if (mode == SleepTimerMode.EndOfChapter && previousChapter != null && newChapter != previousChapter) {
+            // Chapter changed - pause playback
+            pause()
+            cancelSleepTimer()
+        }
+    }
+}
+
+// Sleep timer modes
+sealed class SleepTimerMode {
+    data class Minutes(val minutes: Int) : SleepTimerMode()
+    data object EndOfChapter : SleepTimerMode()
 }
 
 // Platform-specific audio player interface

@@ -39,7 +39,7 @@ object DownloadManager {
 
         try {
             // Start download using platform-specific implementation
-            val downloadedBook = performDownload(book) { progress ->
+            val downloadedBook = PlatformDownloader.performDownload(book) { progress ->
                 activeDownloads.value = activeDownloads.value + (book.id to progress)
             }
 
@@ -61,6 +61,8 @@ object DownloadManager {
 
     suspend fun cancelDownload(bookId: String) {
         // Cancel any active download
+        PlatformDownloader.cancelDownload(bookId)
+
         activeDownloads.value = activeDownloads.value + (bookId to DownloadProgress(
             bookId = bookId,
             bytesDownloaded = 0L,
@@ -76,25 +78,10 @@ object DownloadManager {
         val download = storedDownloads.value.find { it._id == bookId }
         if (download != null) {
             // Delete the file using platform-specific implementation
-            deleteDownloadFile(download.localFilePath)
+            PlatformDownloader.deleteFile(download.localFilePath)
 
             // Remove from stored downloads
             storedDownloads.value = storedDownloads.value.filter { it._id != bookId }
         }
-    }
-
-    // Platform-specific download implementation
-    private suspend fun performDownload(
-        book: AudioBook,
-        onProgress: (DownloadProgress) -> Unit
-    ): DownloadedBook {
-        // TODO: Implement platform-specific download
-        // For now, throw an exception
-        throw NotImplementedError("Download not yet implemented")
-    }
-
-    // Platform-specific file deletion
-    private suspend fun deleteDownloadFile(filePath: String) {
-        // TODO: Implement platform-specific file deletion
     }
 }

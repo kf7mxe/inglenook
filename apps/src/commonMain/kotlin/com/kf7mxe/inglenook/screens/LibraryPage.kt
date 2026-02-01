@@ -39,12 +39,8 @@ class LibraryPage : Page {
         val currentTab = Signal(BooksTab.Books)
 
         col {
-            gap = 0.rem
-
             // Tab buttons
             row {
-                padding = 1.rem
-                gap = 0.5.rem
 
                 expanding.button {
                     centered.text("Books")
@@ -62,8 +58,6 @@ class LibraryPage : Page {
                     }
                 }
             }
-
-            separator()
 
             expanding.swapView{
                 swapping(

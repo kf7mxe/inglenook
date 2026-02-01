@@ -7,20 +7,30 @@ import com.lightningkite.kiteui.views.ViewWriter
 import com.lightningkite.kiteui.views.centered
 import com.lightningkite.kiteui.views.direct.*
 import com.lightningkite.kiteui.views.expanding
+import com.lightningkite.kiteui.views.dynamicTheme
+import com.lightningkite.kiteui.views.forEachUpdating
 import com.lightningkite.kiteui.views.l2.icon
 import com.kf7mxe.inglenook.*
-import com.kf7mxe.inglenook.components.ChaptersList
 import com.kf7mxe.inglenook.components.DownloadButton
+import com.lightningkite.reactive.context.invoke
 import com.kf7mxe.inglenook.components.PlaybackControls
+import com.kf7mxe.inglenook.components.BookshelfPickerDialog
+import com.lightningkite.kiteui.views.l2.coordinatorFrame
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.playback.PlaybackState
+import com.kf7mxe.inglenook.storage.BookmarkRepository
 import com.lightningkite.kiteui.Routable
+import com.lightningkite.kiteui.views.closeThisPopover
+import com.lightningkite.kiteui.views.forEach
 import com.lightningkite.reactive.core.Signal
 import com.lightningkite.reactive.core.AppScope
 import com.lightningkite.reactive.core.Constant
 import com.lightningkite.reactive.core.Reactive
+import com.lightningkite.reactive.core.remember
 import kotlinx.coroutines.launch
+import kotlin.uuid.ExperimentalUuidApi
 
+@OptIn(ExperimentalUuidApi::class)
 @Routable("book/{bookId}")
 class BookDetailPage(val bookId: String) : Page {
     override val title: Reactive<String> = Constant("Book")
@@ -56,7 +66,7 @@ class BookDetailPage(val bookId: String) : Page {
             gap = 0.rem
 
             // Scrollable content
-            expanding.scrolls.col {
+            expanding.scrolling.col {
                 padding = 1.rem
                 gap = 1.5.rem
 
@@ -105,10 +115,39 @@ class BookDetailPage(val bookId: String) : Page {
 
                             h2 { ::content { book()?.title ?: "" } }
 
-                            text { ::content { book()?.authors?.joinToString(", ") ?: "Unknown Author" } }
+                            val authorInfos = remember { book()?.authorInfos ?: emptyList() }
 
-                            if (book.value?.narrator != null) {
-                                subtext { ::content { "Narrated by ${book()?.narrator ?: ""}" } }
+                            text{
+                                ::shown {
+                                    authorInfos().isEmpty()
+                                }
+                                content = "Unknown Author"
+                            }
+
+                            col {
+                                forEach(authorInfos) {author ->
+                                    button {
+                                        // Author names (reactive)
+                                        text {
+                                            ::content {
+                                               author.name
+                                            }
+                                        }
+                                        onClick {
+                                            author.id?.let { id ->
+                                                mainPageNavigator.navigate(AuthorDetailPage(id))
+                                            }
+                                        }
+                                    }
+
+                                }
+                            }
+
+                            // Narrator (reactive)
+                            shownWhen { book()?.narrator != null }.row {
+                                gap = 0.rem
+                                subtext { content = "Narrated by " }
+                                subtext { ::content { book()?.narrator ?: "" } }
                             }
 
                             // Series info
@@ -183,10 +222,124 @@ class BookDetailPage(val bookId: String) : Page {
                             themeChoice += ImportantSemantic
                         }
 
-                        // Download button
-                        shownWhen { book() != null }.frame {
-                            book.value?.let { currentBook ->
-                                DownloadButton(currentBook)
+                        // Download button - inline implementation for reactive access
+                        button {
+                            centered.row {
+                                gap = 0.5.rem
+
+                                icon {
+                                    ::source {
+                                        val currentBook = book()
+                                        if (currentBook == null) {
+                                            Icon.download
+                                        } else {
+                                            val activeDownloads =
+                                                com.kf7mxe.inglenook.downloads.DownloadManager.activeDownloads()
+                                            val activeProgress = activeDownloads[currentBook.id]
+
+                                            when {
+                                                com.kf7mxe.inglenook.downloads.DownloadManager.isDownloaded(currentBook.id) -> Icon.checkCircle
+                                                activeProgress != null -> when (activeProgress.status) {
+                                                    DownloadStatus.Downloading -> Icon.cloudDownload
+                                                    DownloadStatus.Pending -> Icon.schedule
+                                                    DownloadStatus.Failed -> Icon.errorIcon
+                                                    else -> Icon.download
+                                                }
+
+                                                else -> Icon.download
+                                            }
+                                        }
+                                    }
+                                    description = "Download status"
+                                }
+
+                                text {
+                                    ::content {
+                                        val currentBook = book()
+                                        if (currentBook == null) {
+                                            "Download"
+                                        } else {
+                                            val activeDownloads =
+                                                com.kf7mxe.inglenook.downloads.DownloadManager.activeDownloads()
+                                            val activeProgress = activeDownloads[currentBook.id]
+
+                                            when {
+                                                com.kf7mxe.inglenook.downloads.DownloadManager.isDownloaded(currentBook.id) -> "Downloaded"
+                                                activeProgress != null -> when (activeProgress.status) {
+                                                    DownloadStatus.Downloading -> {
+                                                        if (activeProgress.totalBytes > 0) {
+                                                            val percent =
+                                                                (activeProgress.bytesDownloaded * 100 / activeProgress.totalBytes).toInt()
+                                                            "Downloading $percent%"
+                                                        } else {
+                                                            "Downloading..."
+                                                        }
+                                                    }
+
+                                                    DownloadStatus.Pending -> "Waiting..."
+                                                    DownloadStatus.Failed -> "Failed - Retry"
+                                                    DownloadStatus.Cancelled -> "Cancelled"
+                                                    else -> "Download"
+                                                }
+
+                                                else -> "Download"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            onClick {
+                                val currentBook = book.value
+                                if (currentBook != null) {
+                                    val isDownloaded =
+                                        com.kf7mxe.inglenook.downloads.DownloadManager.isDownloaded(currentBook.id)
+                                    val hasActiveDownload =
+                                        com.kf7mxe.inglenook.downloads.DownloadManager.activeDownloads.value.containsKey(
+                                            currentBook.id
+                                        )
+
+                                    when {
+                                        isDownloaded -> {
+                                            AppScope.launch {
+                                                com.kf7mxe.inglenook.downloads.DownloadManager.deleteDownload(
+                                                    currentBook.id
+                                                )
+                                            }
+                                        }
+
+                                        hasActiveDownload -> {
+                                            AppScope.launch {
+                                                com.kf7mxe.inglenook.downloads.DownloadManager.cancelDownload(
+                                                    currentBook.id
+                                                )
+                                            }
+                                        }
+
+                                        else -> {
+                                            AppScope.launch {
+                                                com.kf7mxe.inglenook.downloads.DownloadManager.downloadBook(currentBook)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Bookshelf button
+                        button {
+                            icon(Icon.collectionsBookmark, "Add to Bookshelf")
+                            onClick {
+                                coordinatorFrame?.openBottomSheet(
+                                    halfScreenRatio = 0.7f,
+                                    dim = true
+                                ) {
+                                    BookshelfPickerDialog(bookId) {
+                                        // Close bottom sheet on dismiss
+//                                        close()
+                                        closeThisPopover()
+                                    }
+                                }
                             }
                         }
                     }
@@ -199,7 +352,9 @@ class BookDetailPage(val bookId: String) : Page {
                     }
 
                     // Chapters section
-                    shownWhen { (book()?.chapters?.size ?: 0) > 0 }.col {
+                    shownWhen {
+                        println("DEBUG book()?.chapters ${book()?.chapters?.size}")
+                        (book()?.chapters?.size ?: 0) > 0 }.col {
                         gap = 0.5.rem
 
                         button {
@@ -216,24 +371,207 @@ class BookDetailPage(val bookId: String) : Page {
                             onClick { showChapters.value = !showChapters.value }
                         }
 
-                        shownWhen { showChapters() && book()?.chapters?.isNotEmpty() == true }.col {
-                            // Use reactive access for chapters
-                            book.value?.let { currentBook ->
-                                // Get current playback position for this book
-                                val currentPosition = if (PlaybackState.currentBook.value?.id == currentBook.id) {
-                                    PlaybackState.positionTicks.value
-                                } else {
-                                    currentBook.userData?.playbackPositionTicks ?: 0L
+                        shownWhen { showChapters() }.col {
+                            gap = 0.rem
+
+                            // Render chapters with reactive updates using forEachUpdating
+                            val chaptersSignal = Signal(book.value?.chapters ?: emptyList())
+
+                            // Update chapters signal whenever book changes
+
+                            forEachUpdating(chaptersSignal) { chapterReactive ->
+                                col {
+                                    gap = 0.rem
+
+                                    button {
+                                        row {
+                                            gap = 0.75.rem
+                                            padding = 0.5.rem
+
+                                            // Chapter index (reactive)
+                                            centered.text {
+                                                ::content {
+                                                    val chapter = chapterReactive()
+                                                    val chapters = book()?.chapters ?: emptyList()
+                                                    val idx = chapters.indexOf(chapter) + 1
+                                                    "$idx"
+                                                }
+                                            }
+
+                                            // Chapter name and duration
+                                            expanding.col {
+                                                gap = 0.rem
+                                                text {
+                                                    ::content { chapterReactive().name }
+                                                    ellipsis = true
+                                                }
+                                                subtext {
+                                                    ::content {
+                                                        val ticks = chapterReactive().startPositionTicks
+                                                        val totalSeconds = ticks / 10_000_000
+                                                        val hours = totalSeconds / 3600
+                                                        val minutes = (totalSeconds % 3600) / 60
+                                                        val seconds = totalSeconds % 60
+                                                        if (hours > 0) {
+                                                            "$hours:${
+                                                                minutes.toString().padStart(2, '0')
+                                                            }:${seconds.toString().padStart(2, '0')}"
+                                                        } else {
+                                                            "$minutes:${seconds.toString().padStart(2, '0')}"
+                                                        }
+                                                    }
+                                                }
+                                            }
+
+                                            // Current chapter indicator
+                                            icon {
+                                                ::shown {
+                                                    val chapter = chapterReactive()
+                                                    val currentBook = book()
+                                                    val chapters = currentBook?.chapters ?: emptyList()
+                                                    val chapterIndex = chapters.indexOf(chapter)
+                                                    val nextChapterStart =
+                                                        chapters.getOrNull(chapterIndex + 1)?.startPositionTicks
+                                                            ?: Long.MAX_VALUE
+
+                                                    val position =
+                                                        if (currentBook != null && PlaybackState.currentBook()?.id == currentBook.id) {
+                                                            PlaybackState.positionTicks()
+                                                        } else {
+                                                            currentBook?.userData?.playbackPositionTicks ?: 0L
+                                                        }
+                                                    position >= chapter.startPositionTicks && position < nextChapterStart
+                                                }
+                                                source = Icon.playArrow
+                                                description = "Currently playing"
+                                            }
+                                        }
+
+                                        onClick {
+                                            val currentBook = book.value
+                                            val chapter = chapterReactive.invoke()
+                                            if (currentBook != null) {
+                                                PlaybackState.play(currentBook, chapter.startPositionTicks)
+                                            }
+                                        }
+
+                                        dynamicTheme {
+                                            val chapter = chapterReactive()
+                                            val currentBook = book()
+                                            val chapters = currentBook?.chapters ?: emptyList()
+                                            val chapterIndex = chapters.indexOf(chapter)
+                                            val nextChapterStart =
+                                                chapters.getOrNull(chapterIndex + 1)?.startPositionTicks
+                                                    ?: Long.MAX_VALUE
+
+                                            val position =
+                                                if (currentBook != null && PlaybackState.currentBook()?.id == currentBook.id) {
+                                                    PlaybackState.positionTicks()
+                                                } else {
+                                                    currentBook?.userData?.playbackPositionTicks ?: 0L
+                                                }
+                                            val isCurrent =
+                                                position >= chapter.startPositionTicks && position < nextChapterStart
+                                            if (isCurrent) SelectedSemantic else null
+                                        }
+                                    }
+                                    // Separator
+                                    shownWhen {
+                                        val chapter = chapterReactive()
+                                        val chapters = book()?.chapters ?: emptyList()
+                                        val idx = chapters.indexOf(chapter)
+                                        idx < chapters.size - 1
+                                    }.separator()
+
+                                }
+                            }
+                        }
+                    }
+
+                    // Bookmarks section
+                    val showBookmarks = Signal(false)
+                    val bookmarks = Signal(BookmarkRepository.getBookmarksForBook(bookId))
+
+                    shownWhen { bookmarks().isNotEmpty() }.col {
+                        gap = 0.5.rem
+
+                        button {
+                            row {
+                                gap = 0.5.rem
+                                expanding.h3 {
+                                    ::content { "Bookmarks (${bookmarks().size})" }
+                                }
+                                icon {
+                                    ::source { if (showBookmarks()) Icon.unfoldLess else Icon.unfoldMore }
+                                    description = "Toggle bookmarks"
+                                }
+                            }
+                            onClick { showBookmarks.value = !showBookmarks.value }
+                        }
+
+                        shownWhen { showBookmarks() }.col {
+                            gap = 0.rem
+
+                            for (bookmark in bookmarks.value) {
+                                row {
+                                    gap = 0.5.rem
+                                    padding = 0.5.rem
+
+                                    // Bookmark info
+                                    expanding.button {
+                                        col {
+                                            gap = 0.rem
+
+                                            // Time
+                                            text {
+                                                val totalSeconds = bookmark.positionTicks / 10_000_000
+                                                val hours = totalSeconds / 3600
+                                                val minutes = (totalSeconds % 3600) / 60
+                                                val seconds = totalSeconds % 60
+                                                content = if (hours > 0) {
+                                                    "$hours:${minutes.toString().padStart(2, '0')}:${
+                                                        seconds.toString().padStart(2, '0')
+                                                    }"
+                                                } else {
+                                                    "$minutes:${seconds.toString().padStart(2, '0')}"
+                                                }
+                                            }
+
+                                            // Chapter name if available
+                                            bookmark.chapterName?.let { chapterName ->
+                                                subtext {
+                                                    content = chapterName
+                                                    ellipsis = true
+                                                }
+                                            }
+
+                                            // Note if available
+                                            bookmark.note?.let { noteText ->
+                                                subtext {
+                                                    content = noteText
+                                                    ellipsis = true
+                                                }
+                                            }
+                                        }
+
+                                        onClick {
+                                            book.value?.let { currentBook ->
+                                                PlaybackState.play(currentBook, bookmark.positionTicks)
+                                            }
+                                        }
+                                    }
+
+                                    // Delete button
+                                    button {
+                                        icon(Icon.delete, "Delete bookmark")
+                                        onClick {
+                                            BookmarkRepository.deleteBookmark(bookmark._id)
+                                            bookmarks.value = BookmarkRepository.getBookmarksForBook(bookId)
+                                        }
+                                    }
                                 }
 
-                                ChaptersList(
-                                    chapters = currentBook.chapters,
-                                    currentPositionTicks = currentPosition,
-                                    onChapterClick = { chapter ->
-                                        // Start playback from this chapter
-                                        PlaybackState.play(currentBook, chapter.startPositionTicks)
-                                    }
-                                )
+                                separator()
                             }
                         }
                     }

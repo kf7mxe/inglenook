@@ -310,6 +310,28 @@ val Icon.Companion.dashboard get() = Icon(
     viewBoxHeight = 960,
     listOf("M520-600v-240h320v240H520ZM120-440v-400h320v400H120Zm400 320v-400h320v400H520Zm-400 0v-240h320v240H120Zm80-400h160v-240H200v240Zm400 320h160v-240H600v240Zm0-480h160v-80H600v80ZM200-200h160v-80H200v80Zm160-320Zm240-160Zm0 240ZM360-280Z")
 )
+
+// Menu icon (hamburger menu)
+val Icon.Companion.menu get() = Icon(
+    width = 1.5.rem,
+    height = 1.5.rem,
+    viewBoxMinX = 0,
+    viewBoxMinY = -960,
+    viewBoxWidth = 960,
+    viewBoxHeight = 960,
+    listOf("M120-240v-80h720v80H120Zm0-200v-80h720v80H120Zm0-200v-80h720v80H120Z")
+)
+
+// Search off icon
+val Icon.Companion.searchOff get() = Icon(
+    width = 1.5.rem,
+    height = 1.5.rem,
+    viewBoxMinX = 0,
+    viewBoxMinY = -960,
+    viewBoxWidth = 960,
+    viewBoxHeight = 960,
+    listOf("M280-424q0-41 14-77.5t40-67.5l57 57q-16 20-23.5 43.5T360-424q0 58 41 99t99 41q21 0 44.5-8t43.5-24l57 57q-31 26-67.5 40.5T500-204q-100 0-170-70t-70-150Zm584 308L676-304q-31 26-67.5 40.5T530-249q-100 0-170-70t-70-150q0-42 14-78.5t40-67.5L56-904l56-56 792 792-40 52ZM500-328q-58 0-99-41t-41-99q0-17 3.5-32.5T374-530l152 152q-14 7-29.5 10.5T500-364Zm376 80L756-404q16-20 23.5-43.5T787-492q0-58-41-99t-99-41q-21 0-44.5 7.5T559-600L502-657q31-26 67.5-40T647-711q100 0 170 70t70 150q0 42-14 78t-40 67l143 136-44 44Z")
+)
 val Icon.Companion.unfoldLess get() = Icon(
     width = 1.5.rem,
     height = 1.5.rem,
@@ -371,4 +393,24 @@ val Icon.Companion.errorIcon get() = Icon(
     viewBoxWidth = 960,
     viewBoxHeight = 960,
     listOf("M480-280q17 0 28.5-11.5T520-320q0-17-11.5-28.5T480-360q-17 0-28.5 11.5T440-320q0 17 11.5 28.5T480-280Zm-40-160h80v-240h-80v240Zm40 360q-83 0-156-31.5T197-197q-54-54-85.5-127T80-480q0-83 31.5-156T197-763q54-54 127-85.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 83-31.5 156T763-197q-54 54-127 85.5T480-80Zm0-80q134 0 227-93t93-227q0-134-93-227t-227-93q-134 0-227 93t-93 227q0 134 93 227t227 93Zm0-320Z")
+)
+
+val Icon.Companion.bookmarks get() = Icon(
+    width = 1.5.rem,
+    height = 1.5.rem,
+    viewBoxMinX = 0,
+    viewBoxMinY = -960,
+    viewBoxWidth = 960,
+    viewBoxHeight = 960,
+    listOf("M160-80v-560q0-33 23.5-56.5T240-720h320q33 0 56.5 23.5T640-640v560L400-200 160-80Zm80-121 160-86 160 86v-439H240v439Zm480-39v-560H280v-80h440q33 0 56.5 23.5T800-800v560h-80ZM240-640h320-320Z")
+)
+
+val Icon.Companion.bookmark get() = Icon(
+    width = 1.5.rem,
+    height = 1.5.rem,
+    viewBoxMinX = 0,
+    viewBoxMinY = -960,
+    viewBoxWidth = 960,
+    viewBoxHeight = 960,
+    listOf("M200-120v-640q0-33 23.5-56.5T280-840h400q33 0 56.5 23.5T760-760v640L480-240 200-120Zm80-122 200-86 200 86v-518H280v518Zm0-518h400-400Z")
 )

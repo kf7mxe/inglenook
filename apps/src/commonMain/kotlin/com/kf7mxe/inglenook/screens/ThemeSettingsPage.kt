@@ -16,6 +16,7 @@ import com.lightningkite.reactive.core.Signal
 import com.lightningkite.reactive.core.Constant
 import com.lightningkite.reactive.core.Reactive
 import com.lightningkite.reactive.core.remember
+import kotlin.math.roundToInt
 
 // Preset colors for quick accent selection
 val presetColors = listOf(
@@ -34,14 +35,22 @@ class ThemeSettingsPage : Page {
     override val title get() = Constant("Theme Settings")
 
     override fun ViewWriter.render() {
-        // Local state for theme customization
-        val selectedPreset = Signal(currentThemePreset.value)
-        val customPrimaryColor = Signal("")
-        val customSecondaryColor = Signal("")
-        val customAccentColor = Signal("")
-        val baseOpacity = Signal(0.9f)
-        val opacityStep = Signal(0.1f)
-        val outlineOpacity = Signal(0.6f)
+        // Local state for theme customization - initialize from persisted settings
+        val savedSettings = persistedThemeSettings.value
+        val selectedPreset = Signal(persistedThemePreset.value)
+        val customPrimaryColor = Signal(savedSettings.primaryColor ?: "")
+        val customSecondaryColor = Signal(savedSettings.secondaryColor ?: "")
+        val customAccentColor = Signal(savedSettings.accentColor ?: "")
+        val baseOpacity = Signal(savedSettings.baseOpacity)
+        val opacityStep = Signal(savedSettings.opacityStep)
+        val outlineOpacity = Signal(savedSettings.outlineOpacity)
+
+        // Layout settings
+        val cornerRadiusValue = Signal(savedSettings.cornerRadius)
+        val paddingValue = Signal(savedSettings.padding)
+        val gapValue = Signal(savedSettings.gap)
+        val elevationValue = Signal(savedSettings.elevation)
+        val outlineWidthValue = Signal(savedSettings.outlineWidth)
 
         // Apply theme changes
         fun applyTheme() {
@@ -51,9 +60,17 @@ class ThemeSettingsPage : Page {
                 accentColor = customAccentColor.value.takeIf { it.isNotBlank() },
                 baseOpacity = baseOpacity.value,
                 opacityStep = opacityStep.value,
-                outlineOpacity = outlineOpacity.value
+                outlineOpacity = outlineOpacity.value,
+                cornerRadius = cornerRadiusValue.value,
+                padding = paddingValue.value,
+                gap = gapValue.value,
+                elevation = elevationValue.value,
+                outlineWidth = outlineWidthValue.value
             )
-            currentThemePreset.value = selectedPreset.value
+            // Persist theme settings
+            persistedThemePreset.value = selectedPreset.value
+            persistedThemeSettings.value = settings
+            // Update reactive theme
             appTheme.value = createTheme(selectedPreset.value, settings)
         }
 
@@ -67,6 +84,58 @@ class ThemeSettingsPage : Page {
 
                 h3 { content = "Theme Preset" }
                 subtext { content = "Choose a base theme style" }
+
+                fun ViewWriter.themePresetCard(
+                    preset: ThemePreset,
+                    selectedPreset: Signal<ThemePreset>,
+                    onSelect: () -> Unit
+                ) {
+                    button {
+                        expanding.card.row {
+                            gap = 0.75.rem
+                            padding = 0.75.rem
+
+                            // Theme color preview
+                            sizedBox(SizeConstraints(width = 3.rem, height = 3.rem)).frame {
+                                val previewTheme = createTheme(preset)
+                                themeChoice += ThemeDerivation {
+                                    previewTheme.copy(
+                                        id = "preview-${preset.name}",
+                                        cornerRadii = CornerRadii.Fixed(0.5.rem)
+                                    ).withBack
+                                }
+                            }
+
+                            // Theme name and description
+                            expanding.col {
+                                gap = 0.25.rem
+                                text { content = preset.displayName }
+                                subtext {
+                                    content = when (preset) {
+                                        ThemePreset.Cozy -> "Warm forest tones"
+                                        ThemePreset.Ocean -> "Cool blue depths"
+                                        ThemePreset.Midnight -> "Dark and minimal"
+                                        ThemePreset.Sunrise -> "Warm light tones"
+                                        ThemePreset.Material -> "Clean and modern"
+                                        ThemePreset.Hackerman -> "Terminal vibes"
+                                        ThemePreset.Clouds -> "Soft and rounded"
+                                        ThemePreset.Obsidian -> "Dark with accent"
+                                        ThemePreset.Custom -> "Your own style"
+                                    }
+                                }
+                            }
+
+                            // Selection indicator
+                            shownWhen { selectedPreset() == preset }.centered.icon(Icon.check, "Selected")
+                        }
+
+                        onClick { onSelect() }
+
+                        dynamicTheme {
+                            if (selectedPreset() == preset) SelectedSemantic else null
+                        }
+                    }
+                }
 
                 // Theme preset grid (2 columns)
                 row {
@@ -188,7 +257,11 @@ class ThemeSettingsPage : Page {
                                     val color = customPrimaryColor.value.takeIf { it.isNotBlank() }
                                         ?.let { runCatching { Color.fromHexString(it) }.getOrNull() }
                                         ?: Color.fromHexString("#6366f1")
-                                    it.copy(id = "primary-preview", background = color, cornerRadii = CornerRadii.Fixed(0.25.rem)).withBack
+                                    it.copy(
+                                        id = "primary-preview",
+                                        background = color,
+                                        cornerRadii = CornerRadii.Fixed(0.25.rem)
+                                    ).withBack
                                 }
                             }
                         }
@@ -209,7 +282,11 @@ class ThemeSettingsPage : Page {
                                     val color = customSecondaryColor.value.takeIf { it.isNotBlank() }
                                         ?.let { runCatching { Color.fromHexString(it) }.getOrNull() }
                                         ?: Color.fromHexString("#1a1a2e")
-                                    it.copy(id = "secondary-preview", background = color, cornerRadii = CornerRadii.Fixed(0.25.rem)).withBack
+                                    it.copy(
+                                        id = "secondary-preview",
+                                        background = color,
+                                        cornerRadii = CornerRadii.Fixed(0.25.rem)
+                                    ).withBack
                                 }
                             }
                         }
@@ -230,7 +307,11 @@ class ThemeSettingsPage : Page {
                                     val color = customAccentColor.value.takeIf { it.isNotBlank() }
                                         ?.let { runCatching { Color.fromHexString(it) }.getOrNull() }
                                         ?: Color.fromHexString("#3b3b4d")
-                                    it.copy(id = "accent-preview", background = color, cornerRadii = CornerRadii.Fixed(0.25.rem)).withBack
+                                    it.copy(
+                                        id = "accent-preview",
+                                        background = color,
+                                        cornerRadii = CornerRadii.Fixed(0.25.rem)
+                                    ).withBack
                                 }
                             }
                         }
@@ -278,121 +359,132 @@ class ThemeSettingsPage : Page {
                         }
                     }
 
-                    // Apply button
-                    button {
+                    separator()
+
+                    // Layout Settings
+                    h4 { content = "Layout Settings" }
+
+                    col {
                         row {
-                            gap = 0.5.rem
-                            centered.icon(Icon.check, "Apply")
-                            text("Apply Custom Theme")
+                            expanding.text { content = "Corner Radius" }
+                            text {
+                                ::content {
+                                    "${((cornerRadiusValue() * 100).roundToInt() / 100.0)}.rem"
+                                }
+                            }
                         }
-                        onClick { applyTheme() }
-                        themeChoice += ImportantSemantic
-                    }
-                }
-            }
+                        slider {
+                            min = 0.0f
+                            max = 10.0f
+                            value bind cornerRadiusValue
+                        }
 
-            separator()
+                        row {
+                            expanding.text { content = "Padding" }
+                            text { ::content { "${((paddingValue() * 100).roundToInt() / 100.0)}.rem" } }
+                        }
+                        slider {
+                            min = 0.25f
+                            max = 2.0f
+                            value bind paddingValue
+                        }
+                        row {
+                            expanding.text { content = "Gap" }
+                            text { ::content { "${((gapValue() * 100).roundToInt() / 100.0)}rem" } }
+                        }
+                        slider {
+                            min = 0.25f
+                            max = 2.0f
+                            value bind gapValue
+                        }
+                        row {
+                            expanding.text { content = "Elevation" }
+                            text { ::content { "${((elevationValue() * 100).roundToInt() / 100.0)}dp" } }
+                        }
+                        slider {
+                            min = 0.0f
+                            max = 8.0f
+                            value bind elevationValue
+                        }
+                        row {
+                            expanding.text { content = "Outline Width" }
+                            text { ::content { "${((outlineWidthValue() * 100).roundToInt() / 100.0)}dp" } }
+                        }
+                        slider {
+                            min = 0.0f
+                            max = 4.0f
+                            value bind outlineWidthValue
+                        }
 
-            // Theme Preview Section
-            col {
-                gap = 0.75.rem
-
-                h3 { content = "Preview" }
-                subtext { content = "See how the theme looks" }
-
-                card.col {
-                    gap = 0.75.rem
-                    padding = 1.rem
-
-                    h3 { content = "Sample Header" }
-                    text { content = "This is regular text content showing how the theme displays text." }
-                    subtext { content = "This is subtext or secondary content." }
-
-                    row {
-                        gap = 0.5.rem
+                        // Apply button
                         button {
-                            text("Primary")
+                            row {
+                                gap = 0.5.rem
+                                centered.icon(Icon.check, "Apply")
+                                text("Apply Custom Theme")
+                            }
+                            onClick { applyTheme() }
                             themeChoice += ImportantSemantic
                         }
-                        button {
-                            text("Secondary")
-                        }
-                        button {
-                            text("Selected")
-                            themeChoice += SelectedSemantic
-                        }
                     }
+                }
+
+                separator()
+
+                // Theme Preview Section
+                col {
+                    gap = 0.75.rem
+
+                    h3 { content = "Preview" }
+                    subtext { content = "See how the theme looks" }
 
                     card.col {
-                        gap = 0.25.rem
-                        padding = 0.75.rem
-                        text { content = "Nested card content" }
-                        subtext { content = "Cards can contain other elements" }
-                    }
+                        gap = 0.75.rem
+                        padding = 1.rem
 
-                    row {
-                        gap = 0.5.rem
-                        expanding.textInput {
-                            hint = "Sample input field"
+                        h3 { content = "Sample Header" }
+                        text { content = "This is regular text content showing how the theme displays text." }
+                        subtext { content = "This is subtext or secondary content." }
+
+                        row {
+                            gap = 0.5.rem
+                            button {
+                                text("Primary")
+                                themeChoice += ImportantSemantic
+                            }
+                            button {
+                                text("Secondary")
+                            }
+                            button {
+                                text("Selected")
+                                themeChoice += SelectedSemantic
+                            }
                         }
-                        button {
-                            icon(Icon.search, "Search")
+
+                        card.col {
+                            gap = 0.25.rem
+                            padding = 0.75.rem
+                            text { content = "Nested card content" }
+                            subtext { content = "Cards can contain other elements" }
+                        }
+
+                        row {
+                            gap = 0.5.rem
+                            expanding.textInput {
+                                hint = "Sample input field"
+                            }
+                            button {
+                                icon(Icon.search, "Search")
+                            }
                         }
                     }
                 }
-            }
 
-            // Spacer at bottom
-            space(2.0)
+                // Spacer at bottom
+                space(2.0)
+            }
         }
     }
-}
 
-private fun ViewWriter.themePresetCard(
-    preset: ThemePreset,
-    selectedPreset: Signal<ThemePreset>,
-    onSelect: () -> Unit
-) {
-    button {
-        expanding.card.row {
-            gap = 0.75.rem
-            padding = 0.75.rem
 
-            // Theme color preview
-            sizedBox(SizeConstraints(width = 3.rem, height = 3.rem)).frame {
-                val previewTheme = createTheme(preset)
-                themeChoice += ThemeDerivation {
-                    previewTheme.copy(id = "preview-${preset.name}", cornerRadii = CornerRadii.Fixed(0.5.rem)).withBack
-                }
-            }
-
-            // Theme name and description
-            expanding.col {
-                gap = 0.25.rem
-                text { content = preset.displayName }
-                subtext {
-                    content = when (preset) {
-                        ThemePreset.Cozy -> "Warm forest tones"
-                        ThemePreset.Ocean -> "Cool blue depths"
-                        ThemePreset.Midnight -> "Dark and minimal"
-                        ThemePreset.Sunrise -> "Warm light tones"
-                        ThemePreset.Material -> "Clean and modern"
-                        ThemePreset.Hackerman -> "Terminal vibes"
-                        ThemePreset.Clouds -> "Soft and rounded"
-                        ThemePreset.Obsidian -> "Dark with accent"
-                        ThemePreset.Custom -> "Your own style"
-                    }
-                }
-            }
-
-            // Selection indicator
-            shownWhen { selectedPreset() == preset }.centered.icon(Icon.check, "Selected")
-        }
-
-        onClick { onSelect() }
-
-        dynamicTheme {
-            if (selectedPreset() == preset) SelectedSemantic else null
-        }
-    }
 }

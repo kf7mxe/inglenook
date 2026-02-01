@@ -19,6 +19,8 @@ import com.lightningkite.reactive.context.invoke
 import com.lightningkite.reactive.core.Signal
 import com.lightningkite.reactive.core.AppScope
 import com.lightningkite.reactive.core.Constant
+import com.lightningkite.reactive.core.remember
+import com.lightningkite.reactive.core.rememberSuspending
 import kotlinx.coroutines.launch
 
 @Routable("/")
@@ -27,65 +29,30 @@ class DashboardPage : Page {
 
     override fun ViewWriter.render() {
         val isLoading = Signal(true)
-        val inProgressBooks = Signal<List<AudioBook>>(emptyList())
-        val recommendedBooks = Signal<List<AudioBook>>(emptyList())
-        val recentlyAddedBooks = Signal<List<AudioBook>>(emptyList())
-        val errorMessage = Signal<String?>(null)
-
-        AppScope.launch {
-            try {
-                val client = jellyfinClient.value
-                if (client != null) {
-                    // Load in-progress books
-                    inProgressBooks.value = client.getInProgressBooks()
-                    // Load recommended books
-                    recommendedBooks.value = client.getSuggestedBooks()
-                    // Load recently added books
-                    recentlyAddedBooks.value = client.getRecentlyAddedBooks()
-                }
-            } catch (e: Exception) {
-                errorMessage.value = "Failed to load books: ${e.message}"
-            } finally {
-                isLoading.value = false
-            }
+        val client = jellyfinClient.value
+        val inProgressBooks= rememberSuspending {
+            val test = client?.getInProgressBooks()?:emptyList()
+            println("DEBUG test ${test.size}")
+            test
+        }
+        val recommendedBooks= rememberSuspending {
+         client?.getSuggestedBooks()?:emptyList()
+        }
+        val recentlyAddedBooks = rememberSuspending {
+            client?.getRecentlyAddedBooks()?:emptyList()
         }
 
-        scrolls.col {
+        scrolling.col {
             padding = 1.rem
             gap = 1.5.rem
 
             // Loading state
-            shownWhen { isLoading() }.centered.activityIndicator()
+//            shownWhen { isLoading() }.centered.activityIndicator()
 
-            // Error state
-            shownWhen { errorMessage() != null && !isLoading() }.centered.col {
-                gap = 0.5.rem
-                text { ::content { errorMessage() ?: "" } }
-                button {
-                    text("Retry")
-                    onClick {
-                        isLoading.value = true
-                        errorMessage.value = null
-                        AppScope.launch {
-                            try {
-                                val client = jellyfinClient.value
-                                if (client != null) {
-                                    inProgressBooks.value = client.getInProgressBooks()
-                                    recommendedBooks.value = client.getSuggestedBooks()
-                                    recentlyAddedBooks.value = client.getRecentlyAddedBooks()
-                                }
-                            } catch (e: Exception) {
-                                errorMessage.value = "Failed to load books: ${e.message}"
-                            } finally {
-                                isLoading.value = false
-                            }
-                        }
-                    }
-                }
-            }
+//
 
             // Content when loaded
-            shownWhen { !isLoading() && errorMessage() == null }.col {
+            col {
                 gap = 1.5.rem
 
                 // Continue Listening Section

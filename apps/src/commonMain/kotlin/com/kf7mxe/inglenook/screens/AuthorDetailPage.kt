@@ -12,12 +12,12 @@ import com.kf7mxe.inglenook.AudioBook
 import com.kf7mxe.inglenook.Author
 import com.kf7mxe.inglenook.ViewMode
 import com.kf7mxe.inglenook.book
+import com.kf7mxe.inglenook.menu
+import com.kf7mxe.inglenook.dashboard
 import com.kf7mxe.inglenook.components.BookCard
 import com.kf7mxe.inglenook.components.BookListItem
-import com.kf7mxe.inglenook.dashboard
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.lightningkite.kiteui.Routable
-import com.lightningkite.kiteui.views.forEach
 import com.lightningkite.kiteui.views.l2.RecyclerViewPlacerVerticalGrid
 import com.lightningkite.kiteui.views.l2.children
 import com.lightningkite.reactive.context.invoke

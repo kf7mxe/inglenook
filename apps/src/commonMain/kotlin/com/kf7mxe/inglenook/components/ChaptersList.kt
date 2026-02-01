@@ -9,6 +9,9 @@ import com.lightningkite.kiteui.views.l2.icon
 import com.kf7mxe.inglenook.Chapter
 import com.kf7mxe.inglenook.playArrow
 
+/**
+ * ChaptersList for displaying audiobook chapters
+ */
 fun ViewWriter.ChaptersList(
     chapters: List<Chapter>,
     currentPositionTicks: Long,

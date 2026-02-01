@@ -8,8 +8,13 @@ import com.lightningkite.reactive.core.remember
 // Persistent storage for Jellyfin configuration
 val jellyfinServerConfig = PersistentProperty<JellyfinServerConfig?>("jellyfinServerConfig", null)
 
-// Selected library ID for filtering books
-val selectedLibraryId = PersistentProperty<String?>("selectedLibraryId", null)
+// Selected library IDs for filtering books (empty list means all libraries)
+val selectedLibraryIds = PersistentProperty<List<String>>("selectedLibraryIds", emptyList())
+
+// Backwards compatibility - single library selection convenience
+@Deprecated("Use selectedLibraryIds instead", ReplaceWith("selectedLibraryIds"))
+val selectedLibraryId: PersistentProperty<String?>
+    get() = PersistentProperty<String?>("selectedLibraryId_legacy", null)
 
 // Reactive client instance - created when config is available
 val jellyfinClient: Signal<JellyfinClient?> = Signal<JellyfinClient?>(null).also { signal ->

@@ -7,84 +7,108 @@ import com.lightningkite.kiteui.views.direct.*
 import com.lightningkite.kiteui.views.expanding
 import com.lightningkite.kiteui.views.l2.icon
 import com.kf7mxe.inglenook.AudioBook
-import com.kf7mxe.inglenook.book
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
+import com.kf7mxe.inglenook.playback.PlaybackState
+import com.kf7mxe.inglenook.book
+import com.kf7mxe.inglenook.playArrow
 import com.lightningkite.reactive.core.Reactive
+import com.lightningkite.reactive.context.invoke
 
-fun ViewWriter.BookListItem(book: Reactive<AudioBook>, onClick: suspend () -> Unit) {
-    button {
-        row {
-            gap = 1.rem
-            padding = 0.5.rem
+fun ViewWriter.BookListItem(
+    audioBook: Reactive<AudioBook>,
+    onPlayClick: ((AudioBook) -> Unit)? = null,
+    onClick: suspend () -> Unit
+) {
+    row {
 
-            // Thumbnail
-            sizeConstraints(width = 4.rem, height = 6.rem).frame {
+        // Play button
+        centered.col {
+            centered.button {
+                centered.icon(Icon.playArrow, "Play")
+                themeChoice += ImportantSemantic
+                onClick {
+                    val currentBook = audioBook.invoke()
+                    if (onPlayClick != null) {
+                        onPlayClick(currentBook)
+                    } else {
+                        val startPosition = currentBook.userData?.playbackPositionTicks ?: 0L
+                        PlaybackState.play(currentBook, startPosition)
+                    }
+                }
+            }
+        }
+
+        // Main content (clickable to go to detail)
+        expanding.button {
+            row {
+                // Thumbnail
+                sizeConstraints(width = 4.rem, height = 6.rem).frame {
                     image {
-                        this.rView::shown{
-                            book().coverImageId != null
+                        this.rView::shown {
+                            audioBook().coverImageId != null
                         }
 
                         ::source {
                             val client = jellyfinClient()
-                            if (client != null && book().coverImageId != null) {
-                                ImageRemote(client.getImageUrl(book().coverImageId, book().id))
+                            val bookData = audioBook()
+                            if (client != null && bookData.coverImageId != null) {
+                                ImageRemote(client.getImageUrl(bookData.coverImageId, bookData.id))
                             } else null
                         }
                         scaleType = ImageScaleType.Crop
                     }
                     centered.icon {
                         ::shown {
-                            book().coverImageId == null
+                            audioBook().coverImageId == null
                         }
                         source = Icon.book
-                        ::description { book().title}
+                        ::description { audioBook().title }
+                    }
+                }
+
+                // Book info
+                expanding.col {
+
+                    text {
+                        ::content { audioBook().title }
+                        ellipsis = true
                     }
 
-            }
+                    subtext {
+                        ::content { audioBook().authors.joinToString(", ").ifEmpty { "Unknown Author" } }
+                        ellipsis = true
+                    }
 
-            // Book info
-            expanding.col {
-                gap = 0.25.rem
-
-                text {
-                    ::content {book().title }
-                    ellipsis = true
-                }
-
-                subtext {
-                    ::content {book().authors.joinToString(", ").ifEmpty { "Unknown Author" } }
-                    ellipsis = true
-                }
-
-                // Series info if available
+                    // Series info if available
                     subtext {
                         ::shown {
-                            book().seriesName == null
+                            audioBook().seriesName != null
                         }
                         ::content {
-                            if (book().indexNumber != null) {
-                                "${book().seriesName} #${book().indexNumber}"
+                            val bookData = audioBook()
+                            if (bookData.indexNumber != null) {
+                                "${bookData.seriesName} #${bookData.indexNumber}"
                             } else {
-                                book().seriesName ?: ""
+                                bookData.seriesName ?: ""
                             }
                         }
-                }
+                    }
 
-                // Duration
-                subtext {
-
-                    ::content {
-                        val durationTicks = book().duration
-                        val totalSeconds = durationTicks / 10_000_000
-                        val hours = totalSeconds / 3600
-                        val minutes = (totalSeconds % 3600) / 60
-                        if (hours > 0) "${hours}h ${minutes}m" else "${minutes}m"
+                    // Duration
+                    subtext {
+                        ::content {
+                            val durationTicks = audioBook().duration
+                            val totalSeconds = durationTicks / 10_000_000
+                            val hours = totalSeconds / 3600
+                            val minutes = (totalSeconds % 3600) / 60
+                            if (hours > 0) "${hours}h ${minutes}m" else "${minutes}m"
+                        }
                     }
                 }
-            }
 
-            centered.icon(Icon.chevronRight, "View")
+                centered.icon(Icon.chevronRight, "View")
+            }
+            this.onClick { onClick() }
         }
-        this.onClick { onClick() }
     }
 }

@@ -14,7 +14,7 @@ import com.kf7mxe.inglenook.*
 import com.kf7mxe.inglenook.theming.createTheme
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.jellyfin.jellyfinServerConfig
-import com.kf7mxe.inglenook.jellyfin.selectedLibraryId
+import com.kf7mxe.inglenook.jellyfin.selectedLibraryIds
 import com.lightningkite.kiteui.Routable
 import com.lightningkite.kiteui.views.forEach
 import com.lightningkite.reactive.core.Signal
@@ -85,7 +85,7 @@ class SettingsPage : Page {
                         }
                         onClick {
                             jellyfinServerConfig.value = null
-                            selectedLibraryId.value = null
+                            selectedLibraryIds.value = emptyList()
                             mainPageNavigator.navigate(JellyfinSetupPage())
                         }
                         themeChoice += ThemeDerivation { it.copy(id = "danger", foreground = Color.red).withBack }
@@ -96,7 +96,16 @@ class SettingsPage : Page {
             // Library Selection section
             col {
                 gap = 0.5.rem
-                h3 { content = "Library" }
+
+                row {
+                    expanding.h3 { content = "Libraries" }
+                    subtext {
+                        ::content {
+                            val selected = selectedLibraryIds()
+                            if (selected.isEmpty()) "All" else "${selected.size} selected"
+                        }
+                    }
+                }
 
                 card.col {
                     gap = 0.rem
@@ -110,36 +119,76 @@ class SettingsPage : Page {
                     shownWhen { !isLoadingLibraries() }.col {
                         gap = 0.rem
 
-                        // "All Libraries" option
-                        button {
-                            row {
-                                padding = 0.5.rem
-                                expanding.text("All Libraries")
-                                shownWhen { selectedLibraryId() == null }.icon(Icon.check, "Selected")
+                        // Select All / Clear buttons
+                        row {
+                            padding = 0.5.rem
+                            gap = 0.5.rem
+
+                            button {
+                                text("Select All")
+                                onClick {
+                                    selectedLibraryIds.value = libraries.value.map { it.id }
+                                }
                             }
-                            onClick {
-                                selectedLibraryId.value = null
+
+                            button {
+                                text("Clear All")
+                                onClick {
+                                    selectedLibraryIds.value = emptyList()
+                                }
                             }
-                            if (selectedLibraryId.value == null) {
-                                themeChoice += SelectedSemantic
+
+                            expanding.space(1.0)
+
+                            subtext {
+                                ::content {
+                                    if (selectedLibraryIds().isEmpty()) "Showing all libraries" else ""
+                                }
                             }
                         }
 
+                        separator()
+
                         forEach(libraries) { library ->
-                            separator()
                             button {
                                 row {
                                     padding = 0.5.rem
-                                    expanding.text(library.name)
-                                    shownWhen { selectedLibraryId() == library.id }.icon(Icon.check, "Selected")
+
+                                    checkbox {
+                                        checked bind selectedLibraryIds.lens(
+                                            get = { it.contains(library.id) },
+                                            modify = { list, isSelected ->
+                                                if (isSelected) {
+                                                    list + library.id
+                                                } else {
+                                                    list - library.id
+                                                }
+                                            }
+                                        )
+                                    }
+
+                                    expanding.col {
+                                        gap = 0.rem
+                                        text(library.name)
+                                        shownWhen { library.collectionType != null }.subtext {
+                                            content = library.collectionType ?: ""
+                                        }
+                                    }
                                 }
                                 onClick {
-                                    selectedLibraryId.value = library.id
+                                    // Toggle selection
+                                    val currentIds = selectedLibraryIds.value
+                                    selectedLibraryIds.value = if (library.id in currentIds) {
+                                        currentIds - library.id
+                                    } else {
+                                        currentIds + library.id
+                                    }
                                 }
-                                if (selectedLibraryId.value == library.id) {
-                                    themeChoice += SelectedSemantic
+                                dynamicTheme {
+                                    if (library.id in selectedLibraryIds()) SelectedSemantic else null
                                 }
                             }
+                            separator()
                         }
                     }
                 }
@@ -156,11 +205,10 @@ class SettingsPage : Page {
                         to = { ThemeSettingsPage() }
                     }
                 }
-
                 card.col {
                     gap = 0.rem
 
-                    // Show first 4 presets as quick options
+                    // Show first 4 presets as quick options[
                     for (preset in ThemePreset.entries) {
                         button {
                             row {
@@ -193,13 +241,13 @@ class SettingsPage : Page {
                     separator()
 
                     // Link to full theme settings
-                    link {
+                    button {
                         row {
                             padding = 0.5.rem
                             expanding.text { content = "Customization..." }
                             icon(Icon.chevronRight, "More")
                         }
-                        to = { ThemeSettingsPage() }
+                        onClick{ mainPageNavigator.navigate(ThemeSettingsPage()) }
                     }
                 }
             }

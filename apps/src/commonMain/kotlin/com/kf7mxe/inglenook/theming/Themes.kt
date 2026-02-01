@@ -390,22 +390,30 @@ fun Theme.Companion.custom(settings: ThemeSettings): Theme {
     val accentColor = settings.accentColor?.toColorOrNull() ?: primaryColor.darken(0.3f)
     val foreground = if (backgroundColor.perceivedBrightness <= 0.5) Color.white else Color.black
 
+    // Use custom layout settings
+    val cornerRadius = settings.cornerRadius.toDouble().rem
+    val paddingValue = settings.padding.toDouble().rem
+    val gapValue = settings.gap.toDouble().rem
+    val elevationValue = settings.elevation.toDouble().dp
+    val outlineWidthValue = settings.outlineWidth.toDouble().dp
+
     return Theme(
         id = "custom-${settings.hashCode()}",
         font = FontAndStyle(),
         foreground = foreground,
         background = backgroundColor.applyAlpha(settings.baseOpacity),
         outline = accentColor.applyAlpha(settings.outlineOpacity),
-        outlineWidth = 0.dp,
-        elevation = 0.dp,
-        gap = 0.75.rem,
-        cornerRadii = CornerRadii.AdaptiveToSpacing(0.5.rem),
+        outlineWidth = outlineWidthValue,
+        elevation = elevationValue,
+        gap = gapValue,
+        padding = Edges(paddingValue),
+        cornerRadii = CornerRadii.AdaptiveToSpacing(cornerRadius),
         semanticOverrides = SemanticOverrides(
             CardSemantic.override { theme ->
                 val newBack = theme.background.closestColor().lighten(0.08f).applyAlpha(settings.baseOpacity + settings.opacityStep)
                 theme.withBack(
                     background = newBack,
-                    outlineWidth = 1.dp,
+                    outlineWidth = outlineWidthValue,
                     outline = accentColor.applyAlpha(settings.outlineOpacity)
                 )
             },
@@ -419,7 +427,7 @@ fun Theme.Companion.custom(settings: ThemeSettings): Theme {
             FieldSemantic.override {
                 it.withBack(
                     background = it.background.closestColor().applyAlpha(0.8f),
-                    outlineWidth = 1.px
+                    outlineWidth = outlineWidthValue
                 )
             },
             ImportantSemantic.override {
@@ -442,7 +450,7 @@ fun Theme.Companion.custom(settings: ThemeSettings): Theme {
                 it.withBack(
                     background = it.background.closestColor(),
                     outline = accentColor,
-                    outlineWidth = 1.dp
+                    outlineWidth = outlineWidthValue
                 )
             },
         )

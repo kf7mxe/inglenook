@@ -8,34 +8,45 @@ import com.lightningkite.kiteui.views.expanding
 import com.lightningkite.kiteui.views.l2.icon
 import com.kf7mxe.inglenook.*
 import com.kf7mxe.inglenook.playback.PlaybackState
+import com.kf7mxe.inglenook.storage.BookmarkRepository
 import com.lightningkite.reactive.core.Signal
+import kotlinx.datetime.Clock
+import kotlin.time.ExperimentalTime
 
+@OptIn(ExperimentalTime::class)
 fun ViewWriter.PlaybackControls(compact: Boolean = false) {
     // Create a signal for the seek bar that syncs with PlaybackState
     val seekRatio = Signal(0f)
 
     // Track if we're currently seeking (to avoid feedback loops)
-    var isSeeking = false
+    var isUserDragging = false
 
-    // Sync seekRatio from PlaybackState when not seeking
+    // Track the last time we updated seekRatio from PlaybackState
+    var lastSyncTime = 0L
+
+    // Sync seekRatio from PlaybackState when not user dragging
     PlaybackState.positionTicks.addListener {
-        if (!isSeeking) {
+        if (!isUserDragging) {
             val position = PlaybackState.positionTicks.value
             val duration = PlaybackState.duration.value
+            lastSyncTime = kotlin.time.Clock.System.now().toEpochMilliseconds()
             seekRatio.value = if (duration > 0) position.toFloat() / duration else 0f
         }
     }
     PlaybackState.duration.addListener {
-        if (!isSeeking) {
+        if (!isUserDragging) {
             val position = PlaybackState.positionTicks.value
             val duration = PlaybackState.duration.value
+            lastSyncTime = kotlin.time.Clock.System.now().toEpochMilliseconds()
             seekRatio.value = if (duration > 0) position.toFloat() / duration else 0f
         }
     }
 
-    // When seekRatio changes (from user interaction), seek in PlaybackState
+    // When seekRatio changes from user input, seek in PlaybackState
     seekRatio.addListener {
-        if (isSeeking) {
+        val now = kotlin.time.Clock.System.now().toEpochMilliseconds()
+        // If the change happened more than 50ms after our last sync, it's user input
+        if (now - lastSyncTime > 50) {
             val newPosition = (seekRatio.value * PlaybackState.duration.value).toLong()
             PlaybackState.seek(newPosition)
         }
@@ -43,6 +54,12 @@ fun ViewWriter.PlaybackControls(compact: Boolean = false) {
 
     col {
         gap = if (compact) 0.5.rem else 1.rem
+
+        // Current chapter name (above seek bar)
+        shownWhen { PlaybackState.currentChapter() != null && !compact }.centered.text {
+            ::content { PlaybackState.currentChapter()?.name ?: "" }
+            ellipsis = true
+        }
 
         // Seek bar with time
         col {
@@ -52,8 +69,6 @@ fun ViewWriter.PlaybackControls(compact: Boolean = false) {
                 min = 0f
                 max = 1f
                 value bind seekRatio
-                // Note: The slider will update seekRatio when dragged
-                // We use the isSeeking flag to distinguish user vs programmatic changes
             }
 
             row {
@@ -63,6 +78,48 @@ fun ViewWriter.PlaybackControls(compact: Boolean = false) {
                 expanding.space(1.0)
                 subtext {
                     ::content { formatDuration(PlaybackState.duration()) }
+                }
+            }
+        }
+
+        // Chapter progress and time remaining (below seek bar)
+        shownWhen { PlaybackState.currentBook() != null && !compact }.centered.row {
+            gap = 0.5.rem
+
+            subtext {
+                ::content {
+                    val book = PlaybackState.currentBook()
+                    val chapters = book?.chapters ?: emptyList()
+                    val currentChapter = PlaybackState.currentChapter()
+                    if (chapters.isNotEmpty() && currentChapter != null) {
+                        val currentIndex = chapters.indexOf(currentChapter)
+                        val remaining = chapters.size - currentIndex - 1
+                        "$remaining chapters left"
+                    } else {
+                        ""
+                    }
+                }
+            }
+
+            shownWhen { PlaybackState.currentBook()?.chapters?.isNotEmpty() == true }.subtext { content = " • " }
+
+            subtext {
+                ::content {
+                    val position = PlaybackState.positionTicks()
+                    val duration = PlaybackState.duration()
+                    val remaining = duration - position
+                    if (remaining > 0) {
+                        val remainingSeconds = remaining / 10_000_000
+                        val hours = remainingSeconds / 3600
+                        val minutes = (remainingSeconds % 3600) / 60
+                        if (hours > 0) {
+                            "${hours}h ${minutes}m left"
+                        } else {
+                            "${minutes}m left"
+                        }
+                    } else {
+                        ""
+                    }
                 }
             }
         }
@@ -103,6 +160,27 @@ fun ViewWriter.PlaybackControls(compact: Boolean = false) {
             button {
                 icon(Icon.skipNext, "Next chapter")
                 onClick { PlaybackState.nextChapter() }
+            }
+        }
+
+        // Bookmark button (only show when not compact and a book is playing)
+        shownWhen { !compact && PlaybackState.currentBook() != null }.centered.button {
+            row {
+                gap = 0.5.rem
+                icon(Icon.bookmark, "Add bookmark")
+                text("Add Bookmark")
+            }
+            onClick {
+                val book = PlaybackState.currentBook.value
+                val position = PlaybackState.positionTicks.value
+                val chapter = PlaybackState.currentChapter.value
+                if (book != null) {
+                    BookmarkRepository.createBookmark(
+                        bookId = book.id,
+                        positionTicks = position,
+                        chapterName = chapter?.name
+                    )
+                }
             }
         }
     }

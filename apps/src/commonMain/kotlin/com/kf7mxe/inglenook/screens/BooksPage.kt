@@ -8,6 +8,7 @@ import com.kf7mxe.inglenook.components.BookListItem
 import com.kf7mxe.inglenook.dashboard
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.storage.BookshelfRepository
+import com.kf7mxe.inglenook.viewMode
 import com.lightningkite.kiteui.Routable
 import com.lightningkite.kiteui.models.Icon
 import com.lightningkite.kiteui.models.ImportantSemantic
@@ -50,8 +51,6 @@ class BooksPage : Page {
 
         val searchQuery = Signal("")
         val selectedFilter = Signal<FilterOption?>(null)
-
-        val viewMode = Signal(ViewMode.Grid)
 
         val books = rememberSuspending {
             val client = jellyfinClient.value
@@ -96,14 +95,9 @@ class BooksPage : Page {
 
 
         col {
-            gap = 0.rem
-
 // Search bar and view toggle
             row {
-                padding = 1.rem
-                gap = 0.5.rem
-
-                expanding.textInput {
+                expanding.fieldTheme.textInput {
                     hint = "Search books..."
                     keyboardHints = KeyboardHints(KeyboardCase.None, KeyboardType.Text)
                     content bind searchQuery
@@ -123,8 +117,6 @@ class BooksPage : Page {
 
 // Filter chips (series filters)
             shownWhen { seriesFilters().isNotEmpty() }.scrollingHorizontally.row {
-                padding = 1.rem
-                gap = 0.5.rem
 
                 // "All" chip
                 button {
@@ -136,20 +128,21 @@ class BooksPage : Page {
                 }
 
                 // Series filter chips
-                forEach(seriesFilters) { filter ->
-                    button {
-                        text(filter.label)
-                        onClick {
-                            selectedFilter.value = if (selectedFilter.value?.id == filter.id) null else filter
-                        }
-                        dynamicTheme {
-                            if (selectedFilter.value?.id == filter.id) ImportantSemantic else null
+                row {
+                    forEach(seriesFilters) { filter ->
+                        button {
+                            text(filter.label)
+                            onClick {
+                                selectedFilter.value = if (selectedFilter.value?.id == filter.id) null else filter
+                            }
+                            dynamicTheme {
+                                if (selectedFilter.value?.id == filter.id) ImportantSemantic else null
+                            }
                         }
                     }
                 }
             }
 
-            separator()
             shownWhen { !books.state().ready }.centered.activityIndicator()
 
             // Loading state
@@ -168,7 +161,6 @@ class BooksPage : Page {
             shownWhen { books().isEmpty() }.frame {
                 // Empty state
                 shownWhen { books().isEmpty() }.centered.col {
-                    gap = 0.5.rem
                     icon(Icon.book.copy(width = 3.rem, height = 3.rem), "Books")
                     text("No books found")
                     subtext("Your audiobook library is empty")

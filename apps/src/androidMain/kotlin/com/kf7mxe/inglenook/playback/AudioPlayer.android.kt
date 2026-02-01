@@ -1,90 +1,118 @@
 package com.kf7mxe.inglenook.playback
 
+import android.content.ComponentName
 import android.content.Context
-import androidx.media3.common.MediaItem
-import androidx.media3.common.PlaybackParameters
-import androidx.media3.common.Player
-import androidx.media3.exoplayer.ExoPlayer
+import android.content.Intent
+import android.os.Build
+import androidx.media3.session.MediaController
+import androidx.media3.session.SessionToken
+import com.google.common.util.concurrent.ListenableFuture
+import com.google.common.util.concurrent.MoreExecutors
 import com.kf7mxe.inglenook.AudioBook
-import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.lightningkite.kiteui.views.AndroidAppContext
 
 actual fun createAudioPlayer(): AudioPlayer = AndroidAudioPlayer()
 
 class AndroidAudioPlayer : AudioPlayer {
-    private var exoPlayer: ExoPlayer? = null
     private var currentBookId: String? = null
+    private var currentBook: AudioBook? = null
+    private var pendingStartPosition: Long = 0L
+    private var mediaControllerFuture: ListenableFuture<MediaController>? = null
+    private var mediaController: MediaController? = null
 
     private fun getContext(): Context = AndroidAppContext.applicationCtx
 
-    private fun ensurePlayer(): ExoPlayer {
-        return exoPlayer ?: ExoPlayer.Builder(getContext()).build().also {
-            exoPlayer = it
+    private fun ensureServiceStarted() {
+        val context = getContext()
+        val intent = Intent(context, PlaybackService::class.java)
 
-            // Add listener for playback events
-            it.addListener(object : Player.Listener {
-                override fun onPlaybackStateChanged(playbackState: Int) {
-                    if (playbackState == Player.STATE_ENDED) {
-                        PlaybackState.onPlaybackComplete()
-                    }
-                }
-            })
+        // Start the service
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            context.startForegroundService(intent)
+        } else {
+            context.startService(intent)
         }
+    }
+
+    private fun connectToService(onConnected: () -> Unit) {
+        if (mediaController != null) {
+            onConnected()
+            return
+        }
+
+        val context = getContext()
+        val sessionToken = SessionToken(context, ComponentName(context, PlaybackService::class.java))
+
+        mediaControllerFuture = MediaController.Builder(context, sessionToken).buildAsync()
+        mediaControllerFuture?.addListener({
+            try {
+                mediaController = mediaControllerFuture?.get()
+                onConnected()
+            } catch (e: Exception) {
+                // Connection failed, fall back to service instance
+                onConnected()
+            }
+        }, MoreExecutors.directExecutor())
     }
 
     override fun play(book: AudioBook, startPositionTicks: Long) {
         currentBookId = book.id
+        currentBook = book
+        pendingStartPosition = startPositionTicks
 
-        // Get stream URL from Jellyfin client
-        val streamUrl = jellyfinClient.value?.getAudioStreamUrl(book.id) ?: return
+        // Start and connect to service
+        ensureServiceStarted()
 
-        val player = ensurePlayer()
-
-        // Create media item
-        val mediaItem = MediaItem.fromUri(streamUrl)
-
-        // Set media and prepare
-        player.setMediaItem(mediaItem)
-        player.prepare()
-
-        // Seek to start position (convert ticks to ms: ticks / 10_000)
-        player.seekTo(startPositionTicks / 10_000)
-
-        // Start playback
-        player.play()
+        // Small delay to let service start, then connect
+        connectToService {
+            // Use the service directly
+            PlaybackService.getInstance()?.playBook(book, startPositionTicks)
+        }
     }
 
     override fun pause() {
-        exoPlayer?.pause()
+        mediaController?.pause()
+            ?: PlaybackService.getInstance()?.pause()
     }
 
     override fun resume() {
-        exoPlayer?.play()
+        mediaController?.play()
+            ?: PlaybackService.getInstance()?.resume()
     }
 
     override fun stop() {
-        exoPlayer?.stop()
-        exoPlayer?.clearMediaItems()
+        mediaController?.stop()
+            ?: PlaybackService.getInstance()?.stop()
         currentBookId = null
+        currentBook = null
     }
 
     override fun seek(positionTicks: Long) {
         // Convert ticks to ms
-        exoPlayer?.seekTo(positionTicks / 10_000)
+        val positionMs = positionTicks / 10_000
+        mediaController?.seekTo(positionMs)
+            ?: PlaybackService.getInstance()?.seek(positionTicks)
     }
 
     override fun setPlaybackSpeed(speed: Float) {
-        exoPlayer?.playbackParameters = PlaybackParameters(speed)
+        mediaController?.setPlaybackSpeed(speed)
+            ?: PlaybackService.getInstance()?.setPlaybackSpeed(speed)
     }
 
     override fun getCurrentPosition(): Long {
         // Convert ms to ticks
-        return (exoPlayer?.currentPosition ?: 0L) * 10_000
+        return mediaController?.currentPosition?.times(10_000)
+            ?: PlaybackService.getInstance()?.getCurrentPositionTicks()
+            ?: 0L
     }
 
     fun release() {
-        exoPlayer?.release()
-        exoPlayer = null
+        mediaControllerFuture?.let { future ->
+            MediaController.releaseFuture(future)
+        }
+        mediaController = null
+        mediaControllerFuture = null
         currentBookId = null
+        currentBook = null
     }
 }
