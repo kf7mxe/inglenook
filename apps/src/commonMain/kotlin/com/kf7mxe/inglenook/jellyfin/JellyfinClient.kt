@@ -172,41 +172,13 @@ class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
         val uid = userId ?: return emptyList()
         val libraryIds = selectedLibraryIds.value
 
-        // If specific libraries are selected, query each and merge
-        if (libraryIds.isNotEmpty()) {
-            val allInProgress = mutableListOf<AudioBook>()
-            for (libId in libraryIds) {
-                val url = buildString {
-                    append("$serverUrl/Users/$uid/Items/Resume")
-                    append("?IncludeItemTypes=AudioBook,Book")
-                    append("&Recursive=true")
-                    append("&Fields=Chapters,Overview,People")
-                    append("&ParentId=$libId")
-                    append("&Limit=20")
-                }
-
-                try {
-                    val response = client.get(url) {
-                        header("X-Emby-Authorization", getAuthHeader())
-                    }
-                    if (response.status.isSuccess()) {
-                        val itemsResponse: ItemsResponse = response.body()
-                        allInProgress.addAll(itemsResponse.Items.map { it.toAudioBook() })
-                    }
-                } catch (e: Exception) {
-                    // Continue with other libraries
-                }
-            }
-            return allInProgress.distinctBy { it.id }.take(10)
-        }
-
-        // No specific libraries - get all in progress
+        // Get all in-progress items first - the ParentId filter doesn't work reliably for resume items
         val url = buildString {
             append("$serverUrl/Users/$uid/Items/Resume")
             append("?IncludeItemTypes=AudioBook,Book")
             append("&Recursive=true")
             append("&Fields=Chapters,Overview,People")
-            append("&Limit=20")
+            append("&Limit=50") // Get more to filter from
         }
 
         val response = client.get(url) {
@@ -216,7 +188,19 @@ class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
         if (!response.status.isSuccess()) return emptyList()
 
         val itemsResponse: ItemsResponse = response.body()
-        return itemsResponse.Items.map { it.toAudioBook() }.take(10)
+        val allInProgress = itemsResponse.Items.map { it.toAudioBook() }
+
+        // If specific libraries are selected, filter to only books in those libraries
+        if (libraryIds.isNotEmpty()) {
+            // Get all book IDs from selected libraries for cross-reference
+            val libraryBookIds = getAllBooks().map { it.id }.toSet()
+            return allInProgress
+                .filter { it.id in libraryBookIds }
+                .distinctBy { it.id }
+                .take(10)
+        }
+
+        return allInProgress.take(10)
     }
 
     suspend fun getRecentlyAddedBooks(): List<AudioBook> {
@@ -272,39 +256,12 @@ class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
         val uid = userId ?: return emptyList()
         val libraryIds = selectedLibraryIds.value
 
-        // If specific libraries are selected, query each and merge
-        if (libraryIds.isNotEmpty()) {
-            val allSuggestions = mutableListOf<AudioBook>()
-            for (libId in libraryIds) {
-                val url = buildString {
-                    append("$serverUrl/Users/$uid/Suggestions")
-                    append("?IncludeItemTypes=AudioBook,Book")
-                    append("&Fields=Chapters,Overview,People")
-                    append("&ParentId=$libId")
-                    append("&Limit=20")
-                }
-
-                try {
-                    val response = client.get(url) {
-                        header("X-Emby-Authorization", getAuthHeader())
-                    }
-                    if (response.status.isSuccess()) {
-                        val itemsResponse: ItemsResponse = response.body()
-                        allSuggestions.addAll(itemsResponse.Items.map { it.toAudioBook() })
-                    }
-                } catch (e: Exception) {
-                    // Continue with other libraries
-                }
-            }
-            return allSuggestions.distinctBy { it.id }.take(10)
-        }
-
-        // No specific libraries - get all suggestions
+        // Get all suggestions first - the ParentId filter doesn't work reliably for suggestions
         val url = buildString {
             append("$serverUrl/Users/$uid/Suggestions")
             append("?IncludeItemTypes=AudioBook,Book")
             append("&Fields=Chapters,Overview,People")
-            append("&Limit=20")
+            append("&Limit=50") // Get more to filter from
         }
 
         val response = client.get(url) {
@@ -314,7 +271,19 @@ class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
         if (!response.status.isSuccess()) return emptyList()
 
         val itemsResponse: ItemsResponse = response.body()
-        return itemsResponse.Items.map { it.toAudioBook() }.take(10)
+        val allSuggestions = itemsResponse.Items.map { it.toAudioBook() }
+
+        // If specific libraries are selected, filter to only books in those libraries
+        if (libraryIds.isNotEmpty()) {
+            // Get all book IDs from selected libraries for cross-reference
+            val libraryBookIds = getAllBooks().map { it.id }.toSet()
+            return allSuggestions
+                .filter { it.id in libraryBookIds }
+                .distinctBy { it.id }
+                .take(10)
+        }
+
+        return allSuggestions.take(10)
     }
 
     suspend fun getBook(itemId: String): AudioBook? {

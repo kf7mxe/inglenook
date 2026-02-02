@@ -374,14 +374,46 @@ class BookDetailPage(val bookId: String) : Page {
                     }
 
                     // Action buttons for ebooks
-                    shownWhen { book()?.itemType == ItemType.Ebook }.row {
+                    shownWhen { book()?.itemType == ItemType.Ebook }.col {
                         gap = 0.5.rem
 
-                        // Ebooks can be opened in the Jellyfin web reader
-                        expanding.button {
+                        // Read button - opens in-app reader
+                        row {
+                            gap = 0.5.rem
+
+                            expanding.button {
+                                row {
+                                    gap = 0.5.rem
+                                    centered.icon(Icon.book, "Read")
+                                    centered.text { content = "Read" }
+                                }
+                                onClick {
+                                    mainPageNavigator.navigate(EbookReaderPage(bookId))
+                                }
+                                themeChoice += ImportantSemantic
+                            }
+
+                            // Bookshelf button for ebooks
+                            button {
+                                icon(Icon.collectionsBookmark, "Add to Bookshelf")
+                                onClick {
+                                    coordinatorFrame?.openBottomSheet(
+                                        halfScreenRatio = 0.7f,
+                                        dim = true
+                                    ) {
+                                        BookshelfPickerDialog(bookId) {
+                                            closeThisPopover()
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Open in browser as secondary option
+                        button {
                             row {
                                 gap = 0.5.rem
-                                centered.icon(Icon.book, "Read")
+                                centered.icon(Icon.chevronRight, "Open in Browser")
                                 centered.text { content = "Open in Browser" }
                             }
                             onClick {
@@ -392,22 +424,6 @@ class BookDetailPage(val bookId: String) : Page {
                                     val readerUrl = "${client.serverUrl}/web/index.html#!/details?id=${currentBook.id}"
                                     // Use platform-specific URL opener
                                     com.kf7mxe.inglenook.util.openUrl(readerUrl)
-                                }
-                            }
-                            themeChoice += ImportantSemantic
-                        }
-
-                        // Bookshelf button for ebooks too
-                        button {
-                            icon(Icon.collectionsBookmark, "Add to Bookshelf")
-                            onClick {
-                                coordinatorFrame?.openBottomSheet(
-                                    halfScreenRatio = 0.7f,
-                                    dim = true
-                                ) {
-                                    BookshelfPickerDialog(bookId) {
-                                        closeThisPopover()
-                                    }
                                 }
                             }
                         }

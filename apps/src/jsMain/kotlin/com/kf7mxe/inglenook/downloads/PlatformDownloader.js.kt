@@ -101,14 +101,26 @@ actual object PlatformDownloader {
         ))
 
         try {
-            // Fetch the audio file
-            val response = kotlinx.browser.window.fetch(streamUrl).await<Response>()
+            // Fetch the audio file with authentication
+            val fetchOptions = js("{}")
+            fetchOptions["headers"] = js("{}")
+            fetchOptions["headers"]["X-Emby-Authorization"] = client.getAuthHeader()
+
+            val response = kotlinx.browser.window.fetch(streamUrl, fetchOptions).await<Response>()
 
             if (!response.ok) {
                 throw Exception("Download failed: ${response.status} ${response.statusText}")
             }
 
             val contentLength = response.headers.get("Content-Length")?.toLongOrNull() ?: 0L
+
+            // Update progress to show downloading (indeterminate while fetching blob)
+            onProgress(DownloadProgress(
+                bookId = book.id,
+                bytesDownloaded = 0L,
+                totalBytes = contentLength,
+                status = DownloadStatus.Downloading
+            ))
 
             // Get the blob
             val blob = response.blob().await<org.w3c.files.Blob>()
