@@ -26,7 +26,7 @@ import com.lightningkite.reactive.core.remember
 import kotlinx.coroutines.launch
 import kotlin.uuid.ExperimentalUuidApi
 
-enum class BooksTab { Books, Authors }
+enum class BooksTab { Books, Authors, Series }
 
 data class FilterOption(val id: String, val label: String, val filterFn: (AudioBook) -> Boolean)
 
@@ -57,6 +57,14 @@ class LibraryPage : Page {
                         if (currentTab() == BooksTab.Authors) ImportantSemantic else null
                     }
                 }
+
+                expanding.button {
+                    centered.text("Series")
+                    onClick { currentTab.set(BooksTab.Series) }
+                    dynamicTheme {
+                        if (currentTab() == BooksTab.Series) ImportantSemantic else null
+                    }
+                }
             }
 
             expanding.swapView{
@@ -68,6 +76,7 @@ class LibraryPage : Page {
                         when(currentTab) {
                             BooksTab.Books -> with(BooksPage()) { render() }
                             BooksTab.Authors -> with(AuthorsPage()) { render() }
+                            BooksTab.Series -> with(SeriesPage()) { render() }
                         }
 
                     }

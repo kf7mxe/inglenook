@@ -21,7 +21,14 @@ data class JellyfinServerConfig(
     val serverName: String? = null
 )
 
-// Audio Book representation from Jellyfin
+// Item type enum for distinguishing audiobooks from ebooks
+@Serializable
+enum class ItemType {
+    AudioBook,
+    Ebook
+}
+
+// Audio Book representation from Jellyfin (also used for Ebooks)
 @Serializable
 data class AudioBook(
     val id: String,
@@ -40,7 +47,8 @@ data class AudioBook(
     val seriesId: String? = null,
     val indexNumber: Int? = null, // Book number in series
     val year: Int? = null,
-    val libraryId: String? = null
+    val libraryId: String? = null,
+    val itemType: ItemType = ItemType.AudioBook // Distinguishes audiobooks from ebooks
 )
 
 // Chapter information
@@ -75,6 +83,16 @@ data class Author(
 data class AuthorInfo(
     val name: String,
     val id: String? = null
+)
+
+// Series representation
+@Serializable
+data class Series(
+    val id: String,
+    val name: String,
+    val imageId: String? = null,
+    val bookCount: Int = 0,
+    val overview: String? = null
 )
 
 // Library/Collection
@@ -184,7 +202,10 @@ data class ThemeSettings(
     val elevation: Float = 0f,             // Elevation in dp
     val outlineWidth: Float = 1f,          // Outline width in dp
     // Wallpaper
-    val wallpaperPath: String? = null      // Local file path for wallpaper
+    val wallpaperPath: String? = null,     // Local file path for wallpaper
+    // Blurred background
+    val enableBlurredBackground: Boolean = false,  // Enable blurred cover image background
+    val blurRadius: Float = 20f            // Blur radius for cover image background
 )
 
 // App settings stored locally

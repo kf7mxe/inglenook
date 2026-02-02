@@ -12,12 +12,14 @@ class IosAudioPlayer : AudioPlayer {
     private var currentPosition: Long = 0L
     private var isPlaying: Boolean = false
 
-    override fun play(book: AudioBook, startPositionTicks: Long) {
+    override fun play(book: AudioBook, startPositionTicks: Long, localFilePath: String?) {
         currentBookId = book.id
         currentPosition = startPositionTicks
         isPlaying = true
 
         // TODO: Initialize AVPlayer and start playback
+        // If localFilePath is provided, use it for offline playback
+        // Otherwise, stream from server using jellyfinClient.getAudioStreamUrl(book.id)
         // Configure audio session for background playback
         // AVAudioSession.sharedInstance().setCategory(AVAudioSessionCategoryPlayback)
         // AVAudioSession.sharedInstance().setActive(true)

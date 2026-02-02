@@ -87,9 +87,18 @@ class PlaybackService : MediaSessionService() {
 
     // Public methods for controlling playback from the app
 
-    fun playBook(book: AudioBook, startPositionTicks: Long) {
+    fun playBook(book: AudioBook, startPositionTicks: Long, localFilePath: String? = null) {
         val player = exoPlayer ?: return
-        val streamUrl = jellyfinClient.value?.getAudioStreamUrl(book.id) ?: return
+
+        // Use local file if available (offline playback), otherwise stream from server
+        val mediaUri = if (localFilePath != null) {
+            // Use local file URI for offline playback
+            "file://$localFilePath"
+        } else {
+            // Stream from server
+            jellyfinClient.value?.getAudioStreamUrl(book.id) ?: return
+        }
+
         val imageUrl = book.coverImageId?.let { coverId ->
             jellyfinClient.value?.getImageUrl(coverId, book.id)
         }
@@ -108,7 +117,7 @@ class PlaybackService : MediaSessionService() {
 
         // Create media item with metadata
         val mediaItem = MediaItem.Builder()
-            .setUri(streamUrl)
+            .setUri(mediaUri)
             .setMediaMetadata(metadata)
             .build()
 

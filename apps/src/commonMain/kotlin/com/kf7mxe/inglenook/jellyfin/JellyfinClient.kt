@@ -2,6 +2,7 @@ package com.kf7mxe.inglenook.jellyfin
 
 import com.kf7mxe.inglenook.*
 import com.kf7mxe.inglenook.AuthorInfo
+import com.kf7mxe.inglenook.cache.ApiCache
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.plugins.contentnegotiation.*
@@ -107,17 +108,24 @@ class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
         }
     }
 
-    suspend fun getAllBooks(libraryId: String? = null): List<AudioBook> {
+    suspend fun getAllBooks(libraryId: String? = null, forceRefresh: Boolean = false): List<AudioBook> {
         val uid = userId ?: return emptyList()
         val libraryIds = if (libraryId != null) listOf(libraryId) else selectedLibraryIds.value
+        val cacheKey = ApiCache.booksKey(libraryIds)
 
+        return ApiCache.getOrPut(cacheKey, ApiCache.DEFAULT_TTL, forceRefresh) {
+            fetchAllBooks(uid, libraryIds)
+        }
+    }
+
+    private suspend fun fetchAllBooks(uid: String, libraryIds: List<String>): List<AudioBook> {
         // If specific libraries are selected, query each one and merge results
         if (libraryIds.isNotEmpty()) {
             val allBooks = mutableListOf<AudioBook>()
             for (libId in libraryIds) {
                 val url = buildString {
                     append("$serverUrl/Users/$uid/Items")
-                    append("?IncludeItemTypes=AudioBook")
+                    append("?IncludeItemTypes=AudioBook,Book")
                     append("&Recursive=true")
                     append("&Fields=Chapters,Overview,People")
                     append("&SortBy=SortName")
@@ -143,7 +151,7 @@ class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
         // No specific libraries selected - get all books
         val url = buildString {
             append("$serverUrl/Users/$uid/Items")
-            append("?IncludeItemTypes=AudioBook")
+            append("?IncludeItemTypes=AudioBook,Book")
             append("&Recursive=true")
             append("&Fields=Chapters,Overview,People")
             append("&SortBy=SortName")
@@ -164,33 +172,51 @@ class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
         val uid = userId ?: return emptyList()
         val libraryIds = selectedLibraryIds.value
 
+        // If specific libraries are selected, query each and merge
+        if (libraryIds.isNotEmpty()) {
+            val allInProgress = mutableListOf<AudioBook>()
+            for (libId in libraryIds) {
+                val url = buildString {
+                    append("$serverUrl/Users/$uid/Items/Resume")
+                    append("?IncludeItemTypes=AudioBook,Book")
+                    append("&Recursive=true")
+                    append("&Fields=Chapters,Overview,People")
+                    append("&ParentId=$libId")
+                    append("&Limit=20")
+                }
 
+                try {
+                    val response = client.get(url) {
+                        header("X-Emby-Authorization", getAuthHeader())
+                    }
+                    if (response.status.isSuccess()) {
+                        val itemsResponse: ItemsResponse = response.body()
+                        allInProgress.addAll(itemsResponse.Items.map { it.toAudioBook() })
+                    }
+                } catch (e: Exception) {
+                    // Continue with other libraries
+                }
+            }
+            return allInProgress.distinctBy { it.id }.take(10)
+        }
+
+        // No specific libraries - get all in progress
         val url = buildString {
             append("$serverUrl/Users/$uid/Items/Resume")
             append("?IncludeItemTypes=AudioBook,Book")
             append("&Recursive=true")
-            append("&Fields=Chapters,Overview,People,ParentId,Path,RootItemId")
-            append("&ParentId=${libraryIds.first()}")
-            append("&Limit=20") // Get more to allow filtering
+            append("&Fields=Chapters,Overview,People")
+            append("&Limit=20")
         }
 
         val response = client.get(url) {
             header("X-Emby-Authorization", getAuthHeader())
         }
 
-
         if (!response.status.isSuccess()) return emptyList()
 
         val itemsResponse: ItemsResponse = response.body()
-        val allInProgress = itemsResponse.Items.map { it.toAudioBook() }
-        // Filter by selected libraries if any are selected
-        return if (libraryIds.isEmpty()) {
-            allInProgress.take(10)
-        } else {
-            println("DEBUG libraryIds ${libraryIds}")
-            allInProgress.map {println("DEBUG it.libraryId ${it.libraryId}")}
-            allInProgress.filter { it.libraryId in libraryIds }.take(10)
-        }
+        return itemsResponse.Items.map { it.toAudioBook() }.take(10)
     }
 
     suspend fun getRecentlyAddedBooks(): List<AudioBook> {
@@ -203,7 +229,7 @@ class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
             for (libId in libraryIds) {
                 val url = buildString {
                     append("$serverUrl/Users/$uid/Items/Latest")
-                    append("?IncludeItemTypes=AudioBook")
+                    append("?IncludeItemTypes=AudioBook,Book")
                     append("&Fields=Chapters,Overview,People")
                     append("&Limit=20")
                     append("&ParentId=$libId")
@@ -227,7 +253,7 @@ class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
         // No specific libraries - get all recent
         val url = buildString {
             append("$serverUrl/Users/$uid/Items/Latest")
-            append("?IncludeItemTypes=AudioBook")
+            append("?IncludeItemTypes=AudioBook,Book")
             append("&Fields=Chapters,Overview,People")
             append("&Limit=20")
         }
@@ -246,11 +272,39 @@ class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
         val uid = userId ?: return emptyList()
         val libraryIds = selectedLibraryIds.value
 
+        // If specific libraries are selected, query each and merge
+        if (libraryIds.isNotEmpty()) {
+            val allSuggestions = mutableListOf<AudioBook>()
+            for (libId in libraryIds) {
+                val url = buildString {
+                    append("$serverUrl/Users/$uid/Suggestions")
+                    append("?IncludeItemTypes=AudioBook,Book")
+                    append("&Fields=Chapters,Overview,People")
+                    append("&ParentId=$libId")
+                    append("&Limit=20")
+                }
+
+                try {
+                    val response = client.get(url) {
+                        header("X-Emby-Authorization", getAuthHeader())
+                    }
+                    if (response.status.isSuccess()) {
+                        val itemsResponse: ItemsResponse = response.body()
+                        allSuggestions.addAll(itemsResponse.Items.map { it.toAudioBook() })
+                    }
+                } catch (e: Exception) {
+                    // Continue with other libraries
+                }
+            }
+            return allSuggestions.distinctBy { it.id }.take(10)
+        }
+
+        // No specific libraries - get all suggestions
         val url = buildString {
             append("$serverUrl/Users/$uid/Suggestions")
-            append("?IncludeItemTypes=AudioBook")
+            append("?IncludeItemTypes=AudioBook,Book")
             append("&Fields=Chapters,Overview,People")
-            append("&Limit=20") // Get more to allow filtering
+            append("&Limit=20")
         }
 
         val response = client.get(url) {
@@ -260,14 +314,7 @@ class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
         if (!response.status.isSuccess()) return emptyList()
 
         val itemsResponse: ItemsResponse = response.body()
-        val allSuggestions = itemsResponse.Items.map { it.toAudioBook() }
-
-        // Filter by selected libraries if any are selected
-        return if (libraryIds.isEmpty()) {
-            allSuggestions.take(10)
-        } else {
-            allSuggestions.filter { it.libraryId in libraryIds }.take(10)
-        }
+        return itemsResponse.Items.map { it.toAudioBook() }.take(10)
     }
 
     suspend fun getBook(itemId: String): AudioBook? {
@@ -275,19 +322,96 @@ class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
 
         val response = client.get("$serverUrl/Users/$uid/Items/$itemId") {
             header("X-Emby-Authorization", getAuthHeader())
-            parameter("Fields", "Chapters,Overview,People")
+            parameter("Fields", "Chapters,Overview,People,Path,MediaSources")
         }
 
         if (!response.status.isSuccess()) return null
 
         val item: JellyfinItem = response.body()
-        return item.toAudioBook()
+        var book = item.toAudioBook()
+
+        // If no chapters, try to find and parse a .cue file
+        if (book.chapters.isEmpty()) {
+            val cueChapters = tryParseCueFile(itemId, item.Path)
+            if (cueChapters.isNotEmpty()) {
+                book = book.copy(chapters = cueChapters)
+            }
+        }
+
+        return book
     }
 
-    suspend fun getAuthors(): List<Author> {
+    /**
+     * Try to find and parse a .cue file for chapter information.
+     */
+    private suspend fun tryParseCueFile(itemId: String, itemPath: String?): List<Chapter> {
+        if (itemPath == null) return emptyList()
+
+        try {
+            // Try to get sibling files (files in same directory)
+            val parentPath = itemPath.substringBeforeLast("/")
+            val baseName = itemPath.substringAfterLast("/").substringBeforeLast(".")
+
+            // Common .cue file naming patterns to try
+            val cuePatterns = listOf(
+                "$baseName.cue",
+                "${baseName.lowercase()}.cue",
+                "chapters.cue"
+            )
+
+            // Try to fetch the .cue file directly using the item's media source
+            val cueUrl = "$serverUrl/Items/$itemId/File"
+
+            // Actually, Jellyfin doesn't easily expose sibling files via API
+            // A simpler approach: check if there's an external subtitle/chapter file
+            // For now, we'll try the common pattern of baseName.cue
+
+            for (pattern in cuePatterns) {
+                val cueContent = fetchCueFile("$parentPath/$pattern")
+                if (cueContent != null) {
+                    val chapters = com.kf7mxe.inglenook.util.CueParser.parse(cueContent)
+                    if (chapters.isNotEmpty()) {
+                        return chapters
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            // Ignore errors - .cue file parsing is optional
+        }
+
+        return emptyList()
+    }
+
+    /**
+     * Try to fetch a .cue file from the server.
+     */
+    private suspend fun fetchCueFile(path: String): String? {
+        return try {
+            // This requires the file to be accessible via the Jellyfin API
+            // which may not always work depending on server configuration
+            val response = client.get("$serverUrl/Library/VirtualFolders") {
+                header("X-Emby-Authorization", getAuthHeader())
+            }
+
+            // For now, return null as direct file access isn't straightforward
+            // A more complete implementation would use the Items API with file paths
+            null
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    suspend fun getAuthors(forceRefresh: Boolean = false): List<Author> {
         val uid = userId ?: return emptyList()
         val libraryIds = selectedLibraryIds.value
+        val cacheKey = ApiCache.authorsKey(libraryIds)
 
+        return ApiCache.getOrPut(cacheKey, ApiCache.DEFAULT_TTL, forceRefresh) {
+            fetchAuthors(uid, libraryIds)
+        }
+    }
+
+    private suspend fun fetchAuthors(uid: String, libraryIds: List<String>): List<Author> {
         // If specific libraries are selected, query each and merge
         if (libraryIds.isNotEmpty()) {
             val allAuthors = mutableListOf<Author>()
@@ -370,7 +494,7 @@ class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
 
         val url = buildString {
             append("$serverUrl/Users/$uid/Items")
-            append("?IncludeItemTypes=AudioBook")
+            append("?IncludeItemTypes=AudioBook,Book")
             append("&Recursive=true")
             append("&Fields=Chapters,Overview,People")
             append("&ArtistIds=$authorId")
@@ -393,6 +517,59 @@ class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
         return "$serverUrl/Items/$id/Images/$imageType"
     }
 
+    /**
+     * Get all series from audiobooks (aggregated from books with seriesName).
+     */
+    suspend fun getAllSeries(): List<Series> {
+        val books = getAllBooks()
+        return books
+            .filter { it.seriesName != null }
+            .groupBy { it.seriesName!! }
+            .map { (seriesName, seriesBooks) ->
+                // Use the first book with a cover as the series cover
+                val coverBook = seriesBooks.firstOrNull { it.coverImageId != null }
+                Series(
+                    id = seriesBooks.first().seriesId ?: seriesName, // Use seriesId if available, else name
+                    name = seriesName,
+                    imageId = coverBook?.coverImageId,
+                    bookCount = seriesBooks.size,
+                    overview = null
+                )
+            }
+            .sortedBy { it.name }
+    }
+
+    /**
+     * Get all books in a series by series name.
+     */
+    suspend fun getBooksBySeries(seriesName: String): List<AudioBook> {
+        val books = getAllBooks()
+        return books
+            .filter { it.seriesName == seriesName }
+            .sortedBy { it.indexNumber ?: Int.MAX_VALUE }
+    }
+
+    /**
+     * Get series by a specific author.
+     */
+    suspend fun getSeriesByAuthor(authorId: String): List<Series> {
+        val books = getBooksByAuthor(authorId)
+        return books
+            .filter { it.seriesName != null }
+            .groupBy { it.seriesName!! }
+            .map { (seriesName, seriesBooks) ->
+                val coverBook = seriesBooks.firstOrNull { it.coverImageId != null }
+                Series(
+                    id = seriesBooks.first().seriesId ?: seriesName,
+                    name = seriesName,
+                    imageId = coverBook?.coverImageId,
+                    bookCount = seriesBooks.size,
+                    overview = null
+                )
+            }
+            .sortedBy { it.name }
+    }
+
     fun getAudioStreamUrl(itemId: String): String {
         return buildString {
             append("$serverUrl/Audio/$itemId/universal")
@@ -409,11 +586,11 @@ class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
         val uid = userId ?: return SearchResults()
         val libraryIds = selectedLibraryIds.value
 
-        // Search for audiobooks
+        // Search for audiobooks and ebooks
         val booksUrl = buildString {
             append("$serverUrl/Users/$uid/Items")
             append("?SearchTerm=$query")
-            append("&IncludeItemTypes=AudioBook")
+            append("&IncludeItemTypes=AudioBook,Book")
             append("&Recursive=true")
             append("&Fields=Chapters,Overview,People")
             append("&Limit=$limit")
@@ -607,7 +784,8 @@ class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
         }
         val authorNames = authorInfos.map { it.name }
 
-        println("DEBUG this ${this}")
+        // Determine item type from Jellyfin Type field
+        val itemType = if (Type == "Book") ItemType.Ebook else ItemType.AudioBook
 
         return AudioBook(
             id = Id,
@@ -640,7 +818,8 @@ class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
             seriesId = SeriesId,
             indexNumber = IndexNumber,
             year = ProductionYear,
-            libraryId = ParentId
+            libraryId = ParentId,
+            itemType = itemType
         )
     }
 }

@@ -17,6 +17,7 @@ class AndroidAudioPlayer : AudioPlayer {
     private var currentBookId: String? = null
     private var currentBook: AudioBook? = null
     private var pendingStartPosition: Long = 0L
+    private var pendingLocalFilePath: String? = null
     private var mediaControllerFuture: ListenableFuture<MediaController>? = null
     private var mediaController: MediaController? = null
 
@@ -55,18 +56,19 @@ class AndroidAudioPlayer : AudioPlayer {
         }, MoreExecutors.directExecutor())
     }
 
-    override fun play(book: AudioBook, startPositionTicks: Long) {
+    override fun play(book: AudioBook, startPositionTicks: Long, localFilePath: String?) {
         currentBookId = book.id
         currentBook = book
         pendingStartPosition = startPositionTicks
+        pendingLocalFilePath = localFilePath
 
         // Start and connect to service
         ensureServiceStarted()
 
         // Small delay to let service start, then connect
         connectToService {
-            // Use the service directly
-            PlaybackService.getInstance()?.playBook(book, startPositionTicks)
+            // Use the service directly, passing local file path for offline playback
+            PlaybackService.getInstance()?.playBook(book, startPositionTicks, localFilePath)
         }
     }
 

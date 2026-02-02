@@ -11,6 +11,7 @@ import com.lightningkite.kiteui.views.dynamicTheme
 import com.lightningkite.kiteui.views.forEachUpdating
 import com.lightningkite.kiteui.views.l2.icon
 import com.kf7mxe.inglenook.*
+import com.kf7mxe.inglenook.ui.blurredImage
 import com.kf7mxe.inglenook.components.DownloadButton
 import com.lightningkite.reactive.context.invoke
 import com.kf7mxe.inglenook.components.PlaybackControls
@@ -62,10 +63,38 @@ class BookDetailPage(val bookId: String) : Page {
         // Initial load
         loadBook()
 
-        col {
-            gap = 0.rem
+        frame {
+            // Blurred background layer (only when enabled in theme settings)
+            val blurSettings = persistedThemeSettings.value
 
-            // Scrollable content
+
+            if (blurSettings.enableBlurredBackground) {
+                println("DEBUG in book detail blur settings")
+                val backgroundImageSource = remember {
+                    book()?.let { b ->
+                        println("DEBUG in cover image url")
+                        b.coverImageId?.let { coverImageId ->
+                            println("DEBUG coverageImageId")
+                            jellyfinClient.value?.getImageUrl(coverImageId, b.id)
+                        }
+                    }?.let {
+                        ImageRemote(it)
+                    }
+                }
+                    blurredImage(
+                        imageSource =backgroundImageSource,
+                        blurRadius = blurSettings.blurRadius
+                    )
+            }
+
+
+
+
+            // Content layer
+            ThemeDerivation.invoke { it.withBack }.onNext.col {
+                gap = 0.rem
+
+                // Scrollable content
             expanding.scrolling.col {
                 padding = 1.rem
                 gap = 1.5.rem
@@ -197,8 +226,8 @@ class BookDetailPage(val bookId: String) : Page {
                         }
                     }
 
-                    // Action buttons
-                    row {
+                    // Action buttons for audiobooks
+                    shownWhen { book()?.itemType == ItemType.AudioBook }.row {
                         gap = 0.5.rem
 
                         expanding.button {
@@ -344,6 +373,46 @@ class BookDetailPage(val bookId: String) : Page {
                         }
                     }
 
+                    // Action buttons for ebooks
+                    shownWhen { book()?.itemType == ItemType.Ebook }.row {
+                        gap = 0.5.rem
+
+                        // Ebooks can be opened in the Jellyfin web reader
+                        expanding.button {
+                            row {
+                                gap = 0.5.rem
+                                centered.icon(Icon.book, "Read")
+                                centered.text { content = "Open in Browser" }
+                            }
+                            onClick {
+                                val currentBook = book.value
+                                val client = jellyfinClient.value
+                                if (currentBook != null && client != null) {
+                                    // Open the book reader URL in browser
+                                    val readerUrl = "${client.serverUrl}/web/index.html#!/details?id=${currentBook.id}"
+                                    // Use platform-specific URL opener
+                                    com.kf7mxe.inglenook.util.openUrl(readerUrl)
+                                }
+                            }
+                            themeChoice += ImportantSemantic
+                        }
+
+                        // Bookshelf button for ebooks too
+                        button {
+                            icon(Icon.collectionsBookmark, "Add to Bookshelf")
+                            onClick {
+                                coordinatorFrame?.openBottomSheet(
+                                    halfScreenRatio = 0.7f,
+                                    dim = true
+                                ) {
+                                    BookshelfPickerDialog(bookId) {
+                                        closeThisPopover()
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     // Description section
                     shownWhen { book()?.description != null }.col {
                         gap = 0.5.rem
@@ -351,10 +420,11 @@ class BookDetailPage(val bookId: String) : Page {
                         text { ::content { book()?.description ?: "" } }
                     }
 
-                    // Chapters section
+                    // Chapters section (only for audiobooks)
                     shownWhen {
-                        println("DEBUG book()?.chapters ${book()?.chapters?.size}")
-                        (book()?.chapters?.size ?: 0) > 0 }.col {
+                        val b = book()
+                        b?.itemType == ItemType.AudioBook && (b.chapters.size) > 0
+                    }.col {
                         gap = 0.5.rem
 
                         button {
@@ -577,12 +647,7 @@ class BookDetailPage(val bookId: String) : Page {
                     }
                 }
             }
-
-            // Now playing mini controls (shown when playing this book)
-            shownWhen { PlaybackState.currentBook()?.id == bookId && PlaybackState.currentBook() != null }.col {
-                padding = 1.rem
-                PlaybackControls(compact = true)
-            }
+        }
         }
     }
 }

@@ -2,6 +2,7 @@ package com.kf7mxe.inglenook.playback
 
 import com.kf7mxe.inglenook.AudioBook
 import com.kf7mxe.inglenook.Chapter
+import com.kf7mxe.inglenook.downloads.DownloadManager
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.lightningkite.reactive.core.Signal
 import com.lightningkite.reactive.core.AppScope
@@ -45,16 +46,19 @@ object PlaybackState {
         // Update current chapter
         updateCurrentChapter()
 
+        // Check if we have a local download for offline playback
+        val localFilePath = DownloadManager.getLocalFilePath(book.id)
+
         // Start playback
         audioPlayer?.stop()
         audioPlayer = createAudioPlayer()
-        audioPlayer?.play(book, startPosition)
+        audioPlayer?.play(book, startPosition, localFilePath)
         isPlaying.value = true
 
         // Start progress sync
         startProgressSync()
 
-        // Report playback start to Jellyfin
+        // Report playback start to Jellyfin (if online)
         AppScope.launch {
             jellyfinClient.value?.reportPlaybackStart(book.id, startPosition)
         }
@@ -308,7 +312,13 @@ sealed class SleepTimerMode {
 expect fun createAudioPlayer(): AudioPlayer
 
 interface AudioPlayer {
-    fun play(book: AudioBook, startPositionTicks: Long)
+    /**
+     * Play the audiobook.
+     * @param book The book to play
+     * @param startPositionTicks Starting position in ticks
+     * @param localFilePath Optional local file path for offline playback. If null, stream from server.
+     */
+    fun play(book: AudioBook, startPositionTicks: Long, localFilePath: String? = null)
     fun pause()
     fun resume()
     fun stop()

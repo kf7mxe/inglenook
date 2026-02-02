@@ -22,12 +22,14 @@ import com.kf7mxe.inglenook.playback.PlaybackState
 import com.kf7mxe.inglenook.playback.SleepTimerMode
 import com.kf7mxe.inglenook.screens.*
 import com.kf7mxe.inglenook.theming.createTheme
+import com.kf7mxe.inglenook.ui.blurredImage
 import com.lightningkite.kiteui.views.card
 import com.lightningkite.kiteui.views.dynamicTheme
 import com.lightningkite.reactive.context.onRemove
 import com.lightningkite.reactive.core.AppScope
 import com.lightningkite.reactive.core.Signal
 import com.lightningkite.kiteui.reactive.PersistentProperty
+import com.lightningkite.reactive.core.remember
 import kotlinx.coroutines.launch
 
 // Persistent theme settings - survives app restart
@@ -246,10 +248,31 @@ fun ViewWriter.nowPlaying() {
         halfScreenRatio = 0.9f,
         dim = false
     ) {
-        card.col {
+        frame {
+            // Blurred background layer (only when enabled in theme settings)
+            val blurSettings = persistedThemeSettings.value
+            if (blurSettings.enableBlurredBackground) {
+                val backgroundImageSource = remember {
+                    PlaybackState.currentBook.value?.let { book ->
+                        book.coverImageId?.let { coverImageId ->
+                            jellyfinClient.value?.getImageUrl(coverImageId, book.id)
+                        }
+                    }?.let {
+                        ImageRemote(it)
+                    }
+                }
+                    blurredImage(
+                        imageSource = backgroundImageSource,
+                        blurRadius = blurSettings.blurRadius
+                    )
+
+            }
+
+            // Content layer
+            card.col {
 //                applySafeInsets(top = false, bottom = true)
-            gap = 0.0.rem
-            padding = 0.rem
+                gap = 0.0.rem
+                padding = 0.rem
 
 //                // Collapsed state header with drag handle
 //                centered.button {
@@ -549,9 +572,8 @@ fun ViewWriter.nowPlaying() {
 
             onRemove {
                 isNowPlayingOpen.value = false
-                // Re-add the bottom sheet when it's removed
-//                    nowPlaying(BottomSheetState.COLLAPSED)
             }
+        }
         }
     }
 }

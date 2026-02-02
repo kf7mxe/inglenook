@@ -52,6 +52,10 @@ class ThemeSettingsPage : Page {
         val elevationValue = Signal(savedSettings.elevation)
         val outlineWidthValue = Signal(savedSettings.outlineWidth)
 
+        // Blur settings
+        val enableBlurredBackground = Signal(savedSettings.enableBlurredBackground)
+        val blurRadius = Signal(savedSettings.blurRadius)
+
         // Apply theme changes
         fun applyTheme() {
             val settings = ThemeSettings(
@@ -65,7 +69,9 @@ class ThemeSettingsPage : Page {
                 padding = paddingValue.value,
                 gap = gapValue.value,
                 elevation = elevationValue.value,
-                outlineWidth = outlineWidthValue.value
+                outlineWidth = outlineWidthValue.value,
+                enableBlurredBackground = enableBlurredBackground.value,
+                blurRadius = blurRadius.value
             )
             // Persist theme settings
             persistedThemePreset.value = selectedPreset.value
@@ -159,6 +165,60 @@ class ThemeSettingsPage : Page {
                                 applyTheme()
                             }
                         }
+                    }
+                }
+            }
+
+            separator()
+
+            // Background Effects Section
+            col {
+                gap = 0.75.rem
+
+                h3 { content = "Background Effects" }
+                subtext { content = "Apply visual effects to Now Playing and detail screens" }
+
+                card.col {
+                    gap = 1.rem
+                    padding = 1.rem
+
+                    // Blurred background toggle
+                    row {
+                        gap = 0.75.rem
+                        expanding.col {
+                            gap = 0.25.rem
+                            text { content = "Blurred Cover Background" }
+                            subtext { content = "Show a blurred version of the cover image behind content" }
+                        }
+                        checkbox {
+                            checked bind enableBlurredBackground
+                        }
+                    }
+
+                    // Blur radius slider (only shown when blur is enabled)
+                    shownWhen { enableBlurredBackground() }.col {
+                        gap = 0.25.rem
+                        row {
+                            expanding.text { content = "Blur Intensity" }
+                            text { ::content { "${blurRadius().toInt()}px" } }
+                        }
+                    }
+
+                    slider {
+                        min =0.0f
+                        max = 80.0f
+                        value bind blurRadius
+                    }
+
+                    // Apply button for blur settings
+                    button {
+                        row {
+                            gap = 0.5.rem
+                            centered.icon(Icon.check, "Apply")
+                            text("Apply Blur Settings")
+                        }
+                        onClick { applyTheme() }
+                        themeChoice += ImportantSemantic
                     }
                 }
             }

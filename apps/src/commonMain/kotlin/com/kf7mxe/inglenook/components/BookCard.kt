@@ -9,6 +9,7 @@ import com.lightningkite.kiteui.views.l2.icon
 import com.lightningkite.kiteui.views.atBottomEnd
 import com.lightningkite.kiteui.views.card
 import com.kf7mxe.inglenook.AudioBook
+import com.kf7mxe.inglenook.ItemType
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.playback.PlaybackState
 import com.kf7mxe.inglenook.book
@@ -72,17 +73,26 @@ fun ViewWriter.BookCard(
                 this.onClick { onClick() }
             }
             col {
-               centered.button {
+                // Only show play button for audiobooks, show book icon for ebooks
+                centered.button {
                     themeChoice += ImportantSemantic
-                    centered.icon(Icon.playArrow, "Play")
+                    // Show play icon for audiobooks, book icon for ebooks
+                    centered.icon {
+                        ::source { if (audioBook().itemType == ItemType.Ebook) Icon.book else Icon.playArrow }
+                        ::description { if (audioBook().itemType == ItemType.Ebook) "Ebook" else "Play" }
+                    }
                     onClick {
                         val currentBook = audioBook.invoke()
-                        if (onPlayClick != null) {
-                            onPlayClick(currentBook)
-                        } else {
-                            val startPosition = currentBook.userData?.playbackPositionTicks ?: 0L
-                            PlaybackState.play(currentBook, startPosition)
+                        // Only play audiobooks
+                        if (currentBook.itemType == ItemType.AudioBook) {
+                            if (onPlayClick != null) {
+                                onPlayClick(currentBook)
+                            } else {
+                                val startPosition = currentBook.userData?.playbackPositionTicks ?: 0L
+                                PlaybackState.play(currentBook, startPosition)
+                            }
                         }
+                        // For ebooks, clicking will just go to detail page (handled by onClick on card)
                     }
                 }
             }

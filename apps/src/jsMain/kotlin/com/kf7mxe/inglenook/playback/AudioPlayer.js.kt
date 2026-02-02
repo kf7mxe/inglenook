@@ -1,8 +1,11 @@
 package com.kf7mxe.inglenook.playback
 
 import com.kf7mxe.inglenook.AudioBook
+import com.kf7mxe.inglenook.downloads.PlatformDownloader
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import kotlinx.browser.window
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 import org.w3c.dom.Audio
 import org.w3c.dom.events.Event
 
@@ -13,17 +16,39 @@ class JsAudioPlayer : AudioPlayer {
     private var currentBookId: String? = null
     private var positionUpdateInterval: Int? = null
 
-    override fun play(book: AudioBook, startPositionTicks: Long) {
+    override fun play(book: AudioBook, startPositionTicks: Long, localFilePath: String?) {
         // Stop any existing playback
         stop()
 
         currentBookId = book.id
 
-        // Get stream URL
-        val streamUrl = jellyfinClient.value?.getAudioStreamUrl(book.id) ?: return
+        // Check if we have an IndexedDB path (offline download)
+        if (localFilePath != null && localFilePath.startsWith("indexeddb://")) {
+            // Need to fetch blob URL asynchronously
+            val bookId = localFilePath.removePrefix("indexeddb://")
+            GlobalScope.launch {
+                val blobUrl = PlatformDownloader.getBlobUrl(bookId)
+                if (blobUrl != null) {
+                    startPlayback(book, blobUrl, startPositionTicks)
+                } else {
+                    // Fallback to streaming if blob not found
+                    val streamUrl = jellyfinClient.value?.getAudioStreamUrl(book.id) ?: return@launch
+                    startPlayback(book, streamUrl, startPositionTicks)
+                }
+            }
+            return
+        }
+
+        // Use local file if available (already a blob URL), otherwise stream from server
+        val mediaUrl = localFilePath ?: jellyfinClient.value?.getAudioStreamUrl(book.id) ?: return
+        startPlayback(book, mediaUrl, startPositionTicks)
+    }
+
+    private fun startPlayback(book: AudioBook, mediaUrl: String, startPositionTicks: Long) {
+        currentBookId = book.id
 
         // Create audio element
-        audioElement = Audio(streamUrl).apply {
+        audioElement = Audio(mediaUrl).apply {
             // Set up event handlers
             onended = { _: Event ->
                 PlaybackState.onPlaybackComplete()

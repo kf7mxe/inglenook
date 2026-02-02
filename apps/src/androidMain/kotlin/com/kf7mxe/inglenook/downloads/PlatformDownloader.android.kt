@@ -2,127 +2,71 @@
 
 package com.kf7mxe.inglenook.downloads
 
+import android.content.Intent
+import android.os.Build
 import com.kf7mxe.inglenook.AudioBook
 import com.kf7mxe.inglenook.DownloadProgress
-import com.kf7mxe.inglenook.DownloadStatus
 import com.kf7mxe.inglenook.DownloadedBook
-import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.lightningkite.kiteui.views.AndroidAppContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
-import java.io.FileOutputStream
-import java.net.HttpURLConnection
-import java.net.URL
-import java.util.concurrent.ConcurrentHashMap
 
 actual object PlatformDownloader {
-    // Track active download jobs for cancellation
-    private val activeDownloads = ConcurrentHashMap<String, Boolean>()
 
+    /**
+     * Start a download using the foreground DownloadService.
+     * Progress and completion are reported through DownloadManager callbacks.
+     */
     actual suspend fun performDownload(
         book: AudioBook,
         onProgress: (DownloadProgress) -> Unit
-    ): DownloadedBook = withContext(Dispatchers.IO) {
-        val client = jellyfinClient.value
-            ?: throw IllegalStateException("Not connected to Jellyfin server")
-
-        val streamUrl = client.getAudioStreamUrl(book.id)
-        val downloadsDir = getDownloadsDirectory()
-        val fileName = "${book.id}.m4a"
-        val outputFile = File(downloadsDir, fileName)
-
-        // Mark this download as active
-        activeDownloads[book.id] = true
-
-        try {
-            // Create downloads directory if it doesn't exist
-            File(downloadsDir).mkdirs()
-
-            // Open connection
-            val url = URL(streamUrl)
-            val connection = url.openConnection() as HttpURLConnection
-
-            // Add authentication header if needed
-            client.getAuthHeader()?.let { authHeader ->
-                connection.setRequestProperty("X-Emby-Authorization", authHeader)
+    ): DownloadedBook {
+        // Queue the download with the service
+        val service = DownloadService.getInstance()
+        if (service != null) {
+            // Service is already running - queue directly
+            service.queueDownload(book)
+        } else {
+            // Start the service
+            val context = AndroidAppContext.applicationCtx
+            val intent = Intent(context, DownloadService::class.java).apply {
+                action = DownloadService.ACTION_START_DOWNLOAD
             }
 
-            connection.connect()
-
-            val totalBytes = connection.contentLengthLong
-            var bytesDownloaded = 0L
-
-            // Update progress to downloading
-            onProgress(DownloadProgress(
-                bookId = book.id,
-                bytesDownloaded = 0L,
-                totalBytes = totalBytes,
-                status = DownloadStatus.Downloading
-            ))
-
-            // Download the file
-            connection.inputStream.use { input ->
-                FileOutputStream(outputFile).use { output ->
-                    val buffer = ByteArray(8192)
-                    var bytesRead: Int
-
-                    while (input.read(buffer).also { bytesRead = it } != -1) {
-                        // Check if download was cancelled
-                        if (activeDownloads[book.id] != true) {
-                            throw InterruptedException("Download cancelled")
-                        }
-
-                        output.write(buffer, 0, bytesRead)
-                        bytesDownloaded += bytesRead
-
-                        // Update progress
-                        onProgress(DownloadProgress(
-                            bookId = book.id,
-                            bytesDownloaded = bytesDownloaded,
-                            totalBytes = totalBytes,
-                            status = DownloadStatus.Downloading
-                        ))
-                    }
-                }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(intent)
+            } else {
+                context.startService(intent)
             }
 
-            connection.disconnect()
-
-            // Update progress to completed
-            onProgress(DownloadProgress(
-                bookId = book.id,
-                bytesDownloaded = bytesDownloaded,
-                totalBytes = totalBytes,
-                status = DownloadStatus.Completed
-            ))
-
-            // Return downloaded book info
-            DownloadedBook(
-                _id = book.id,
-                title = book.title,
-                authors = book.authors,
-                localFilePath = outputFile.absolutePath,
-                coverImagePath = null, // Cover image not downloaded separately
-                // downloadedAt uses default value (Clock.System.now())
-                fileSize = bytesDownloaded,
-                duration = book.duration,
-                chapters = book.chapters
-            )
-        } catch (e: Exception) {
-            // Clean up partial download
-            if (outputFile.exists()) {
-                outputFile.delete()
-            }
-            throw e
-        } finally {
-            activeDownloads.remove(book.id)
+            // Queue download once service starts (it will pick up pending items)
+            // The service will be started and will call processQueue()
+            // We need to queue the book - do this via a small delay or callback
+            // For now, we'll re-queue once the service is available
+            kotlinx.coroutines.delay(100) // Small delay to let service start
+            DownloadService.getInstance()?.queueDownload(book)
         }
+
+        // Return a placeholder - actual completion is handled via DownloadManager callbacks
+        // The service will call DownloadManager.notifyDownloadComplete() when done
+        throw UnsupportedOperationException(
+            "Android downloads are handled asynchronously via DownloadService. " +
+            "Use DownloadManager callbacks for progress and completion."
+        )
     }
 
     actual suspend fun cancelDownload(bookId: String) {
-        // Mark download as cancelled
-        activeDownloads[bookId] = false
+        // Cancel via service
+        DownloadService.getInstance()?.cancelDownload(bookId)
+
+        // Also try sending intent if service isn't available
+        val context = AndroidAppContext.applicationCtx
+        val intent = Intent(context, DownloadService::class.java).apply {
+            action = DownloadService.ACTION_CANCEL_DOWNLOAD
+            putExtra(DownloadService.EXTRA_BOOK_ID, bookId)
+        }
+        context.startService(intent)
     }
 
     actual suspend fun deleteFile(filePath: String) = withContext(Dispatchers.IO) {
