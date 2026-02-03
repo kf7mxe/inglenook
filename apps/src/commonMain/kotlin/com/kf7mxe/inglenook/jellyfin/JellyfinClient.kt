@@ -3,6 +3,7 @@ package com.kf7mxe.inglenook.jellyfin
 import com.kf7mxe.inglenook.*
 import com.kf7mxe.inglenook.AuthorInfo
 import com.kf7mxe.inglenook.cache.ApiCache
+import com.kf7mxe.inglenook.util.CueParser
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.plugins.contentnegotiation.*
@@ -299,9 +300,14 @@ class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
         val item: JellyfinItem = response.body()
         var book = item.toAudioBook()
 
-        // If no chapters, try to find and parse a .cue file
-        if (book.chapters.isEmpty()) {
-            val cueChapters = tryParseCueFile(itemId, item.Path)
+        println("DEBUG jellyfinclient book ${book}")
+        println("DEBUG jellyfinclient item.ParentId ${item.ParentId}")
+
+        // If no chapters, try to find and parse a .cue file using the ParentId
+        if (book.chapters.isEmpty() && item.ParentId != null) {
+            println("DEBUG jellyfinclient chapters not found")
+            val cueChapters = tryParseCueFile(uid, item.ParentId, item.Path)
+            println("DEBUG cueChapters ${cueChapters}")
             if (cueChapters.isNotEmpty()) {
                 book = book.copy(chapters = cueChapters)
             }
@@ -312,63 +318,70 @@ class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
 
     /**
      * Try to find and parse a .cue file for chapter information.
+     * Uses the Jellyfin API to:
+     * 1. List all items in the parent folder
+     * 2. Find the .cue file
+     * 3. Download and parse it
      */
-    private suspend fun tryParseCueFile(itemId: String, itemPath: String?): List<Chapter> {
+    private suspend fun tryParseCueFile(userId: String, parentId: String, itemPath: String?): List<Chapter> {
         if (itemPath == null) return emptyList()
 
-        try {
-            // Try to get sibling files (files in same directory)
-            val parentPath = itemPath.substringBeforeLast("/")
-            val baseName = itemPath.substringAfterLast("/").substringBeforeLast(".")
+        return try {
+            val folderPath = itemPath.substringBeforeLast("/")
 
-            // Common .cue file naming patterns to try
-            val cuePatterns = listOf(
-                "$baseName.cue",
-                "${baseName.lowercase()}.cue",
-                "chapters.cue"
-            )
-
-            // Try to fetch the .cue file directly using the item's media source
-            val cueUrl = "$serverUrl/Items/$itemId/File"
-
-            // Actually, Jellyfin doesn't easily expose sibling files via API
-            // A simpler approach: check if there's an external subtitle/chapter file
-            // For now, we'll try the common pattern of baseName.cue
-
-            for (pattern in cuePatterns) {
-                val cueContent = fetchCueFile("$parentPath/$pattern")
-                if (cueContent != null) {
-                    val chapters = com.kf7mxe.inglenook.util.CueParser.parse(cueContent)
-                    if (chapters.isNotEmpty()) {
-                        return chapters
-                    }
-                }
+            val dirResponse = client.get("$serverUrl/Environment/DirectoryContents") {
+                header("X-Emby-Authorization", getAuthHeader())
+                parameter("Path", folderPath)
             }
-        } catch (e: Exception) {
-            // Ignore errors - .cue file parsing is optional
-        }
 
-        return emptyList()
+            println("DEBUG dirResponse ${dirResponse}")
+
+            if (!dirResponse.status.isSuccess()) return emptyList()
+
+            val entries: List<FileSystemEntry> = dirResponse.body()
+            println("DEBUG entries ${entries}")
+
+            val cueEntry = entries.firstOrNull {
+                !it.IsDirectory && it.Name.lowercase().endsWith(".cue")
+            } ?: return emptyList()
+
+            println("DEBUG Found cue file: ${cueEntry.Path}")
+
+            val cueContent = client.get("$serverUrl/Environment/DownloadFile") {
+                header("X-Emby-Authorization", getAuthHeader())
+                parameter("Path", cueEntry.Path)
+            }.bodyAsText()
+
+            CueParser.parse(cueContent)
+
+        } catch (e: Exception) {
+            println("CUE parse error ${e.message}")
+            emptyList()
+        }
     }
+
+@Serializable
+    data class FileSystemEntry(
+        val Name: String,
+        val Path: String,
+        val IsDirectory: Boolean
+    )
+
 
     /**
-     * Try to fetch a .cue file from the server.
+     * Download the raw content of a .cue file from Jellyfin.
      */
-    private suspend fun fetchCueFile(path: String): String? {
-        return try {
-            // This requires the file to be accessible via the Jellyfin API
-            // which may not always work depending on server configuration
-            val response = client.get("$serverUrl/Library/VirtualFolders") {
-                header("X-Emby-Authorization", getAuthHeader())
-            }
-
-            // For now, return null as direct file access isn't straightforward
-            // A more complete implementation would use the Items API with file paths
-            null
-        } catch (e: Exception) {
-            null
+    suspend fun downloadCueFile(id: String): String? {
+        val response = client.get("$serverUrl/Items/$id/Download") {
+            header("X-Emby-Authorization", getAuthHeader())
         }
+        println("DEBUG downloadCueFile id=$id status=${response.status}")
+        if (!response.status.isSuccess()) return null
+        val text = response.bodyAsText()
+        println("DEBUG downloadCueFile length=${text.length}")
+        return text
     }
+
 
     suspend fun getAuthors(forceRefresh: Boolean = false): List<Author> {
         val uid = userId ?: return emptyList()

@@ -64,6 +64,7 @@ kotlin {
                 implementation("androidx.media3:media3-exoplayer:1.5.1")
                 implementation("androidx.media3:media3-session:1.5.1")
                 implementation("androidx.media3:media3-ui:1.5.1")
+                implementation("com.vanniktech:blurhash:0.4.0-SNAPSHOT")
             }
         }
 //        val iosMain by getting {
@@ -74,6 +75,7 @@ kotlin {
         val jsMain by getting {
             dependencies {
                 implementation("io.ktor:ktor-client-js:3.0.3")
+                implementation(libs.indexddb)
             }
         }
 

@@ -206,7 +206,7 @@ class ThemeSettingsPage : Page {
 
                     slider {
                         min =0.0f
-                        max = 80.0f
+                        max = 50.0f
                         value bind blurRadius
                     }
 

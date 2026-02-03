@@ -220,3 +220,10 @@ data class AppSettings(
     val skipBackwardSeconds: Int = 15,
     val sleepTimerMinutes: Int? = null
 )
+
+
+
+const val databaseVersion = 1
+
+@Serializable
+data class ModelTableVersionContainer(val version: Int = databaseVersion, val table: String)

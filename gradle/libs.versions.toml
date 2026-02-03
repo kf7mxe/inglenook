@@ -6,6 +6,7 @@ graalVmNative = "0.11.3"
 jsPlainObjects = "2.3.0"
 kfc = "16.5.0"
 kiteui = "7.0.0-prerelease-165"
+indexdDbVersion="0.9.0"
 
 kotlin = "2.2.20"
 kotlinerCli = "1.0.5"
@@ -47,6 +48,7 @@ services-notifications-firebase = { module = "com.lightningkite.services:notific
 desugarJdkLibs = { module = "com.android.tools:desugar_jdk_libs", version = { ref = "desugar_jdk_libsVersion" } }
 firebase-messaging-ktx = { module = "com.google.firebase:firebase-messaging-ktx", version = { ref = "firebaseMessagingKtx" } }
 kotliner-cli = { module = "com.lightningkite:kotliner-cli", version = { ref = "kotlinerCli" } }
+indexddb = {module = "com.juul.indexeddb:core", version = { ref = "indexdDbVersion" }}
 
 [plugins]
 androidApp = { id = "com.android.application", version = { ref = "agp" } }
