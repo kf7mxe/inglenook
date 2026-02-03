@@ -16,13 +16,13 @@ import com.lightningkite.kiteui.views.l2.coordinatorFrame
 import com.lightningkite.kiteui.views.l2.icon
 import com.lightningkite.kiteui.views.l2.navigatorView
 import com.kf7mxe.inglenook.components.PlaybackControls
+import com.kf7mxe.inglenook.components.blurredImage
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.jellyfin.jellyfinServerConfig
 import com.kf7mxe.inglenook.playback.PlaybackState
 import com.kf7mxe.inglenook.playback.SleepTimerMode
 import com.kf7mxe.inglenook.screens.*
 import com.kf7mxe.inglenook.theming.createTheme
-import com.kf7mxe.inglenook.ui.blurredImage
 import com.lightningkite.kiteui.views.card
 import com.lightningkite.kiteui.views.dynamicTheme
 import com.lightningkite.reactive.context.onRemove
@@ -245,31 +245,15 @@ fun ViewWriter.nowPlayingPreview() {
 fun ViewWriter.nowPlaying() {
     println("DEBUG coordinatorFram ${coordinatorFrame}")
     coordinatorFrame?.openBottomSheet(
-        halfScreenRatio = 0.9f,
+        halfScreenRatio = 0.5f,
         dim = false
     ) {
-        frame {
+        expanding.frame {
             // Blurred background layer (only when enabled in theme settings)
-            val blurSettings = persistedThemeSettings.value
-            if (blurSettings.enableBlurredBackground) {
-                val backgroundImageSource = remember {
-                    PlaybackState.currentBook.value?.let { book ->
-                        book.coverImageId?.let { coverImageId ->
-                            jellyfinClient.value?.getImageUrl(coverImageId, book.id)
-                        }
-                    }?.let {
-                        ImageRemote(it)
-                    }
-                }
-                    blurredImage(
-                        imageSource = backgroundImageSource,
-                        blurRadius = blurSettings.blurRadius
-                    )
-
-            }
+            blurredImage(PlaybackState.currentBook)
 
             // Content layer
-            card.col {
+            col {
 //                applySafeInsets(top = false, bottom = true)
                 gap = 0.0.rem
                 padding = 0.rem
