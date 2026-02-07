@@ -19,6 +19,7 @@ import com.lightningkite.reactive.core.AppScope
 import com.lightningkite.reactive.core.Constant
 import com.lightningkite.reactive.core.Reactive
 import com.lightningkite.reactive.core.remember
+import com.lightningkite.reactive.core.rememberSuspending
 import kotlinx.coroutines.launch
 
 @Routable("series")
@@ -26,31 +27,15 @@ class SeriesPage : Page {
     override val title: Reactive<String> = Constant("Series")
 
     override fun ViewWriter.render() {
-        val isLoading = Signal(true)
-        val allSeries = Signal<List<Series>>(emptyList())
+        val allSeries = rememberSuspending {
+            val client = jellyfinClient.value
+            val test = client?.getAllSeries()?:emptyList()
+            println("DEBUG test ${test.size}")
+            test
+        }
         val searchQuery = Signal("")
         val errorMessage = Signal<String?>(null)
 
-        // Load series
-        fun loadSeries() {
-            isLoading.value = true
-            errorMessage.value = null
-            AppScope.launch {
-                try {
-                    val client = jellyfinClient.value
-                    if (client != null) {
-                        allSeries.value = client.getAllSeries()
-                    }
-                } catch (e: Exception) {
-                    errorMessage.value = "Failed to load series: ${e.message}"
-                } finally {
-                    isLoading.value = false
-                }
-            }
-        }
-
-        // Initial load
-        loadSeries()
 
         col {
             // Search bar
@@ -58,34 +43,34 @@ class SeriesPage : Page {
                 padding = 1.rem
                 gap = 0.5.rem
 
-                expanding.textField {
+                expanding.textInput {
                     hint = "Search series..."
                     content bind searchQuery
                 }
             }
 
             // Loading state
-            shownWhen { isLoading() }.centered.activityIndicator()
+            shownWhen { !allSeries.state().ready }.centered.activityIndicator()
 
             // Error state
-            shownWhen { errorMessage() != null && !isLoading() }.centered.col {
-                gap = 0.5.rem
-                text { ::content { errorMessage() ?: "" } }
-                button {
-                    text("Retry")
-                    onClick { loadSeries() }
-                }
-            }
+//            shownWhen { errorMessage() != null && !isLoading() }.centered.col {
+//                gap = 0.5.rem
+//                text { ::content { errorMessage() ?: "" } }
+//                button {
+//                    text("Retry")
+//                    onClick { loadSeries() }
+//                }
+//            }
 
             // Empty state
-            shownWhen { allSeries().isEmpty() && !isLoading() && errorMessage() == null }.centered.col {
+            shownWhen { allSeries().isEmpty() && allSeries.state().ready && errorMessage() == null }.centered.col {
                 gap = 0.5.rem
                 text { content = "No series found" }
                 subtext { content = "Books with series metadata will appear here" }
             }
 
             // Series grid with search filtering
-            shownWhen { !isLoading() && errorMessage() == null }.expanding.recyclerView {
+            shownWhen { allSeries.state().ready && errorMessage() == null }.recyclerView {
                 ::placer { RecyclerViewPlacerVerticalGrid(2) }
 
                 // Create a reactive filtered list
@@ -98,7 +83,7 @@ class SeriesPage : Page {
                     }
                 }
 
-                children(filteredSeries, { it.id }) { seriesReactive ->
+                children(allSeries, { it.id }) { seriesReactive ->
                     SeriesCard(seriesReactive) {
                         mainPageNavigator.navigate(SeriesDetailPage(seriesReactive().name))
                     }

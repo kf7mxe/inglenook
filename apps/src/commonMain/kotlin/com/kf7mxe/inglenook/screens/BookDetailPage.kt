@@ -22,6 +22,7 @@ import com.lightningkite.kiteui.views.l2.coordinatorFrame
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.playback.PlaybackState
 import com.kf7mxe.inglenook.storage.BookmarkRepository
+import com.kf7mxe.inglenook.storage.ImageSemantic
 import com.lightningkite.kiteui.Routable
 import com.lightningkite.kiteui.views.closeThisPopover
 import com.lightningkite.kiteui.views.forEach
@@ -38,28 +39,32 @@ import kotlin.uuid.ExperimentalUuidApi
 @OptIn(ExperimentalUuidApi::class)
 @Routable("book/{bookId}")
 class BookDetailPage(val bookId: String) : Page {
-    override val title: Reactive<String> = Constant("Book")
-
+    override val title: Reactive<String> = rememberSuspending {
+     book()?.title?:"Book"
+    }
+    val book = rememberSuspending {
+        println("DEBUG boook remember")
+        val client = jellyfinClient()
+        println("DEBUG client ${client}")
+        val test = client?.getBook(bookId)
+        println("DEBUG test ${test}")
+        test
+    }
     override fun ViewWriter.render() {
 
-        val book = rememberSuspending {
-            println("DEBUG boook remember")
-            val client = jellyfinClient()
-            println("DEBUG client ${client}")
-            val test = client?.getBook(bookId)
-            println("DEBUG test ${test}")
-            test
-        }
+
 //        val errorMessage = Signal<String?>(null)
         val showChapters = Signal(true)
 
 
 
 
-        frame {
+        unpadded.frame {
             // Blurred background layer (only when enabled in theme settings)
 
-            blurredImage(book)
+            blurredImage(book,remember {
+                persistedThemeSettings().showPlayingBookCoverOnNowPlayingAndBookDetail
+            })
 
             // Content layer
 //            ThemeDerivation.invoke { it.withBack }.onNext.
@@ -94,7 +99,7 @@ class BookDetailPage(val bookId: String) : Page {
 
                             // Cover image
                             sizedBox(SizeConstraints(width = 8.rem, height = 12.rem)).frame {
-                                shownWhen { book()?.coverImageId != null }.image {
+                                shownWhen { book()?.coverImageId != null }.themed(ImageSemantic).image {
                                     ::source {
                                         val currentBook = book()
                                         val client = jellyfinClient()

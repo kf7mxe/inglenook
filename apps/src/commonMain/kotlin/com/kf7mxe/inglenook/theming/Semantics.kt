@@ -5,6 +5,7 @@ import com.lightningkite.kiteui.models.Semantic
 import com.lightningkite.kiteui.models.Theme
 import com.lightningkite.kiteui.models.ThemeAndBack
 import com.lightningkite.kiteui.models.*
+import com.lightningkite.kiteui.models.CornerRadii.Fixed
 import com.lightningkite.kiteui.views.ViewModifierDsl3
 import com.lightningkite.kiteui.views.ViewWriter
 import kotlin.time.Duration
@@ -34,6 +35,7 @@ data object BadgeSemantic : Semantic("badge") {
 
 data object ImageSemantic : Semantic("imageSemantic") {
     override fun default(theme: Theme): ThemeAndBack = theme.copy(id="imageSemantic",
-
-        ).withoutBack
+        cornerRadii = Fixed(0.rem),
+//        padding = Edges.ZERO
+        ).withBackNoPadding
 }

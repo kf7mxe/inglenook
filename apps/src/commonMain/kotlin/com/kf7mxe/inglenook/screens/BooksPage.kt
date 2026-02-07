@@ -57,18 +57,6 @@ class BooksPage : Page {
             client?.getAllBooks() ?: emptyList()
         }
 
-        // Get unique series for filter options
-        val seriesFilters: Reactive<List<FilterOption>> = remember {
-            val allBooks = books()
-            val series = allBooks.mapNotNull { it.seriesName }.distinct().sorted()
-            series.map { seriesName ->
-                FilterOption(
-                    id = "series-$seriesName",
-                    label = seriesName,
-                    filterFn = { book -> book.seriesName == seriesName }
-                )
-            }
-        }
 
         // Filter books based on search query and selected filter
         val filteredBooks: Reactive<List<AudioBook>> = remember {
@@ -115,34 +103,6 @@ class BooksPage : Page {
                 }
             }
 
-// Filter chips (series filters)
-            shownWhen { seriesFilters().isNotEmpty() }.scrollingHorizontally.row {
-
-                // "All" chip
-                button {
-                    text("All")
-                    onClick { selectedFilter.value = null }
-                    dynamicTheme {
-                        if (selectedFilter.value == null) ImportantSemantic else null
-                    }
-                }
-
-                // Series filter chips
-                row {
-                    forEach(seriesFilters) { filter ->
-                        button {
-                            text(filter.label)
-                            onClick {
-                                selectedFilter.value = if (selectedFilter.value?.id == filter.id) null else filter
-                            }
-                            dynamicTheme {
-                                if (selectedFilter.value?.id == filter.id) ImportantSemantic else null
-                            }
-                        }
-                    }
-                }
-            }
-
             shownWhen { !books.state().ready }.centered.activityIndicator()
 
             // Loading state
@@ -158,7 +118,7 @@ class BooksPage : Page {
 //            }
 
             // Content
-            shownWhen { books().isEmpty() }.frame {
+            shownWhen { books.state().ready && books().isEmpty() }.frame {
                 // Empty state
                 shownWhen { books().isEmpty() }.centered.col {
                     icon(Icon.book.copy(width = 3.rem, height = 3.rem), "Books")

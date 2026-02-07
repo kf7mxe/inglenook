@@ -17,9 +17,11 @@ import com.kf7mxe.inglenook.jellyfin.jellyfinServerConfig
 import com.kf7mxe.inglenook.jellyfin.selectedLibraryIds
 import com.lightningkite.kiteui.Routable
 import com.lightningkite.kiteui.views.forEach
+import com.lightningkite.reactive.context.invoke
 import com.lightningkite.reactive.core.Signal
 import com.lightningkite.reactive.core.AppScope
 import com.lightningkite.reactive.core.Constant
+import com.lightningkite.reactive.core.rememberSuspending
 import kotlinx.coroutines.launch
 
 
@@ -28,28 +30,13 @@ class SettingsPage : Page {
     override val title get() = Constant("Settings")
 
     override fun ViewWriter.render() {
-        val libraries = Signal<List<JellyfinLibrary>>(emptyList())
-        val isLoadingLibraries = Signal(false)
-
-        // Load libraries
-        fun loadLibraries() {
-            isLoadingLibraries.value = true
-            AppScope.launch {
-                try {
-                    val client = jellyfinClient.value
-                    if (client != null) {
-                        libraries.value = client.getLibraries()
-                    }
-                } finally {
-                    isLoadingLibraries.value = false
-                }
-            }
+        val libraries = rememberSuspending {
+            val client = jellyfinClient.value
+            client?.getLibraries()?:emptyList()
         }
+            Signal<List<JellyfinLibrary>>(emptyList())
 
-        // Initial load
-        loadLibraries()
-
-        scrolls.col {
+        scrolling.col {
             padding = 1.rem
             gap = 1.5.rem
 
@@ -93,106 +80,7 @@ class SettingsPage : Page {
                 }
             }
 
-            // Library Selection section
-            col {
-                gap = 0.5.rem
 
-                row {
-                    expanding.h3 { content = "Libraries" }
-                    subtext {
-                        ::content {
-                            val selected = selectedLibraryIds()
-                            if (selected.isEmpty()) "All" else "${selected.size} selected"
-                        }
-                    }
-                }
-
-                card.col {
-                    gap = 0.rem
-
-                    shownWhen { isLoadingLibraries() }.centered.row {
-                        padding = 1.rem
-                        activityIndicator()
-                        text("Loading libraries...")
-                    }
-
-                    shownWhen { !isLoadingLibraries() }.col {
-                        gap = 0.rem
-
-                        // Select All / Clear buttons
-                        row {
-                            padding = 0.5.rem
-                            gap = 0.5.rem
-
-                            button {
-                                text("Select All")
-                                onClick {
-                                    selectedLibraryIds.value = libraries.value.map { it.id }
-                                }
-                            }
-
-                            button {
-                                text("Clear All")
-                                onClick {
-                                    selectedLibraryIds.value = emptyList()
-                                }
-                            }
-
-                            expanding.space(1.0)
-
-                            subtext {
-                                ::content {
-                                    if (selectedLibraryIds().isEmpty()) "Showing all libraries" else ""
-                                }
-                            }
-                        }
-
-                        separator()
-
-                        forEach(libraries) { library ->
-                            button {
-                                row {
-                                    padding = 0.5.rem
-
-                                    checkbox {
-                                        checked bind selectedLibraryIds.lens(
-                                            get = { it.contains(library.id) },
-                                            modify = { list, isSelected ->
-                                                if (isSelected) {
-                                                    list + library.id
-                                                } else {
-                                                    list - library.id
-                                                }
-                                            }
-                                        )
-                                    }
-
-                                    expanding.col {
-                                        gap = 0.rem
-                                        text(library.name)
-                                        shownWhen { library.collectionType != null }.subtext {
-                                            content = library.collectionType ?: ""
-                                        }
-                                    }
-                                }
-                                onClick {
-                                    // Toggle selection
-                                    val currentIds = selectedLibraryIds.value
-                                    selectedLibraryIds.value = if (library.id in currentIds) {
-                                        currentIds - library.id
-                                    } else {
-                                        currentIds + library.id
-                                    }
-                                }
-                                dynamicTheme {
-                                    if (library.id in selectedLibraryIds()) SelectedSemantic else null
-                                }
-                            }
-                            separator()
-                        }
-                    }
-                }
-            }
 
             // Theme section
             col {
@@ -274,6 +162,110 @@ class SettingsPage : Page {
                     }
                 }
             }
+
+
+            // Library Selection section
+            col {
+                gap = 0.5.rem
+
+                row {
+                    expanding.h3 { content = "Libraries" }
+                    subtext {
+                        ::content {
+                            val selected = selectedLibraryIds()
+                            if (selected.isEmpty()) "All" else "${selected.size} selected"
+                        }
+                    }
+                }
+
+                card.col {
+                    gap = 0.rem
+
+                    shownWhen { !libraries.state().ready }.centered.row {
+                        padding = 1.rem
+                        activityIndicator()
+                        text("Loading libraries...")
+                    }
+
+                    shownWhen { libraries.state().ready }.col {
+                        gap = 0.rem
+
+                        // Select All / Clear buttons
+                        row {
+                            padding = 0.5.rem
+                            gap = 0.5.rem
+
+                            button {
+                                text("Select All")
+                                onClick {
+                                    selectedLibraryIds.value = libraries.invoke().map { it.id }
+                                }
+                            }
+
+                            button {
+                                text("Clear All")
+                                onClick {
+                                    selectedLibraryIds.value = emptyList()
+                                }
+                            }
+
+                            expanding.space(1.0)
+
+                            subtext {
+                                ::content {
+                                    if (selectedLibraryIds().isEmpty()) "Showing all libraries" else ""
+                                }
+                            }
+                        }
+
+                        separator()
+                        col {
+                            forEach(libraries) { library ->
+                                button {
+                                    row {
+                                        padding = 0.5.rem
+
+                                        checkbox {
+                                            checked bind selectedLibraryIds.lens(
+                                                get = { it.contains(library.id) },
+                                                modify = { list, isSelected ->
+                                                    if (isSelected) {
+                                                        list + library.id
+                                                    } else {
+                                                        list - library.id
+                                                    }
+                                                }
+                                            )
+                                        }
+
+                                        expanding.col {
+                                            gap = 0.rem
+                                            text(library.name)
+                                            shownWhen { library.collectionType != null }.subtext {
+                                                content = library.collectionType ?: ""
+                                            }
+                                        }
+                                    }
+                                    onClick {
+                                        // Toggle selection
+                                        val currentIds = selectedLibraryIds.value
+                                        selectedLibraryIds.value = if (library.id in currentIds) {
+                                            currentIds - library.id
+                                        } else {
+                                            currentIds + library.id
+                                        }
+                                    }
+                                    dynamicTheme {
+                                        if (library.id in selectedLibraryIds()) SelectedSemantic else null
+                                    }
+                                }
+                                separator()
+                            }
+                        }
+                    }
+                }
+            }
+
 
             // About section
             col {

@@ -1,5 +1,7 @@
 package com.kf7mxe.inglenook
 
+import com.kf7mxe.inglenook.cache.blurAndCacheImage
+import com.kf7mxe.inglenook.cache.getBlurredCachedImage
 import com.lightningkite.kiteui.models.*
 import com.lightningkite.kiteui.navigation.Page
 import com.lightningkite.kiteui.navigation.PageNavigator
@@ -22,14 +24,23 @@ import com.kf7mxe.inglenook.jellyfin.jellyfinServerConfig
 import com.kf7mxe.inglenook.playback.PlaybackState
 import com.kf7mxe.inglenook.playback.SleepTimerMode
 import com.kf7mxe.inglenook.screens.*
+import com.kf7mxe.inglenook.storage.readImageFromStorage
 import com.kf7mxe.inglenook.theming.createTheme
+import com.lightningkite.kiteui.navigation.bindToPlatform
+import com.lightningkite.kiteui.navigation.dialogPageNavigator
+import com.lightningkite.kiteui.navigation.pageNavigator
 import com.lightningkite.kiteui.views.card
 import com.lightningkite.kiteui.views.dynamicTheme
 import com.lightningkite.reactive.context.onRemove
 import com.lightningkite.reactive.core.AppScope
 import com.lightningkite.reactive.core.Signal
 import com.lightningkite.kiteui.reactive.PersistentProperty
+import com.lightningkite.kiteui.views.RView
+import com.lightningkite.kiteui.views.l2.overlayFrame
+import com.lightningkite.kiteui.views.rContextAddon
+import com.lightningkite.reactive.context.invoke
 import com.lightningkite.reactive.core.remember
+import com.lightningkite.reactive.core.rememberSuspending
 import kotlinx.coroutines.launch
 
 // Persistent theme settings - survives app restart
@@ -58,10 +69,12 @@ data class NavLink(
     val destination: () -> Page
 )
 
-val wallpaper = Signal<ImageSource?>(null)
 
 
 val isNowPlayingOpen = Signal(false)
+
+var ViewWriter.overlayFrame by rContextAddon<RView?>(null)
+var ViewWriter.coordinatorFrame by rContextAddon<CoordinatorFrame?>(null)
 
 
 fun ViewWriter.app(navigator: PageNavigator, dialog: PageNavigator) {
@@ -84,14 +97,45 @@ fun ViewWriter.app(navigator: PageNavigator, dialog: PageNavigator) {
 
     appBase(navigator, dialog) {
 
-        OuterSemantic.onNext.frame {
+        OuterSemantic.onNext.coordinatorFrame {
             applySafeInsets(bottom = false)
+            mainPageNavigator = navigator
+            dialog?.let {
+                dialogPageNavigator = it
+            }
+            navigator.bindToPlatform(context)
+            pageNavigator = navigator
+            overlayFrame = this
+            coordinatorFrame = this
 
+
+            val wallpaper = rememberSuspending {
+                persistedThemeSettings().wallpaperPath?.let { wallpaperPath ->
+                    println("DEBUG wfirst let ${wallpaperPath}")
+                    val parentDir = wallpaperPath.split("/").first()
+                    val fileName = wallpaperPath.split("/").last()
+
+                    val cachedFileName = "${persistedThemeSettings().wallpaperBlurRadius}-${fileName}"
+
+                    getBlurredCachedImage(cachedFileName)?:readImageFromStorage(parentDir,fileName)?.let{unblurredImage ->
+                        println("DEBUG unblurredImage ${unblurredImage}")
+                        blurAndCacheImage(cachedFileName,wallpaperPath,unblurredImage,persistedThemeSettings().wallpaperBlurRadius,appTheme().background,0.75f)
+                    }
+                }
+            }
+//
             image {
                 scaleType = ImageScaleType.Crop
                 ::source { wallpaper() }
-                rView::shown { wallpaper() != null }
+                rView::shown {
+                    println("DEBUG wallpaper() != null ${wallpaper() != null}")
+                    wallpaper() != null
+                }
             }
+            blurredImage(PlaybackState.currentBook,remember{
+                PlaybackState.currentBook() != null && persistedThemeSettings().showPlayingBookCoverAsWallpaper
+            })
+
             col {
                 gap = 0.0.rem
                 // Top bar with back button, title, and search
@@ -244,13 +288,15 @@ fun ViewWriter.nowPlayingPreview() {
 
 fun ViewWriter.nowPlaying() {
     println("DEBUG coordinatorFram ${coordinatorFrame}")
-    coordinatorFrame?.openBottomSheet(
-        halfScreenRatio = 0.5f,
-        dim = false
+    coordinatorFrame?.bottomSheet(
+        partialRatio = 0.5f,
+        startState = BottomSheetState.PARTIALLY_EXPANDED
     ) {
-        expanding.frame {
+        card.frame {
             // Blurred background layer (only when enabled in theme settings)
-            blurredImage(PlaybackState.currentBook)
+            blurredImage(PlaybackState.currentBook,rememberSuspending {
+                persistedThemeSettings().showPlayingBookCoverOnNowPlayingAndBookDetail
+            })
 
             // Content layer
             col {
@@ -258,77 +304,6 @@ fun ViewWriter.nowPlaying() {
                 gap = 0.0.rem
                 padding = 0.rem
 
-//                // Collapsed state header with drag handle
-//                centered.button {
-//                    gap = 0.rem
-//                    padding = 0.5.rem
-//                    col {
-//                        gap = 0.rem
-//                        centered.icon(Icon.dragHandle, "Drag")
-//                    }
-//
-//                }
-//                //debuging
-////                text{
-////                    ::content{
-////                        it.state().name
-////                    }
-////                }
-//
-            // Mini player row (collapsed view)
-//                shownWhen { it.state() == BottomSheetState.COLLAPSED }.
-//            row {
-//                padding = 0.75.rem
-//                gap = 0.75.rem
-//
-//                // Thumbnail
-//                sizedBox(SizeConstraints(width = 3.rem, height = 3.rem)).frame {
-//                    image {
-//
-//                        ::source {
-//                            val client = jellyfinClient()
-//                            PlaybackState.currentBook()?.let { book ->
-//                                book.coverImageId?.let { coverImageId ->
-//                                    client?.getImageUrl(coverImageId, book.id)?.let { ImageRemote(it) }
-//                                }
-//                            }
-//                        }
-//                        scaleType = ImageScaleType.Crop
-//                    }
-//                    centered.icon {
-//                        ::shown {
-//                            PlaybackState.currentBook() == null
-//                        }
-//                        source = Icon.book
-//                    }
-//
-//                }
-//
-//                // Title and author
-//                expanding.col {
-//                    gap = 0.25.rem
-//                    text {
-//                        ::content { PlaybackState.currentBook()?.title ?: "" }
-//                        ellipsis = true
-//                    }
-//                    subtext {
-//                        ::content { PlaybackState.currentBook()?.authors?.joinToString(", ") ?: "" }
-//                        ellipsis = true
-//                    }
-//                }
-//
-//                // Play/Pause button
-//                button {
-//                    centered.icon {
-//                        ::source { if (PlaybackState.isPlaying()) Icon.pause else Icon.playArrow }
-//                        ::description { if (PlaybackState.isPlaying()) "Pause" else "Play" }
-//                    }
-//                    onClick { PlaybackState.togglePlayPause() }
-//                }
-//            }
-
-            // Expanded view with full controls
-//                shownWhen { it.state() != BottomSheetState.COLLAPSED }.expanding.scrolls.
             col {
                 padding = 1.rem
                 gap = 1.5.rem
@@ -551,7 +526,7 @@ fun ViewWriter.nowPlaying() {
                 }
 
                 // Spacer at bottom
-                space(2.0)
+//                space(2.0)
             }
 
             onRemove {

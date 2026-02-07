@@ -10,13 +10,35 @@ import com.lightningkite.kiteui.views.expanding
 import com.lightningkite.kiteui.views.l2.icon
 import com.lightningkite.kiteui.views.dynamicTheme
 import com.kf7mxe.inglenook.*
+import com.kf7mxe.inglenook.storage.ImageSemantic
+import com.kf7mxe.inglenook.storage.deleteImageFromStorage
+import com.kf7mxe.inglenook.storage.readImageFromStorage
+import com.kf7mxe.inglenook.storage.saveFile
+import com.kf7mxe.inglenook.storage.saveImageToStorage
 import com.kf7mxe.inglenook.theming.createTheme
+import com.kf7mxe.inglenook.util.getFileExtensionFromMimeType
+import com.lightningkite.kiteui.HttpMethod
+import com.lightningkite.kiteui.Log
 import com.lightningkite.kiteui.Routable
+import com.lightningkite.kiteui.fetch
+import com.lightningkite.kiteui.mimeType
+import com.lightningkite.kiteui.reactive.Action
+import com.lightningkite.kiteui.requestFile
+import com.lightningkite.kiteui.views.atBottomEnd
+import com.lightningkite.kiteui.views.bold
+import com.lightningkite.reactive.context.invoke
 import com.lightningkite.reactive.core.Signal
 import com.lightningkite.reactive.core.Constant
 import com.lightningkite.reactive.core.Reactive
 import com.lightningkite.reactive.core.remember
+import com.lightningkite.reactive.core.rememberSuspending
+import com.lightningkite.reactive.extensions.modify
+import com.lightningkite.reactive.lensing.lens
+import com.lightningkite.services.files.ServerFile
 import kotlin.math.roundToInt
+import kotlin.time.Duration.Companion.seconds
+import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
 
 // Preset colors for quick accent selection
 val presetColors = listOf(
@@ -34,13 +56,14 @@ val presetColors = listOf(
 class ThemeSettingsPage : Page {
     override val title get() = Constant("Theme Settings")
 
+    @OptIn(ExperimentalUuidApi::class)
     override fun ViewWriter.render() {
         // Local state for theme customization - initialize from persisted settings
         val savedSettings = persistedThemeSettings.value
         val selectedPreset = Signal(persistedThemePreset.value)
-        val customPrimaryColor = Signal(savedSettings.primaryColor ?: "")
-        val customSecondaryColor = Signal(savedSettings.secondaryColor ?: "")
-        val customAccentColor = Signal(savedSettings.accentColor ?: "")
+        val customPrimaryColor = Signal<Color>(Color.fromHexString(savedSettings.primaryColor ?:"#fff"))
+        val customSecondaryColor = Signal<Color>(Color.fromHexString(savedSettings.secondaryColor ?: "#fff"))
+        val customAccentColor = Signal<Color>(Color.fromHexString(savedSettings.accentColor ?: "#fff"))
         val baseOpacity = Signal(savedSettings.baseOpacity)
         val opacityStep = Signal(savedSettings.opacityStep)
         val outlineOpacity = Signal(savedSettings.outlineOpacity)
@@ -52,16 +75,20 @@ class ThemeSettingsPage : Page {
         val elevationValue = Signal(savedSettings.elevation)
         val outlineWidthValue = Signal(savedSettings.outlineWidth)
 
+        val wallpaperPath = Signal(savedSettings.wallpaperPath)
+        val wallpaperBlur = Signal(savedSettings.wallpaperBlurRadius)
+
+        val showPlayingBookCoverAsWallpaper = Signal(savedSettings.showPlayingBookCoverAsWallpaper)
+        val showPlayingBookCoverOnNowPlayingAndBookDetail = Signal(savedSettings.showPlayingBookCoverOnNowPlayingAndBookDetail)
         // Blur settings
-        val enableBlurredBackground = Signal(savedSettings.enableBlurredBackground)
         val blurRadius = Signal(savedSettings.blurRadius)
 
         // Apply theme changes
         fun applyTheme() {
             val settings = ThemeSettings(
-                primaryColor = customPrimaryColor.value.takeIf { it.isNotBlank() },
-                secondaryColor = customSecondaryColor.value.takeIf { it.isNotBlank() },
-                accentColor = customAccentColor.value.takeIf { it.isNotBlank() },
+                primaryColor = customPrimaryColor.value.closestColor().toHexString(),
+                secondaryColor = customSecondaryColor.value.toHexString(),
+                accentColor = customAccentColor.value.toHexString(),
                 baseOpacity = baseOpacity.value,
                 opacityStep = opacityStep.value,
                 outlineOpacity = outlineOpacity.value,
@@ -70,8 +97,10 @@ class ThemeSettingsPage : Page {
                 gap = gapValue.value,
                 elevation = elevationValue.value,
                 outlineWidth = outlineWidthValue.value,
-                enableBlurredBackground = enableBlurredBackground.value,
-                blurRadius = blurRadius.value
+                showPlayingBookCoverAsWallpaper = showPlayingBookCoverAsWallpaper.value,
+                showPlayingBookCoverOnNowPlayingAndBookDetail = showPlayingBookCoverOnNowPlayingAndBookDetail.value,
+                blurRadius = blurRadius.value,
+                wallpaperPath = wallpaperPath.value,
             )
             // Persist theme settings
             persistedThemePreset.value = selectedPreset.value
@@ -81,12 +110,8 @@ class ThemeSettingsPage : Page {
         }
 
         scrolling.col {
-            padding = 1.rem
-            gap = 1.5.rem
-
             // Theme Presets Section
             col {
-                gap = 0.75.rem
 
                 h3 { content = "Theme Preset" }
                 subtext { content = "Choose a base theme style" }
@@ -98,9 +123,6 @@ class ThemeSettingsPage : Page {
                 ) {
                     button {
                         expanding.card.row {
-                            gap = 0.75.rem
-                            padding = 0.75.rem
-
                             // Theme color preview
                             sizedBox(SizeConstraints(width = 3.rem, height = 3.rem)).frame {
                                 val previewTheme = createTheme(preset)
@@ -114,12 +136,11 @@ class ThemeSettingsPage : Page {
 
                             // Theme name and description
                             expanding.col {
-                                gap = 0.25.rem
                                 text { content = preset.displayName }
                                 subtext {
                                     content = when (preset) {
-                                        ThemePreset.Cozy -> "Warm forest tones"
-                                        ThemePreset.Ocean -> "Cool blue depths"
+                                        ThemePreset.Cozy -> "Light and cozy"
+                                        ThemePreset.AutumnCabin -> "Orange warm vibes"
                                         ThemePreset.Midnight -> "Dark and minimal"
                                         ThemePreset.Sunrise -> "Warm light tones"
                                         ThemePreset.Material -> "Clean and modern"
@@ -145,10 +166,7 @@ class ThemeSettingsPage : Page {
 
                 // Theme preset grid (2 columns)
                 row {
-                    gap = 0.75.rem
-
                     col {
-                        gap = 0.75.rem
                         for (preset in ThemePreset.entries.filterIndexed { i, _ -> i % 2 == 0 }) {
                             themePresetCard(preset, selectedPreset) {
                                 selectedPreset.value = preset
@@ -158,7 +176,6 @@ class ThemeSettingsPage : Page {
                     }
 
                     col {
-                        gap = 0.75.rem
                         for (preset in ThemePreset.entries.filterIndexed { i, _ -> i % 2 == 1 }) {
                             themePresetCard(preset, selectedPreset) {
                                 selectedPreset.value = preset
@@ -171,53 +188,146 @@ class ThemeSettingsPage : Page {
 
             separator()
 
+            val uploadWallpaper = Action("Upload wallpaper", frequencyCap = 1.seconds) {
+                val file = context.requestFile(listOf("image/png", "image/jpeg")) ?: return@Action
+                file.mimeType()
+                val fileExtension = getFileExtensionFromMimeType(file.mimeType())
+                val fileName = "${Uuid.random()}"
+                saveImageToStorage("images",fileName, ImageLocal(file),fileExtension)
+                wallpaperPath.set("images/$fileName.$fileExtension")
+            }
+
             // Background Effects Section
             col {
-                gap = 0.75.rem
 
                 h3 { content = "Background Effects" }
-                subtext { content = "Apply visual effects to Now Playing and detail screens" }
+                subtext { content = "Apply visual effects to Now Playing, detail screens and app background" }
 
                 card.col {
-                    gap = 1.rem
-                    padding = 1.rem
+                    bold.text("Wallpaper")
+                        subtext { content = "Show a wallpaper behind the app" }
+                        val uploadError = Signal(false)
 
-                    // Blurred background toggle
-                    row {
-                        gap = 0.75.rem
-                        expanding.col {
-                            gap = 0.25.rem
-                            text { content = "Blurred Cover Background" }
-                            subtext { content = "Show a blurred version of the cover image behind content" }
+
+                        frame {
+
+                            val wallpaper = rememberSuspending {
+                                val path = wallpaperPath()?:savedSettings.wallpaperPath
+                                val parent = path?.split("/")?.first()
+                                val filename = path?.split("/")?.last()
+                                println("DEBUG path ${path}")
+                                println("DEBUG parent ${parent}")
+                                println("DEBUG file ${filename}")
+                                parent?.let {parent ->
+                                    filename?.let {filename ->
+                                        readImageFromStorage(parent,filename)
+                                    }
+                                }
+                            }
+
+//                            centered.sizeConstraints(
+//                                height = 12.rem,
+//                                aspectRatio = Pair(16, 9)
+//                            ).card.unpadded.
+                            button {
+                                image {
+                                    scaleType = ImageScaleType.Crop
+                                    rView::shown { wallpaper() != null }
+                                    ::source { wallpaper() }
+                                }
+
+                                centered.icon {
+                                    ::shown { wallpaper() == null && !uploadError() }
+                                    source = Icon.Companion.add.copy(2.5.rem, height = 2.5.rem)
+                                    description = "Upload new wallpaper"
+                                }
+
+                                centered.text {
+                                    ::shown { uploadError() }
+                                    content = "There was issue with uploading your file. Please try again."
+                                    align = Align.Center
+                                }
+
+                                action = uploadWallpaper
+                            }
+                            atBottomEnd.row {
+                                ::shown { wallpaper() != null }
+                                card.button {
+                                    icon(Icon.Companion.edit, "Change wallpaper")
+                                    action = uploadWallpaper
+                                }
+                                card.button {
+                                    icon(Icon.Companion.delete, "Delete")
+                                    onClick("Delete Wallpaper") {
+                                        confirmDanger(
+                                            "Delete Wallpaper",
+                                            "Are you sure you want to delete your wallpaper? This cannot be undone.",
+                                            "Delete"
+                                        ) {
+                                            deleteImageFromStorage(wallpaperPath.invoke()?:"")
+                                            wallpaperPath.set(null)
+                                        }
+                                    }
+                                }
+                            }
                         }
-                        checkbox {
-                            checked bind enableBlurredBackground
+
+                    col {
+                        row {
+                            expanding.text { content = "Wallpaper Blur Intensity" }
+                            text { ::content { "${wallpaperBlur().toInt()}px" } }
+                        }
+                        slider {
+                            min =0.0f
+                            max = 50.0f
+                            value bind wallpaperBlur
                         }
                     }
 
+
+                    row {
+                        checkbox {
+                            checked.bind(showPlayingBookCoverAsWallpaper)
+                        }
+                        col {
+                            text("Use Playing Book Cover as wallpaper")
+                            subtext { content = "Instead of showing wallpaper, if there is nothing playing and a wallpaper is set then it will show the wallpaper" }
+                        }
+                    }
+
+
+                    // Blurred background toggle
+                    row {
+                        checkbox {
+                            checked bind showPlayingBookCoverOnNowPlayingAndBookDetail
+                        }
+                        col {
+                            text { content = "Show Book Cover Background" }
+                            subtext { content = "Show cover image behind content on now playing bottom and sheet and book detail" }
+                        }
+                    }
                     // Blur radius slider (only shown when blur is enabled)
-                    shownWhen { enableBlurredBackground() }.col {
-                        gap = 0.25.rem
+                    col {
                         row {
                             expanding.text { content = "Blur Intensity" }
                             text { ::content { "${blurRadius().toInt()}px" } }
                         }
+                        slider {
+                            min =0.0f
+                            max = 50.0f
+                            value bind blurRadius
+                        }
                     }
 
-                    slider {
-                        min =0.0f
-                        max = 50.0f
-                        value bind blurRadius
-                    }
 
                     // Apply button for blur settings
                     button {
                         row {
-                            gap = 0.5.rem
                             centered.icon(Icon.check, "Apply")
-                            text("Apply Blur Settings")
+                            text("Apply Background Effects")
                         }
-                        onClick { applyTheme() }
+                        onClick {
+                            applyTheme() }
                         themeChoice += ImportantSemantic
                     }
                 }
@@ -227,14 +337,11 @@ class ThemeSettingsPage : Page {
 
             // Accent Color Section (shown for presets that allow customization)
             shownWhen { selectedPreset().allowsCustomization && selectedPreset() != ThemePreset.Custom }.col {
-                gap = 0.75.rem
-
                 h3 { content = "Accent Color" }
                 subtext { content = "Customize the primary accent color" }
 
                 // Color palette
                 row {
-                    gap = 0.5.rem
                     for ((colorHex, colorName) in presetColors) {
                         button {
                             sizedBox(SizeConstraints(width = 2.5.rem, height = 2.5.rem)).frame {
@@ -247,11 +354,11 @@ class ThemeSettingsPage : Page {
                                 }
                             }
                             onClick {
-                                customPrimaryColor.value = colorHex
+                                customPrimaryColor.value = Color.fromHexString(colorHex)
                                 applyTheme()
                             }
                             dynamicTheme {
-                                if (customPrimaryColor() == colorHex) SelectedSemantic else null
+                                if (customPrimaryColor() == Color.fromHexString(colorHex)) SelectedSemantic else null
                             }
                         }
                     }
@@ -259,16 +366,13 @@ class ThemeSettingsPage : Page {
 
                 // Hex input
                 col {
-                    gap = 0.5.rem
-                    padding = 0.5.rem
 
                     row {
-                        gap = 0.5.rem
                         text { content = "Hex:" }
-                        expanding.textInput {
-                            hint = "#364a3b"
-                            content bind customPrimaryColor
-                        }
+//                        expanding.textInput {
+//                            hint = "#364a3b"
+//                            content bind customPrimaryColor
+//                        }
                         button {
                             text("Apply")
                             onClick { applyTheme() }
@@ -280,12 +384,11 @@ class ThemeSettingsPage : Page {
                 // Reset button
                 button {
                     row {
-                        gap = 0.25.rem
                         icon(Icon.close, "Reset")
                         text("Reset to Default")
                     }
                     onClick {
-                        customPrimaryColor.value = ""
+//                        customPrimaryColor.value = ""
                         applyTheme()
                     }
                 }
@@ -293,60 +396,55 @@ class ThemeSettingsPage : Page {
 
             // Custom Theme Section (only shown for Custom preset)
             shownWhen { selectedPreset() == ThemePreset.Custom }.col {
-                gap = 1.rem
 
                 h3 { content = "Custom Theme Settings" }
                 subtext { content = "Fine-tune your theme appearance" }
 
                 card.col {
-                    gap = 1.rem
-                    padding = 1.rem
+
 
                     // Primary Color
                     col {
-                        gap = 0.25.rem
                         text { content = "Primary Color (accents, buttons)" }
                         row {
-                            gap = 0.5.rem
                             expanding.textInput {
                                 hint = "#6366f1"
-                                content bind customPrimaryColor
+                                content bind customPrimaryColor.lens(get = {it.toHexString()}, modify = {color,updated ->
+                                    Color.fromHexString(updated)
+                                })
                             }
+
                             sizedBox(SizeConstraints(width = 2.rem, height = 2.rem)).frame {
-                                themeChoice += ThemeDerivation {
-                                    val color = customPrimaryColor.value.takeIf { it.isNotBlank() }
-                                        ?.let { runCatching { Color.fromHexString(it) }.getOrNull() }
-                                        ?: Color.fromHexString("#6366f1")
-                                    it.copy(
-                                        id = "primary-preview",
-                                        background = color,
-                                        cornerRadii = CornerRadii.Fixed(0.25.rem)
-                                    ).withBack
+                                expanding.colorPicker {
+                                    color.bind(customPrimaryColor)
                                 }
+//                                themeChoice += ThemeDerivation {
+//                                    val color = customPrimaryColor.value
+//                                        ?.let { runCatching { it }.getOrNull() }
+//                                        ?: Color.fromHexString("#6366f1")
+//                                    it.copy(
+//                                        id = "primary-preview",
+//                                        background = color,
+//                                        cornerRadii = CornerRadii.Fixed(0.25.rem)
+//                                    ).withBack
+//                                }
                             }
                         }
                     }
 
                     // Secondary Color (background)
                     col {
-                        gap = 0.25.rem
                         text { content = "Background Color" }
                         row {
-                            gap = 0.5.rem
                             expanding.textInput {
                                 hint = "#1a1a2e"
-                                content bind customSecondaryColor
+                                content bind customSecondaryColor.lens(get = {it.toHexString()}, modify = {color,updated ->
+                                    Color.fromHexString(updated)
+                                })
                             }
                             sizedBox(SizeConstraints(width = 2.rem, height = 2.rem)).frame {
-                                themeChoice += ThemeDerivation {
-                                    val color = customSecondaryColor.value.takeIf { it.isNotBlank() }
-                                        ?.let { runCatching { Color.fromHexString(it) }.getOrNull() }
-                                        ?: Color.fromHexString("#1a1a2e")
-                                    it.copy(
-                                        id = "secondary-preview",
-                                        background = color,
-                                        cornerRadii = CornerRadii.Fixed(0.25.rem)
-                                    ).withBack
+                                expanding.colorPicker {
+                                    color.bind(customSecondaryColor)
                                 }
                             }
                         }
@@ -354,24 +452,16 @@ class ThemeSettingsPage : Page {
 
                     // Accent Color (outlines)
                     col {
-                        gap = 0.25.rem
                         text { content = "Outline/Accent Color" }
                         row {
-                            gap = 0.5.rem
                             expanding.textInput {
                                 hint = "#3b3b4d"
-                                content bind customAccentColor
-                            }
+                                content bind customAccentColor.lens(get = {it.toHexString()}, modify = {color,updated ->
+                                    Color.fromHexString(updated)
+                                })                            }
                             sizedBox(SizeConstraints(width = 2.rem, height = 2.rem)).frame {
-                                themeChoice += ThemeDerivation {
-                                    val color = customAccentColor.value.takeIf { it.isNotBlank() }
-                                        ?.let { runCatching { Color.fromHexString(it) }.getOrNull() }
-                                        ?: Color.fromHexString("#3b3b4d")
-                                    it.copy(
-                                        id = "accent-preview",
-                                        background = color,
-                                        cornerRadii = CornerRadii.Fixed(0.25.rem)
-                                    ).withBack
+                                expanding.colorPicker {
+                                    color.bind(customAccentColor)
                                 }
                             }
                         }
@@ -381,7 +471,6 @@ class ThemeSettingsPage : Page {
 
                     // Opacity Sliders
                     col {
-                        gap = 0.25.rem
                         row {
                             expanding.text { content = "Base Opacity" }
                             text { ::content { "${(baseOpacity() * 100).toInt()}%" } }
@@ -394,7 +483,6 @@ class ThemeSettingsPage : Page {
                     }
 
                     col {
-                        gap = 0.25.rem
                         row {
                             expanding.text { content = "Layer Opacity Step" }
                             text { ::content { "${(opacityStep() * 100).toInt()}%" } }
@@ -407,7 +495,6 @@ class ThemeSettingsPage : Page {
                     }
 
                     col {
-                        gap = 0.25.rem
                         row {
                             expanding.text { content = "Outline Opacity" }
                             text { ::content { "${(outlineOpacity() * 100).toInt()}%" } }
@@ -493,21 +580,17 @@ class ThemeSettingsPage : Page {
 
                 // Theme Preview Section
                 col {
-                    gap = 0.75.rem
 
                     h3 { content = "Preview" }
                     subtext { content = "See how the theme looks" }
 
                     card.col {
-                        gap = 0.75.rem
-                        padding = 1.rem
 
                         h3 { content = "Sample Header" }
                         text { content = "This is regular text content showing how the theme displays text." }
                         subtext { content = "This is subtext or secondary content." }
 
                         row {
-                            gap = 0.5.rem
                             button {
                                 text("Primary")
                                 themeChoice += ImportantSemantic
@@ -522,14 +605,12 @@ class ThemeSettingsPage : Page {
                         }
 
                         card.col {
-                            gap = 0.25.rem
-                            padding = 0.75.rem
                             text { content = "Nested card content" }
                             subtext { content = "Cards can contain other elements" }
                         }
 
+
                         row {
-                            gap = 0.5.rem
                             expanding.textInput {
                                 hint = "Sample input field"
                             }
@@ -539,6 +620,12 @@ class ThemeSettingsPage : Page {
                         }
                     }
                 }
+
+                themed(ImageSemantic).sizeConstraints(width = 10.rem, height=5.rem).image{
+                    source = Resources.example
+                    scaleType = ImageScaleType.Crop
+                }
+
 
                 // Spacer at bottom
                 space(2.0)

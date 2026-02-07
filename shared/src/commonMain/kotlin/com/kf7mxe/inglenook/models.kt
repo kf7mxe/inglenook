@@ -176,7 +176,7 @@ data class Bookmark(
 @Serializable
 enum class ThemePreset(val displayName: String, val allowsCustomization: Boolean = true) {
     Cozy("Cozy", true),           // Forest green, warm background
-    Ocean("Ocean", true),          // Blue tones
+    AutumnCabin("Autumn Cabin", true),          // Blue tones
     Midnight("Midnight", true),    // Dark theme
     Sunrise("Sunrise", true),      // Warm orange
     Material("Material", true),    // Material design style
@@ -203,9 +203,20 @@ data class ThemeSettings(
     val outlineWidth: Float = 1f,          // Outline width in dp
     // Wallpaper
     val wallpaperPath: String? = null,     // Local file path for wallpaper
+    val wallpaperBlurRadius: Float = 0f,
     // Blurred background
-    val enableBlurredBackground: Boolean = false,  // Enable blurred cover image background
-    val blurRadius: Float = 20f            // Blur radius for cover image background
+    val showPlayingBookCoverAsWallpaper: Boolean = false,  // Enable blurred cover image background
+    val showPlayingBookCoverOnNowPlayingAndBookDetail: Boolean = false,
+    val blurRadius: Float = 20f,            // Blur radius for cover image background
+
+    val imageSemanticSettings:ImageSemanticSettings? = ImageSemanticSettings(cornerRadius= 0.5f),
+
+)
+
+@Serializable
+data class ImageSemanticSettings(
+    val cornerRadius: Float,
+
 )
 
 // App settings stored locally

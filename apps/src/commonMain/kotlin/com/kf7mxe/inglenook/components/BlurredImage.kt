@@ -1,12 +1,15 @@
 package com.kf7mxe.inglenook.components
 
 import com.kf7mxe.inglenook.AudioBook
+import com.kf7mxe.inglenook.appTheme
 import com.kf7mxe.inglenook.cache.blurServerImageAndCacheImage
 import com.kf7mxe.inglenook.cache.getBlurredCachedImage
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.persistedThemeSettings
+import com.kf7mxe.inglenook.screens.BookDetailPage
 import com.lightningkite.kiteui.models.ImageRemote
 import com.lightningkite.kiteui.models.ImageScaleType
+import com.lightningkite.kiteui.navigation.mainPageNavigator
 import com.lightningkite.kiteui.views.ViewWriter
 import com.lightningkite.kiteui.views.direct.image
 import com.lightningkite.reactive.context.invoke
@@ -14,7 +17,7 @@ import com.lightningkite.reactive.core.Reactive
 import com.lightningkite.reactive.core.rememberSuspending
 
 
-fun ViewWriter.blurredImage(book: Reactive<AudioBook?>) {
+fun ViewWriter.blurredImage(book: Reactive<AudioBook?>,shown:Reactive<Boolean>) {
     val blurSettings = persistedThemeSettings.value
 
     val blurredImage = rememberSuspending {
@@ -38,19 +41,26 @@ fun ViewWriter.blurredImage(book: Reactive<AudioBook?>) {
             }
         }
 
-        var cachedImage = imageUrl?.let {
+
+
+        val cachedImageFileName = imageUrl?.let {
             println("DEBUG cached image url ${it}")
             println("DEBUG  it.split(\"Items/\").last() ${it.split("Items/").last().replace("/", "-")}")
-            getBlurredCachedImage("${it.split("Items/").last().replace("/", "-")}-${blurSettings.blurRadius}")
+            "${blurSettings.blurRadius}-${it.split("Items/").last().replace("/", "-")}"
         }
+        var cachedImage = cachedImageFileName?.let {
+            getBlurredCachedImage(cachedImageFileName)
+        }
+
         println("DEBUG cached image ${cachedImage == null}")
         if (cachedImage == null) {
             cachedImage = imageUrl?.let { imageUrl ->
                 imageToBlur?.let { recipeImage ->
                     blurServerImageAndCacheImage(
-                        "${imageUrl.split("Items/").last().replace("/", "-")}-${blurSettings.blurRadius}",
+                        cachedImageFileName!!,
                         recipeImage,
-                        blurSettings.blurRadius
+                        blurSettings.blurRadius,
+                        appTheme().background
                     )
                 }
             }
@@ -65,7 +75,7 @@ fun ViewWriter.blurredImage(book: Reactive<AudioBook?>) {
 //                )
     image {
         rView::shown {
-            blurSettings.enableBlurredBackground
+            shown()
         }
         scaleType = ImageScaleType.Crop
         ::source {

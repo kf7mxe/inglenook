@@ -23,15 +23,15 @@ fun ViewWriter.BookCard(
     onPlayClick: ((AudioBook) -> Unit)? = null,
     onClick: suspend () -> Unit
 ) {
-    centered.card.col {
+    centered.card.sizeConstraints(width = 14.rem, height = 22.rem).col {
         // Play button overlay at bottom right
-
         button {
+            padding = 0.rem
             col {
                 // Cover image with play button overlay
-                centered.sizeConstraints(width = 9.rem, height = 12.rem).frame {
+                centered.frame {
                     // Cover image
-                    ImageSemantic.onNext.centered.image {
+                    themed(ImageSemantic).sizeConstraints( height = 12.rem).centered.image {
                         this.rView::shown {
                             audioBook().coverImageId != null
                         }
@@ -42,7 +42,7 @@ fun ViewWriter.BookCard(
                                 ImageRemote(client.getImageUrl(bookData.coverImageId, bookData.id))
                             } else null
                         }
-                        scaleType = ImageScaleType.Crop
+                        scaleType = ImageScaleType.Fit
                     }
                     centered.icon {
                         ::shown {
@@ -64,10 +64,12 @@ fun ViewWriter.BookCard(
                     text {
                         ::content { audioBook().title }
                         ellipsis = true
+                        lineClamp = 2
                     }
                     subtext {
                         ::content { audioBook().authors.firstOrNull() ?: "Unknown Author" }
                         ellipsis = true
+                        lineClamp = 2
                     }
                 }
                 this.onClick { onClick() }

@@ -14,6 +14,7 @@ import com.kf7mxe.inglenook.components.BookCard
 import com.kf7mxe.inglenook.components.BookListItem
 import com.kf7mxe.inglenook.dashboard
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
+import com.kf7mxe.inglenook.storage.ImageSemantic
 import com.kf7mxe.inglenook.viewMode
 import com.lightningkite.kiteui.Routable
 import com.lightningkite.kiteui.views.fieldTheme
@@ -167,8 +168,8 @@ fun ViewWriter.AuthorCard(author: Reactive<Author>, onClick: suspend () -> Unit)
     button {
         col {
             // Author image/avatar
-            sizedBox(SizeConstraints(width = 6.rem, height = 6.rem)).frame {
-                image {
+            frame {
+                themed(ImageSemantic).sizeConstraints(width = 6.rem, height = 6.rem).centered.image {
                     this.rView::shown{
                         author().imageId != null
                     }
