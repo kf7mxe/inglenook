@@ -300,20 +300,41 @@ class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
         val item: JellyfinItem = response.body()
         var book = item.toAudioBook()
 
-        println("DEBUG jellyfinclient book ${book}")
-        println("DEBUG jellyfinclient item.ParentId ${item.ParentId}")
-
-        // If no chapters, try to find and parse a .cue file using the ParentId
-        if (book.chapters.isEmpty() && item.ParentId != null) {
-            println("DEBUG jellyfinclient chapters not found")
-            val cueChapters = tryParseCueFile(uid, item.ParentId, item.Path)
-            println("DEBUG cueChapters ${cueChapters}")
-            if (cueChapters.isNotEmpty()) {
-                book = book.copy(chapters = cueChapters)
-            }
+        // Fetch chapters from the AudiobookChapters plugin endpoint
+        val pluginChapters = getAudiobookChapters(itemId)
+        if (pluginChapters.isNotEmpty()) {
+            book = book.copy(
+                chapters = pluginChapters.map {
+                    Chapter(
+                        name = it.Name,
+                        startPositionTicks = it.StartPositionTicks,
+                        imageId = null
+                    )
+                }
+            )
         }
 
         return book
+    }
+
+    /**
+     * Fetch chapters from the AudiobookChapters plugin endpoint.
+     * This plugin exposes chapters for audiobooks that Jellyfin's standard API doesn't return.
+     */
+    suspend fun getAudiobookChapters(itemId: String): List<PluginChapter> {
+        return try {
+            val response = client.get("$serverUrl/AudiobookChapters/$itemId") {
+                header("X-Emby-Token", accessToken ?: "")
+            }
+            if (response.status.isSuccess()) {
+                response.body()
+            } else {
+                emptyList()
+            }
+        } catch (e: Exception) {
+            println("Failed to fetch audiobook chapters from plugin: ${e.message}")
+            emptyList()
+        }
     }
 
     /**
@@ -873,6 +894,14 @@ data class JellyfinChapter(
     val Name: String,
     val StartPositionTicks: Long,
     val ImageTag: String? = null
+)
+
+// Chapter response from AudiobookChapters plugin endpoint
+@Serializable
+data class PluginChapter(
+    val Name: String,
+    val StartPositionTicks: Long,
+    val ImageDateModified: String? = null
 )
 
 @Serializable

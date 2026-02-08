@@ -43,12 +43,9 @@ class BookDetailPage(val bookId: String) : Page {
      book()?.title?:"Book"
     }
     val book = rememberSuspending {
-        println("DEBUG boook remember")
         val client = jellyfinClient()
-        println("DEBUG client ${client}")
-        val test = client?.getBook(bookId)
-        println("DEBUG test ${test}")
-        test
+       client?.getBook(bookId)
+
     }
     override fun ViewWriter.render() {
 

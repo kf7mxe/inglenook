@@ -2,8 +2,10 @@ package com.kf7mxe.inglenook.playback
 
 import com.kf7mxe.inglenook.AudioBook
 import com.kf7mxe.inglenook.Chapter
+import com.kf7mxe.inglenook.ItemType
 import com.kf7mxe.inglenook.downloads.DownloadManager
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
+import com.lightningkite.reactive.context.invoke
 import com.lightningkite.reactive.core.Signal
 import com.lightningkite.reactive.core.AppScope
 import kotlinx.coroutines.Job
@@ -38,7 +40,7 @@ object PlaybackState {
     // Platform audio player (expect/actual)
     private var audioPlayer: AudioPlayer? = null
 
-    fun play(book: AudioBook, startPosition: Long = 0L) {
+    suspend fun play(book: AudioBook, startPosition: Long = 0L) {
         currentBook.value = book
         duration.value = book.duration
         positionTicks.value = startPosition
@@ -121,22 +123,22 @@ object PlaybackState {
         currentChapter.value = null
     }
 
-    fun seek(newPositionTicks: Long) {
+    suspend fun seek(newPositionTicks: Long) {
         val clampedPosition = newPositionTicks.coerceIn(0L, duration.value)
         positionTicks.value = clampedPosition
         audioPlayer?.seek(clampedPosition)
         updateCurrentChapter()
     }
 
-    fun skipForward() {
+    suspend fun skipForward() {
         seek(positionTicks.value + SKIP_FORWARD_TICKS)
     }
 
-    fun skipBackward() {
+    suspend fun skipBackward() {
         seek(positionTicks.value - SKIP_BACKWARD_TICKS)
     }
 
-    fun nextChapter() {
+    suspend fun nextChapter() {
         val book = currentBook.value ?: return
         val chapters = book.chapters
         if (chapters.isEmpty()) return
@@ -149,7 +151,7 @@ object PlaybackState {
         }
     }
 
-    fun previousChapter() {
+    suspend fun previousChapter() {
         val book = currentBook.value ?: return
         val chapters = book.chapters
         if (chapters.isEmpty()) return
@@ -178,9 +180,16 @@ object PlaybackState {
         audioPlayer?.setPlaybackSpeed(speed)
     }
 
-    private fun updateCurrentChapter() {
+    private suspend fun updateCurrentChapter() {
+        val client = jellyfinClient()
         val book = currentBook.value ?: return
-        val chapters = book.chapters
+        val chapters = book.chapters.takeIf { it.isNotEmpty() || book.itemType == ItemType.Ebook }?:client?.getAudiobookChapters(book.id)?.map {
+            Chapter(
+                name = it.Name,
+                startPositionTicks = it.StartPositionTicks,
+                imageId = null
+            )
+        }?:emptyList()
         if (chapters.isEmpty()) {
             currentChapter.value = null
             return
@@ -226,7 +235,7 @@ object PlaybackState {
     }
 
     // Update position (called by platform audio player)
-    fun onPositionUpdate(newPositionTicks: Long) {
+    suspend fun onPositionUpdate(newPositionTicks: Long) {
         positionTicks.value = newPositionTicks
         updateCurrentChapter()
     }

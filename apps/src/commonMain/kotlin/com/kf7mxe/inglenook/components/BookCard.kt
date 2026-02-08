@@ -20,7 +20,7 @@ import com.lightningkite.reactive.context.invoke
 
 fun ViewWriter.BookCard(
     audioBook: Reactive<AudioBook>,
-    onPlayClick: ((AudioBook) -> Unit)? = null,
+    onPlayClick: (suspend (AudioBook)-> Unit)? = null,
     onClick: suspend () -> Unit
 ) {
     centered.card.sizeConstraints(width = 14.rem, height = 22.rem).col {

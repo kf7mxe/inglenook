@@ -57,7 +57,10 @@ class JsAudioPlayer : AudioPlayer {
             ontimeupdate = { _: Event ->
                 val currentTimeSeconds = currentTime
                 val positionTicks = (currentTimeSeconds * 10_000_000).toLong()
-                PlaybackState.onPositionUpdate(positionTicks)
+
+                GlobalScope.launch {
+                    PlaybackState.onPositionUpdate(positionTicks)
+                }
             }
 
             // Error handling is done via the error event listener

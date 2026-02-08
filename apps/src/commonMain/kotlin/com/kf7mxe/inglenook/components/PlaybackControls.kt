@@ -9,7 +9,16 @@ import com.lightningkite.kiteui.views.l2.icon
 import com.kf7mxe.inglenook.*
 import com.kf7mxe.inglenook.playback.PlaybackState
 import com.kf7mxe.inglenook.storage.BookmarkRepository
+import com.lightningkite.kiteui.views.atEnd
+import com.lightningkite.kiteui.views.card
+import com.lightningkite.kiteui.views.dynamicTheme
+import com.lightningkite.kiteui.views.forEach
+import com.lightningkite.kiteui.views.forEachById
+import com.lightningkite.reactive.context.invoke
 import com.lightningkite.reactive.core.Signal
+import com.lightningkite.reactive.core.remember
+import com.lightningkite.reactive.core.rememberSuspending
+import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlin.time.ExperimentalTime
 
@@ -48,18 +57,21 @@ fun ViewWriter.PlaybackControls(compact: Boolean = false) {
         // If the change happened more than 50ms after our last sync, it's user input
         if (now - lastSyncTime > 50) {
             val newPosition = (seekRatio.value * PlaybackState.duration.value).toLong()
-            PlaybackState.seek(newPosition)
+            launch {
+                PlaybackState.seek(newPosition)
+            }
         }
     }
 
     col {
         gap = if (compact) 0.5.rem else 1.rem
 
-        // Current chapter name (above seek bar)
-        shownWhen { PlaybackState.currentChapter() != null && !compact }.centered.text {
-            ::content { PlaybackState.currentChapter()?.name ?: "" }
-            ellipsis = true
-        }
+
+
+        // Expandable chapter list
+
+
+
 
         // Seek bar with time
         col {

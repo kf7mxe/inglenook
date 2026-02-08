@@ -26,6 +26,7 @@ import com.kf7mxe.inglenook.playback.SleepTimerMode
 import com.kf7mxe.inglenook.screens.*
 import com.kf7mxe.inglenook.storage.readImageFromStorage
 import com.kf7mxe.inglenook.theming.createTheme
+import com.lightningkite.kiteui.current
 import com.lightningkite.kiteui.navigation.bindToPlatform
 import com.lightningkite.kiteui.navigation.dialogPageNavigator
 import com.lightningkite.kiteui.navigation.pageNavigator
@@ -36,11 +37,16 @@ import com.lightningkite.reactive.core.AppScope
 import com.lightningkite.reactive.core.Signal
 import com.lightningkite.kiteui.reactive.PersistentProperty
 import com.lightningkite.kiteui.views.RView
+import com.lightningkite.kiteui.views.atEnd
+import com.lightningkite.kiteui.views.forEachById
+import com.lightningkite.kiteui.views.forEachUpdating
+import com.lightningkite.kiteui.views.l2.dialog
 import com.lightningkite.kiteui.views.l2.overlayFrame
 import com.lightningkite.kiteui.views.rContextAddon
 import com.lightningkite.reactive.context.invoke
 import com.lightningkite.reactive.core.remember
 import com.lightningkite.reactive.core.rememberSuspending
+import io.ktor.util.Platform
 import kotlinx.coroutines.launch
 
 // Persistent theme settings - survives app restart
@@ -68,7 +74,6 @@ data class NavLink(
     val icon: Icon,
     val destination: () -> Page
 )
-
 
 
 val isNowPlayingOpen = Signal(false)
@@ -117,9 +122,19 @@ fun ViewWriter.app(navigator: PageNavigator, dialog: PageNavigator) {
 
                     val cachedFileName = "${persistedThemeSettings().wallpaperBlurRadius}-${fileName}"
 
-                    getBlurredCachedImage(cachedFileName)?:readImageFromStorage(parentDir,fileName)?.let{unblurredImage ->
+                    getBlurredCachedImage(cachedFileName) ?: readImageFromStorage(
+                        parentDir,
+                        fileName
+                    )?.let { unblurredImage ->
                         println("DEBUG unblurredImage ${unblurredImage}")
-                        blurAndCacheImage(cachedFileName,wallpaperPath,unblurredImage,persistedThemeSettings().wallpaperBlurRadius,appTheme().background,0.75f)
+                        blurAndCacheImage(
+                            cachedFileName,
+                            wallpaperPath,
+                            unblurredImage,
+                            persistedThemeSettings().wallpaperBlurRadius,
+                            appTheme().background,
+                            0.75f
+                        )
                     }
                 }
             }
@@ -132,7 +147,7 @@ fun ViewWriter.app(navigator: PageNavigator, dialog: PageNavigator) {
                     wallpaper() != null
                 }
             }
-            blurredImage(PlaybackState.currentBook,remember{
+            blurredImage(PlaybackState.currentBook, remember {
                 PlaybackState.currentBook() != null && persistedThemeSettings().showPlayingBookCoverAsWallpaper
             })
 
@@ -204,7 +219,7 @@ fun ViewWriter.app(navigator: PageNavigator, dialog: PageNavigator) {
 }
 
 fun ViewWriter.bottomBar(navItems: List<NavLink>) {
-    bar.unpadded.col{
+    bar.unpadded.col {
         shownWhen { !isNowPlayingOpen() && PlaybackState.currentBook() != null }.nowPlayingPreview()
         row {
             padding = 0.5.rem
@@ -230,79 +245,110 @@ fun ViewWriter.bottomBar(navItems: List<NavLink>) {
 
 fun ViewWriter.nowPlayingPreview() {
     // Mini player row (collapsed view)
-        row {
-            expanding.button {
-                expanding.row {
-                    // Thumbnail
-                    sizeConstraints(width = 3.rem, height = 3.rem).frame {
-                        image {
-                            ::source {
-                                val client = jellyfinClient()
+    row {
+        expanding.button {
+            expanding.row {
+                // Thumbnail
+                sizeConstraints(width = 3.rem, height = 3.rem).frame {
+                    image {
+                        ::source {
+                            val client = jellyfinClient()
 
-                                PlaybackState.currentBook()?.let { book ->
-                                    book.coverImageId?.let { coverImageId ->
-                                        client?.getImageUrl(coverImageId, book.id)?.let { ImageRemote(it) }
-                                    }
+                            PlaybackState.currentBook()?.let { book ->
+                                book.coverImageId?.let { coverImageId ->
+                                    client?.getImageUrl(coverImageId, book.id)?.let { ImageRemote(it) }
                                 }
                             }
-                            scaleType = ImageScaleType.Crop
                         }
-                        centered.icon {
-                            ::shown {
-                                PlaybackState.currentBook() == null
-                            }
-                            source = Icon.book
+                        scaleType = ImageScaleType.Crop
+                    }
+                    centered.icon {
+                        ::shown {
+                            PlaybackState.currentBook() == null
                         }
-
+                        source = Icon.book
                     }
 
-                    // Title and author
-                    expanding.col {
-                        gap = 0.25.rem
-                        text {
-                            ::content { PlaybackState.currentBook()?.title ?: "" }
-                            ellipsis = true
-                        }
-                        subtext {
-                            ::content { PlaybackState.currentBook()?.authors?.joinToString(", ") ?: "" }
-                            ellipsis = true
-                        }
-                    }
                 }
-                onClick {
-//                           openNowPlaying.set(true)
-                    nowPlaying()
+
+                // Title and author
+                expanding.col {
+                    gap = 0.25.rem
+                    text {
+                        ::content { PlaybackState.currentBook()?.title ?: "" }
+                        ellipsis = true
+                    }
+                    subtext {
+                        ::content { PlaybackState.currentBook()?.authors?.joinToString(", ") ?: "" }
+                        ellipsis = true
+                    }
                 }
             }
+            onClick {
+//                           openNowPlaying.set(true)
+                if (com.lightningkite.kiteui.Platform.current == com.lightningkite.kiteui.Platform.Web) {
+                    dialog {
+                        nowPlaying()
+                    }
 
-            // Play/Pause button
-            button {
-                centered.icon {
-                    ::source { if (PlaybackState.isPlaying()) Icon.pause else Icon.playArrow }
-                    ::description { if (PlaybackState.isPlaying()) "Pause" else "Play" }
+                } else {
+                    nowPlayingBottomSheet()
                 }
-                onClick { PlaybackState.togglePlayPause() }
+            }
+        }
+
+        // Play/Pause button
+        button {
+            centered.icon {
+                ::source { if (PlaybackState.isPlaying()) Icon.pause else Icon.playArrow }
+                ::description { if (PlaybackState.isPlaying()) "Pause" else "Play" }
+            }
+            onClick {
+                PlaybackState.togglePlayPause()
             }
         }
     }
+}
 
-fun ViewWriter.nowPlaying() {
+fun ViewWriter.nowPlayingBottomSheet() {
     println("DEBUG coordinatorFram ${coordinatorFrame}")
     coordinatorFrame?.bottomSheet(
         partialRatio = 0.5f,
         startState = BottomSheetState.PARTIALLY_EXPANDED
     ) {
-        card.frame {
-            // Blurred background layer (only when enabled in theme settings)
-            blurredImage(PlaybackState.currentBook,rememberSuspending {
-                persistedThemeSettings().showPlayingBookCoverOnNowPlayingAndBookDetail
-            })
+        nowPlaying()
+    }
+}
 
-            // Content layer
-            col {
+
+fun ViewWriter.nowPlaying() {
+
+    val chapters = rememberSuspending {
+        val client = jellyfinClient()
+        PlaybackState.currentBook()?.itemType
+        PlaybackState.currentBook()?.let {book ->
+            if(book.itemType != ItemType.AudioBook) return@let emptyList()
+            client?.getAudiobookChapters(book.id)
+        }?.map {
+            Chapter(
+                name = it.Name,
+                startPositionTicks = it.StartPositionTicks,
+                imageId = null
+            )
+        }?:emptyList()
+    }
+
+    card.frame {
+        // Blurred background layer (only when enabled in theme settings)
+        blurredImage(PlaybackState.currentBook, rememberSuspending {
+            persistedThemeSettings().showPlayingBookCoverOnNowPlayingAndBookDetail
+        })
+
+        // Content layer
+        col {
 //                applySafeInsets(top = false, bottom = true)
-                gap = 0.0.rem
-                padding = 0.rem
+            gap = 0.0.rem
+            padding = 0.rem
 
             col {
                 padding = 1.rem
@@ -347,11 +393,216 @@ fun ViewWriter.nowPlaying() {
                 }
 
                 // Current chapter info
-                centered.text {
-                    ::content {
-                        PlaybackState.currentChapter()?.name ?: ""
+//                centered.text {
+//                    ::content {
+//                        PlaybackState.currentChapter()?.name ?: ""
+//                    }
+//                }
+
+
+
+
+
+
+
+
+                // Current chapter name (above seek bar)
+
+                val showChapters = Signal(false)
+
+
+                button {
+                    centered.text {
+                        ::content {
+                            "${PlaybackState.currentChapter()?.name?: chapters().size} Chapters"
+                        }
+                    }
+                    atEnd.icon {
+                        ::source { if (showChapters()) Icon.unfoldLess else Icon.unfoldMore }
+                        description = "Toggle chapters"
+                    }
+                    onClick { showChapters.value = !showChapters.value }
+                }
+
+                shownWhen {chapters()?.isNotEmpty() == true }.col {
+                    gap = 0.5.rem
+
+                    // Chapter list header (clickable to expand)
+
+                    // Chapter list (expandable)
+                    shownWhen { showChapters() }.card.col {
+                        gap = 0.rem
+                        padding = 0.5.rem
+
+                        // Show chapters with scroll
+                        scrolling.sizeConstraints(maxHeight = 15.rem).col {
+                            gap = 0.rem
+
+                            // Get chapters once for rendering
+                            forEachUpdating(chapters) {chapter ->
+                                val index = remember {
+
+                                    chapters().indexOf(chapter()) }
+                                val currentIndex = remember {
+                                    println("DEBUG index() ${index()}")
+                                    println("DEBUG PlaybackState.currentChapter() ${PlaybackState.currentChapter() != null}")
+                                    if ( chapters().indexOf(PlaybackState.currentChapter()) == index())  index() else -1
+                                }
+
+
+                                val isCurrent = remember {
+                                    println("DEBUG index ${index()}")
+                                    println("DEBUG currentIndex() ${currentIndex()}")
+                                    index()== currentIndex()
+                                }
+                                val isPast = remember {
+                                    index() < currentIndex()
+                                }
+
+                                button {
+                                    row {
+                                        gap = 0.5.rem
+                                        padding = 0.5.rem
+
+                                        // Chapter number
+                                        subtext { ::content {
+                                            "${index() + 1}"
+                                        } }
+
+                                        // Chapter name
+                                        expanding.col {
+                                            gap = 0.rem
+                                            text {
+                                                ::content {
+                                                    chapter().name
+                                                }
+                                                ellipsis = true
+                                            }
+                                            // Show start time
+                                            subtext {
+
+                                                ::content {
+                                                    val totalSeconds = chapter().startPositionTicks / 10_000_000
+                                                    val hours = totalSeconds / 3600
+                                                    val minutes = (totalSeconds % 3600) / 60
+                                                    val seconds = totalSeconds % 60
+                                                    if (hours > 0) {
+                                                        "$hours:${
+                                                            minutes.toString().padStart(2, '0')
+                                                        }:${seconds.toString().padStart(2, '0')}"
+                                                    } else {
+                                                        "$minutes:${seconds.toString().padStart(2, '0')}"
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                        // Current indicator
+                                        icon{
+                                            ::shown {
+                                                isCurrent()
+                                            }
+                                            source = Icon.playArrow
+                                        }
+
+                                    }
+
+                                    dynamicTheme {
+                                        when {
+                                            isCurrent() -> SelectedSemantic
+
+                                            isPast() -> ThemeDerivation {
+                                                it.copy(
+                                                    id = "past-chapter",
+                                                    foreground = it.foreground.closestColor().applyAlpha(0.6f)
+                                                ).withBack
+
+                                            }
+                                            else  -> null
+                                        }
+                                    }
+
+                                    onClick {
+                                        PlaybackState.seek(chapter.invoke().startPositionTicks)
+                                    }
+                                }
+
+                            }
+//                    for ((index, chapter) in chapters.withIndex()) {
+//                        val currentChapter = PlaybackState.currentChapter.value
+//                        val currentIndex =
+//                            if (currentChapter != null) chapters.indexOf(currentChapter) else -1
+//                        val isCurrent = index == currentIndex
+//                        val isPast = index < currentIndex
+//
+//                        button {
+//                            row {
+//                                gap = 0.5.rem
+//                                padding = 0.5.rem
+//
+//                                // Chapter number
+//                                subtext { content = "${index + 1}" }
+//
+//                                // Chapter name
+//                                expanding.col {
+//                                    gap = 0.rem
+//                                    text {
+//                                        content = chapter.name
+//                                        ellipsis = true
+//                                    }
+//                                    // Show start time
+//                                    subtext {
+//                                        val totalSeconds = chapter.startPositionTicks / 10_000_000
+//                                        val hours = totalSeconds / 3600
+//                                        val minutes = (totalSeconds % 3600) / 60
+//                                        val seconds = totalSeconds % 60
+//                                        content = if (hours > 0) {
+//                                            "$hours:${
+//                                                minutes.toString().padStart(2, '0')
+//                                            }:${seconds.toString().padStart(2, '0')}"
+//                                        } else {
+//                                            "$minutes:${seconds.toString().padStart(2, '0')}"
+//                                        }
+//                                    }
+//                                }
+//
+//                                // Current indicator
+//                                if (isCurrent) {
+//                                    icon(Icon.playArrow, "Playing")
+//                                }
+//                            }
+//
+//                            onClick {
+//                                PlaybackState.seek(chapter.startPositionTicks)
+//                            }
+//
+//                            if (isCurrent) {
+//                                themeChoice += SelectedSemantic
+//                            }
+//                            if (isPast) {
+//                                themeChoice += ThemeDerivation {
+//                                    it.copy(
+//                                        id = "past-chapter",
+//                                        foreground = it.foreground.closestColor().applyAlpha(0.6f)
+//                                    ).withBack
+//                                }
+//                            }
+//                        }
+//
+//                        if (index < chapters.size - 1) {
+//                            separator()
+//                        }
+//                    }
+                        }
                     }
                 }
+
+
+
+
+
+
+
 
                 // Playback controls
                 PlaybackControls(compact = false)
@@ -386,6 +637,7 @@ fun ViewWriter.nowPlaying() {
                                         val remaining = PlaybackState.sleepTimerMinutesRemaining() ?: 0
                                         "Sleep in ${remaining}m"
                                     }
+
                                     SleepTimerMode.EndOfChapter -> "Sleep at end of chapter"
                                     null -> ""
                                 }
@@ -421,98 +673,8 @@ fun ViewWriter.nowPlaying() {
                     }
                 }
 
-                // Expandable chapter list
-                val showChapters = Signal(false)
 
-                shownWhen { PlaybackState.currentBook()?.chapters?.isNotEmpty() == true }.col {
-                    gap = 0.5.rem
 
-                    // Chapter list header (clickable to expand)
-                    button {
-                        row {
-                            gap = 0.5.rem
-                            expanding.text {
-                                ::content { "Chapters (${PlaybackState.currentBook()?.chapters?.size ?: 0})" }
-                            }
-                            icon {
-                                ::source { if (showChapters()) Icon.unfoldLess else Icon.unfoldMore }
-                                description = "Toggle chapters"
-                            }
-                        }
-                        onClick { showChapters.value = !showChapters.value }
-                    }
-
-                    // Chapter list (expandable)
-                    shownWhen { showChapters() }.card.col {
-                        gap = 0.rem
-                        padding = 0.5.rem
-
-                        // Show chapters with scroll
-                        scrolling.sizeConstraints(maxHeight = 15.rem).col {
-                            gap = 0.rem
-
-                            // Get chapters once for rendering
-                            val chapters = PlaybackState.currentBook.value?.chapters ?: emptyList()
-                            for ((index, chapter) in chapters.withIndex()) {
-                                val currentChapter = PlaybackState.currentChapter.value
-                                val currentIndex = if (currentChapter != null) chapters.indexOf(currentChapter) else -1
-                                val isCurrent = index == currentIndex
-                                val isPast = index < currentIndex
-
-                                button {
-                                    row {
-                                        gap = 0.5.rem
-                                        padding = 0.5.rem
-
-                                        // Chapter number
-                                        subtext { content = "${index + 1}" }
-
-                                        // Chapter name
-                                        expanding.col {
-                                            gap = 0.rem
-                                            text {
-                                                content = chapter.name
-                                                ellipsis = true
-                                            }
-                                            // Show start time
-                                            subtext {
-                                                val totalSeconds = chapter.startPositionTicks / 10_000_000
-                                                val hours = totalSeconds / 3600
-                                                val minutes = (totalSeconds % 3600) / 60
-                                                val seconds = totalSeconds % 60
-                                                content = if (hours > 0) {
-                                                    "$hours:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}"
-                                                } else {
-                                                    "$minutes:${seconds.toString().padStart(2, '0')}"
-                                                }
-                                            }
-                                        }
-
-                                        // Current indicator
-                                        if (isCurrent) {
-                                            icon(Icon.playArrow, "Playing")
-                                        }
-                                    }
-
-                                    onClick {
-                                        PlaybackState.seek(chapter.startPositionTicks)
-                                    }
-
-                                    if (isCurrent) {
-                                        themeChoice += SelectedSemantic
-                                    }
-                                    if (isPast) {
-                                        themeChoice += ThemeDerivation { it.copy(id = "past-chapter", foreground = it.foreground.closestColor().applyAlpha(0.6f)).withBack }
-                                    }
-                                }
-
-                                if (index < chapters.size - 1) {
-                                    separator()
-                                }
-                            }
-                        }
-                    }
-                }
 
                 // Stop button
                 centered.button {
@@ -532,7 +694,6 @@ fun ViewWriter.nowPlaying() {
             onRemove {
                 isNowPlayingOpen.value = false
             }
-        }
         }
     }
 }
