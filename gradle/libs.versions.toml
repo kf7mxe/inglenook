@@ -15,6 +15,7 @@ ksp = "2.2.20-2.0.4"
 lightningServer = "5.0.0-prerelease-322"
 lightningServerKiteui = "8.0.0-prerelease-87"
 serviceAbstractions = "0.0.1-131"
+readium = "3.1.2"
 shadow = "8.1.1"
 
 [libraries]
@@ -49,6 +50,9 @@ desugarJdkLibs = { module = "com.android.tools:desugar_jdk_libs", version = { re
 firebase-messaging-ktx = { module = "com.google.firebase:firebase-messaging-ktx", version = { ref = "firebaseMessagingKtx" } }
 kotliner-cli = { module = "com.lightningkite:kotliner-cli", version = { ref = "kotlinerCli" } }
 indexddb = {module = "com.juul.indexeddb:core", version = { ref = "indexdDbVersion" }}
+readium-shared = { module = "org.readium.kotlin-toolkit:readium-shared", version.ref = "readium" }
+readium-streamer = { module = "org.readium.kotlin-toolkit:readium-streamer", version.ref = "readium" }
+readium-navigator = { module = "org.readium.kotlin-toolkit:readium-navigator", version.ref = "readium" }
 
 [plugins]
 androidApp = { id = "com.android.application", version = { ref = "agp" } }

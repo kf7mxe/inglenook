@@ -25,6 +25,13 @@
             </intent-filter>
         </activity>
 
+        <!-- Readium Ebook Reader Activity -->
+        <activity
+            android:name=".ebook.ReaderActivity"
+            android:theme="@style/Theme.Template"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize"
+            android:windowSoftInputMode="adjustResize" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="com.kf7mxe.inglenook.fileprovider"

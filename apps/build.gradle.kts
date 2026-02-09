@@ -65,6 +65,16 @@ kotlin {
                 implementation("androidx.media3:media3-session:1.5.1")
                 implementation("androidx.media3:media3-ui:1.5.1")
                 implementation("com.vanniktech:blurhash:0.4.0-SNAPSHOT")
+                // Readium for ebook reading
+                implementation(libs.readium.shared)
+                implementation(libs.readium.streamer)
+                implementation(libs.readium.navigator)
+                // AppCompat for ReaderActivity
+                implementation("androidx.appcompat:appcompat:1.7.0")
+                implementation("androidx.constraintlayout:constraintlayout:2.2.1")
+                implementation("com.google.android.material:material:1.12.0")
+                implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
+                implementation("androidx.fragment:fragment-ktx:1.8.7")
             }
         }
 //        val iosMain by getting {
@@ -76,6 +86,9 @@ kotlin {
             dependencies {
                 implementation("io.ktor:ktor-client-js:3.0.3")
                 implementation(libs.indexddb)
+                // epub.js for EPUB parsing and rendering on web
+                implementation(npm("jszip", "3.1.5"))
+                implementation(npm("epubjs", "0.3.93"))
             }
         }
 
@@ -162,6 +175,11 @@ android {
     dependencies {
         coreLibraryDesugaring(libs.desugarJdkLibs)
     }
+}
+
+// Exclude standalone PhotoView — Readium navigator bundles it in its AAR
+configurations.all {
+    exclude(group = "com.github.chrisbanes", module = "PhotoView")
 }
 
 rootProject.plugins.withType<org.jetbrains.kotlin.gradle.targets.js.yarn.YarnPlugin> {
