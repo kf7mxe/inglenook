@@ -59,9 +59,13 @@ fun Theme.Companion.cozy(accent: Color? = null): Theme {
                     outline = it.outline.closestColor().lighten(0.1f)
                 )
             },
-            BarSemantic.override { it.withBack },
-            NavSemantic.override { it.withBack },
-            MainContentSemantic.override { it.withBack },
+            BarSemantic.override { it.withBack(
+                cornerRadii = CornerRadii.PerCorner(1.rem,false,false,true,true),
+            ) },
+            MainContentSemantic.override { it.withBack(
+                cascading = false,
+                outlineWidth = 0.dp,
+            )},
             ImportantSemantic.override {
                 it.withBack(
 //                    background = primary,
@@ -86,8 +90,11 @@ fun Theme.Companion.cozy(accent: Color? = null): Theme {
                     cornerRadii = CornerRadii.RatioOfSpacing(1.5f),
                     padding = Edges.ZERO
                 )
-            }
-        )
+            },
+            NavSemantic.override { it.withBack(
+                cornerRadii = CornerRadii.PerCorner(1.rem,true,true,false,false)) },
+
+            )
     )
 }
 
@@ -158,8 +165,11 @@ fun Theme.Companion.midnight(accent: Color? = null): Theme {
             },
             BarSemantic.override { it.withBack },
             NavSemantic.override { it.withBack },
-            MainContentSemantic.override { it.withBack },
-            ImportantSemantic.override {
+            MainContentSemantic.override { it.withBack(
+                cascading = false,
+                outlineWidth = 0.dp,
+            )},
+                ImportantSemantic.override {
                 it.withBack(
                     background = primary,
                     foreground = Color.white
@@ -256,7 +266,10 @@ fun Theme.Companion.material(accent: Color? = null): Theme {
             CardSemantic.override { it.withBack(elevation = 1.dp, background = Color.white) },
             BarSemantic.override { it[ImportantSemantic] },
             NavSemantic.override { it.withBack(cornerRadii = CornerRadii.Fixed(0.px)) },
-            MainContentSemantic.override { it.withBack },
+            MainContentSemantic.override { it.withBack(
+                cascading = false,
+                outlineWidth = 0.dp,
+            ) },
             ImportantSemantic.override {
                 it.withBack(
                     background = primary,

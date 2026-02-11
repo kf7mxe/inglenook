@@ -1,5 +1,6 @@
 package com.kf7mxe.inglenook.screens
 
+import com.kf7mxe.inglenook.FullScreen
 import com.lightningkite.kiteui.models.*
 import com.lightningkite.kiteui.navigation.Page
 import com.lightningkite.kiteui.navigation.mainPageNavigator
@@ -22,7 +23,7 @@ import com.lightningkite.reactive.core.rememberSuspending
  * Web/JS: Renders directly into the DOM using epub.js with full reader controls.
  */
 @Routable("reader/{bookId}")
-class EbookReaderPage(val bookId: String) : Page {
+class EbookReaderPage(val bookId: String) : Page, FullScreen {
     override val title: Reactive<String> = Constant("Reading")
 
     override fun ViewWriter.render() {
@@ -35,39 +36,10 @@ class EbookReaderPage(val bookId: String) : Page {
             gap = 0.rem
 
             // Loading state
-            shownWhen { !bookInfo.state().ready }.expanding.centered.activityIndicator()
+//            shownWhen { !bookInfo.state().ready }.expanding.centered.activityIndicator()
 
             // Embedded ebook reader
-            shownWhen { bookInfo.state().ready && bookInfo() != null }.expanding.col {
                 gap = 0.rem
-
-                // Close button bar
-                row {
-                    padding = 0.5.rem
-                    gap = 0.5.rem
-
-                    button {
-                        row {
-                            gap = 0.25.rem
-                            icon {
-                                source = Icon.arrowBack
-                                description = "Back"
-                            }
-                            text("Close")
-                        }
-                        onClick {
-                            mainPageNavigator.goBack()
-                        }
-                    }
-
-                    expanding.centered.text {
-                        ::content { bookInfo()?.title ?: "Reading" }
-                        ellipsis = true
-                    }
-                }
-
-                separator()
-
                 // The actual ebook reader
                 expanding.frame {
                     val client = jellyfinClient.value
@@ -78,6 +50,5 @@ class EbookReaderPage(val bookId: String) : Page {
                     }
                 }
             }
-        }
     }
 }

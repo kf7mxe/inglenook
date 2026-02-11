@@ -14,7 +14,9 @@ import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.playback.PlaybackState
 import com.kf7mxe.inglenook.book
 import com.kf7mxe.inglenook.playArrow
+import com.kf7mxe.inglenook.screens.EbookReaderPage
 import com.kf7mxe.inglenook.storage.ImageSemantic
+import com.lightningkite.kiteui.navigation.mainPageNavigator
 import com.lightningkite.reactive.core.Reactive
 import com.lightningkite.reactive.context.invoke
 
@@ -93,6 +95,9 @@ fun ViewWriter.BookCard(
                                 val startPosition = currentBook.userData?.playbackPositionTicks ?: 0L
                                 PlaybackState.play(currentBook, startPosition)
                             }
+                        }
+                        if(currentBook.itemType == ItemType.Ebook) {
+                            mainPageNavigator.navigate(EbookReaderPage(currentBook.id))
                         }
                         // For ebooks, clicking will just go to detail page (handled by onClick on card)
                     }

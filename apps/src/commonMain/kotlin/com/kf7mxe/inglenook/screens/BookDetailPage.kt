@@ -18,12 +18,14 @@ import com.lightningkite.reactive.context.invoke
 import com.kf7mxe.inglenook.components.PlaybackControls
 import com.kf7mxe.inglenook.components.BookshelfPickerDialog
 import com.kf7mxe.inglenook.components.blurredImage
+import com.kf7mxe.inglenook.ebook.ebookReader
 import com.lightningkite.kiteui.views.l2.coordinatorFrame
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.playback.PlaybackState
 import com.kf7mxe.inglenook.storage.BookmarkRepository
 import com.kf7mxe.inglenook.storage.ImageSemantic
 import com.lightningkite.kiteui.Routable
+import com.lightningkite.kiteui.current
 import com.lightningkite.kiteui.views.closeThisPopover
 import com.lightningkite.kiteui.views.forEach
 import com.lightningkite.reactive.context.invoke
@@ -33,6 +35,7 @@ import com.lightningkite.reactive.core.Constant
 import com.lightningkite.reactive.core.Reactive
 import com.lightningkite.reactive.core.remember
 import com.lightningkite.reactive.core.rememberSuspending
+import io.ktor.util.Platform
 import kotlinx.coroutines.launch
 import kotlin.uuid.ExperimentalUuidApi
 
@@ -95,7 +98,7 @@ class BookDetailPage(val bookId: String) : Page {
                             gap = 1.rem
 
                             // Cover image
-                            sizedBox(SizeConstraints(width = 8.rem, height = 12.rem)).frame {
+                            sizeConstraints(width = 12.rem).frame {
                                 shownWhen { book()?.coverImageId != null }.themed(ImageSemantic).image {
                                     ::source {
                                         val currentBook = book()
@@ -104,7 +107,7 @@ class BookDetailPage(val bookId: String) : Page {
                                             ImageRemote(client.getImageUrl(currentBook.coverImageId, currentBook.id))
                                         } else null
                                     }
-                                    scaleType = ImageScaleType.Crop
+                                    scaleType = ImageScaleType.Fit
                                 }
                                 shownWhen { book()?.coverImageId == null }.centered.icon {
                                     source = Icon.book.copy(width = 4.rem, height = 4.rem)
@@ -370,7 +373,15 @@ class BookDetailPage(val bookId: String) : Page {
                                         centered.text { content = "Read" }
                                     }
                                     onClick {
-                                        mainPageNavigator.navigate(EbookReaderPage(bookId))
+                                        if(com.lightningkite.kiteui.Platform.current == com.lightningkite.kiteui.Platform.Web) mainPageNavigator.navigate(EbookReaderPage(bookId))
+                                        if(com.lightningkite.kiteui.Platform.current == com.lightningkite.kiteui.Platform.Android) {
+                                            val client = jellyfinClient.value
+                                            if (client != null) {
+                                                val downloadUrl = "${client.serverUrl}/Items/$bookId/Download"
+                                                val authHeader = client.getAuthHeader()
+                                                ebookReader(bookId, downloadUrl, authHeader)
+                                            }
+                                        }
                                     }
                                     themeChoice += ImportantSemantic
                                 }
@@ -653,3 +664,4 @@ class BookDetailPage(val bookId: String) : Page {
         }
     }
 }
+

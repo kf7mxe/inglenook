@@ -37,11 +37,13 @@ import com.lightningkite.reactive.core.AppScope
 import com.lightningkite.reactive.core.Signal
 import com.lightningkite.kiteui.reactive.PersistentProperty
 import com.lightningkite.kiteui.views.RView
+import com.lightningkite.kiteui.views.atBottom
 import com.lightningkite.kiteui.views.atEnd
 import com.lightningkite.kiteui.views.forEachById
 import com.lightningkite.kiteui.views.forEachUpdating
 import com.lightningkite.kiteui.views.l2.dialog
 import com.lightningkite.kiteui.views.l2.overlayFrame
+import com.lightningkite.kiteui.views.nav
 import com.lightningkite.kiteui.views.rContextAddon
 import com.lightningkite.reactive.context.invoke
 import com.lightningkite.reactive.core.remember
@@ -154,7 +156,7 @@ fun ViewWriter.app(navigator: PageNavigator, dialog: PageNavigator) {
             col {
                 gap = 0.0.rem
                 // Top bar with back button, title, and search
-                bar.row {
+                shownWhen { mainPageNavigator.currentPage() !is FullScreen }.bar.row {
                     gap = 0.5.rem
 
                     button {
@@ -191,7 +193,7 @@ fun ViewWriter.app(navigator: PageNavigator, dialog: PageNavigator) {
                 }
 
                 // Main content area with coordinator frame for bottom sheet
-                expanding.navigatorView(navigator)
+                MainContentSemantic.onNext.expanding.navigatorView(navigator)
 
                 // Now playing bottom sheet - only show when something is playing
                 // and not on setup page
@@ -209,7 +211,7 @@ fun ViewWriter.app(navigator: PageNavigator, dialog: PageNavigator) {
                     applySafeInsets(top = false)
                 }.shownWhen {
                     val currentPage = mainPageNavigator.currentPage()
-                    currentPage !is JellyfinSetupPage && !AppState.softInputOpen()
+                    currentPage !is JellyfinSetupPage && !AppState.softInputOpen() && currentPage !is FullScreen
                 }.bottomBar(mainNavPages)
 
 
@@ -219,7 +221,7 @@ fun ViewWriter.app(navigator: PageNavigator, dialog: PageNavigator) {
 }
 
 fun ViewWriter.bottomBar(navItems: List<NavLink>) {
-    bar.unpadded.col {
+    nav.col {
         shownWhen { !isNowPlayingOpen() && PlaybackState.currentBook() != null }.nowPlayingPreview()
         row {
             padding = 0.5.rem
@@ -326,8 +328,8 @@ fun ViewWriter.nowPlaying() {
     val chapters = rememberSuspending {
         val client = jellyfinClient()
         PlaybackState.currentBook()?.itemType
-        PlaybackState.currentBook()?.let {book ->
-            if(book.itemType != ItemType.AudioBook) return@let emptyList()
+        PlaybackState.currentBook()?.let { book ->
+            if (book.itemType != ItemType.AudioBook) return@let emptyList()
             client?.getAudiobookChapters(book.id)
         }?.map {
             Chapter(
@@ -335,7 +337,7 @@ fun ViewWriter.nowPlaying() {
                 startPositionTicks = it.StartPositionTicks,
                 imageId = null
             )
-        }?:emptyList()
+        } ?: emptyList()
     }
 
     card.frame {
@@ -345,7 +347,7 @@ fun ViewWriter.nowPlaying() {
         })
 
         // Content layer
-        col {
+        scrolling.col {
 //                applySafeInsets(top = false, bottom = true)
             gap = 0.0.rem
             padding = 0.rem
@@ -400,12 +402,6 @@ fun ViewWriter.nowPlaying() {
 //                }
 
 
-
-
-
-
-
-
                 // Current chapter name (above seek bar)
 
                 val showChapters = Signal(false)
@@ -414,120 +410,120 @@ fun ViewWriter.nowPlaying() {
                 button {
                     centered.text {
                         ::content {
-                            "${PlaybackState.currentChapter()?.name?: chapters().size} Chapters"
+
+                            PlaybackState.currentChapter()?.name ?: "${chapters().size} Chapters"
                         }
                     }
-                    atEnd.icon {
-                        ::source { if (showChapters()) Icon.unfoldLess else Icon.unfoldMore }
-                        description = "Toggle chapters"
-                    }
-                    onClick { showChapters.value = !showChapters.value }
-                }
+//                    atEnd.icon {
+//                        ::source { if (showChapters()) Icon.unfoldLess else Icon.unfoldMore }
+//                        description = "Toggle chapters"
+//                    }
+                    onClick {
+                        dialog { dismiss ->
+                            card.sizeConstraints(width = 30.rem).scrolling.col {
 
-                shownWhen {chapters()?.isNotEmpty() == true }.col {
-                    gap = 0.5.rem
+                                    // Get chapters once for rendering
+                                    forEachUpdating(chapters) { chapter ->
+                                        val index = remember {
 
-                    // Chapter list header (clickable to expand)
-
-                    // Chapter list (expandable)
-                    shownWhen { showChapters() }.card.col {
-                        gap = 0.rem
-                        padding = 0.5.rem
-
-                        // Show chapters with scroll
-                        scrolling.sizeConstraints(maxHeight = 15.rem).col {
-                            gap = 0.rem
-
-                            // Get chapters once for rendering
-                            forEachUpdating(chapters) {chapter ->
-                                val index = remember {
-
-                                    chapters().indexOf(chapter()) }
-                                val currentIndex = remember {
-                                    println("DEBUG index() ${index()}")
-                                    println("DEBUG PlaybackState.currentChapter() ${PlaybackState.currentChapter() != null}")
-                                    if ( chapters().indexOf(PlaybackState.currentChapter()) == index())  index() else -1
-                                }
+                                            chapters().indexOf(chapter())
+                                        }
+                                        val currentIndex = remember {
+                                            println("DEBUG index() ${index()}")
+                                            println("DEBUG PlaybackState.currentChapter() ${PlaybackState.currentChapter() != null}")
+                                            if (chapters().indexOf(PlaybackState.currentChapter()) == index()) index() else -1
+                                        }
 
 
-                                val isCurrent = remember {
-                                    println("DEBUG index ${index()}")
-                                    println("DEBUG currentIndex() ${currentIndex()}")
-                                    index()== currentIndex()
-                                }
-                                val isPast = remember {
-                                    index() < currentIndex()
-                                }
+                                        val isCurrent = remember {
+                                            println("DEBUG index ${index()}")
+                                            println("DEBUG currentIndex() ${currentIndex()}")
+                                            index() == currentIndex()
+                                        }
+                                        val isPast = remember {
+                                            index() < currentIndex()
+                                        }
 
-                                button {
-                                    row {
-                                        gap = 0.5.rem
-                                        padding = 0.5.rem
+                                        button {
+                                            row {
+                                                gap = 0.5.rem
+                                                padding = 0.5.rem
 
-                                        // Chapter number
-                                        subtext { ::content {
-                                            "${index() + 1}"
-                                        } }
-
-                                        // Chapter name
-                                        expanding.col {
-                                            gap = 0.rem
-                                            text {
-                                                ::content {
-                                                    chapter().name
-                                                }
-                                                ellipsis = true
-                                            }
-                                            // Show start time
-                                            subtext {
-
-                                                ::content {
-                                                    val totalSeconds = chapter().startPositionTicks / 10_000_000
-                                                    val hours = totalSeconds / 3600
-                                                    val minutes = (totalSeconds % 3600) / 60
-                                                    val seconds = totalSeconds % 60
-                                                    if (hours > 0) {
-                                                        "$hours:${
-                                                            minutes.toString().padStart(2, '0')
-                                                        }:${seconds.toString().padStart(2, '0')}"
-                                                    } else {
-                                                        "$minutes:${seconds.toString().padStart(2, '0')}"
+                                                // Chapter number
+                                                centered.subtext {
+                                                    ::content {
+                                                        "${index() + 1}"
                                                     }
                                                 }
+
+                                                // Chapter name
+                                                expanding.col {
+                                                    gap = 0.rem
+                                                    text {
+                                                        ::content {
+                                                            chapter().name
+                                                        }
+                                                        ellipsis = true
+                                                    }
+                                                    // Show start time
+                                                    subtext {
+
+                                                        ::content {
+                                                            val totalSeconds = chapter().startPositionTicks / 10_000_000
+                                                            val hours = totalSeconds / 3600
+                                                            val minutes = (totalSeconds % 3600) / 60
+                                                            val seconds = totalSeconds % 60
+                                                            if (hours > 0) {
+                                                                "$hours:${
+                                                                    minutes.toString().padStart(2, '0')
+                                                                }:${seconds.toString().padStart(2, '0')}"
+                                                            } else {
+                                                                "$minutes:${seconds.toString().padStart(2, '0')}"
+                                                            }
+                                                        }
+                                                    }
+                                                }
+
+                                                // Current indicator
+                                                icon {
+                                                    ::shown {
+                                                        isCurrent()
+                                                    }
+                                                    source = Icon.playArrow
+                                                }
+
+                                            }
+
+                                            dynamicTheme {
+                                                when {
+                                                    isCurrent() -> SelectedSemantic
+
+                                                    isPast() -> ThemeDerivation {
+                                                        it.copy(
+                                                            id = "past-chapter",
+                                                            foreground = it.foreground.closestColor().applyAlpha(0.6f)
+                                                        ).withBack
+
+                                                    }
+
+                                                    else -> null
+                                                }
+                                            }
+
+                                            onClick {
+                                                PlaybackState.seek(chapter.invoke().startPositionTicks)
                                             }
                                         }
-
-                                        // Current indicator
-                                        icon{
-                                            ::shown {
-                                                isCurrent()
-                                            }
-                                            source = Icon.playArrow
-                                        }
-
                                     }
-
-                                    dynamicTheme {
-                                        when {
-                                            isCurrent() -> SelectedSemantic
-
-                                            isPast() -> ThemeDerivation {
-                                                it.copy(
-                                                    id = "past-chapter",
-                                                    foreground = it.foreground.closestColor().applyAlpha(0.6f)
-                                                ).withBack
-
-                                            }
-                                            else  -> null
-                                        }
-                                    }
-
+                                }
+                                atBottom.card.button {
+                                    centered.text("Cancel")
                                     onClick {
-                                        PlaybackState.seek(chapter.invoke().startPositionTicks)
+                                        dismiss()
                                     }
                                 }
 
-                            }
+
 //                    for ((index, chapter) in chapters.withIndex()) {
 //                        val currentChapter = PlaybackState.currentChapter.value
 //                        val currentIndex =
@@ -596,12 +592,14 @@ fun ViewWriter.nowPlaying() {
                         }
                     }
                 }
+            }
 
+            shownWhen { chapters()?.isNotEmpty() == true }.col {
+                gap = 0.5.rem
 
+                // Chapter list header (clickable to expand)
 
-
-
-
+                // Chapter list (expandable)
 
 
                 // Playback controls
@@ -674,8 +672,6 @@ fun ViewWriter.nowPlaying() {
                 }
 
 
-
-
                 // Stop button
                 centered.button {
                     row {
@@ -697,3 +693,5 @@ fun ViewWriter.nowPlaying() {
         }
     }
 }
+
+interface FullScreen

@@ -40,7 +40,10 @@ import java.io.File
 import java.io.FileOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
-
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.updatePadding
 /**
  * Activity that hosts Readium's EpubNavigatorFragment for reading ebooks.
  * Downloads the EPUB from Jellyfin, opens it with Readium, and provides
@@ -95,8 +98,9 @@ class ReaderActivity : AppCompatActivity() {
         }
 
         super.onCreate(savedInstanceState)
+        WindowCompat.setDecorFitsSystemWindows(window, false)
         setContentView(R.layout.activity_reader)
-
+        setupWindowInsets()
         // Extract intent extras
         bookId = intent.getStringExtra(EXTRA_BOOK_ID) ?: run { finish(); return }
         downloadUrl = intent.getStringExtra(EXTRA_DOWNLOAD_URL) ?: run { finish(); return }
@@ -134,6 +138,26 @@ class ReaderActivity : AppCompatActivity() {
             } else {
                 downloadAndOpenBook()
             }
+        }
+    }
+
+    private fun setupWindowInsets() {
+        // Target the root view of the Activity
+        val rootView = findViewById<View>(android.R.id.content)
+
+        ViewCompat.setOnApplyWindowInsetsListener(rootView) { view, windowInsets ->
+            val insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars())
+
+            // Apply the insets as padding to the view
+            view.updatePadding(
+                left = insets.left,
+                top = insets.top,
+                right = insets.right,
+                bottom = insets.bottom
+            )
+
+            // Return CONSUMED so the window doesn't try to apply them again
+            WindowInsetsCompat.CONSUMED
         }
     }
 

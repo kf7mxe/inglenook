@@ -323,7 +323,7 @@ class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
      */
     suspend fun getAudiobookChapters(itemId: String): List<PluginChapter> {
         return try {
-            val response = client.get("$serverUrl/AudiobookChapters/$itemId") {
+            val response = client.get("$serverUrl/Inglenook/$itemId") {
                 header("X-Emby-Token", accessToken ?: "")
             }
             if (response.status.isSuccess()) {
