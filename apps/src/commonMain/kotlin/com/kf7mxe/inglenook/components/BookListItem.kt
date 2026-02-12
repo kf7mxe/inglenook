@@ -7,10 +7,13 @@ import com.lightningkite.kiteui.views.direct.*
 import com.lightningkite.kiteui.views.expanding
 import com.lightningkite.kiteui.views.l2.icon
 import com.kf7mxe.inglenook.AudioBook
+import com.kf7mxe.inglenook.ItemType
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.playback.PlaybackState
 import com.kf7mxe.inglenook.book
 import com.kf7mxe.inglenook.playArrow
+import com.kf7mxe.inglenook.screens.EbookReaderPage
+import com.lightningkite.kiteui.navigation.mainPageNavigator
 import com.lightningkite.reactive.core.Reactive
 import com.lightningkite.reactive.context.invoke
 
@@ -24,15 +27,24 @@ fun ViewWriter.BookListItem(
         // Play button
         centered.col {
             centered.button {
-                centered.icon(Icon.playArrow, "Play")
+                centered.icon {
+                    ::source { if (audioBook().itemType == ItemType.Ebook) Icon.book else Icon.playArrow }
+                    ::description { if (audioBook().itemType == ItemType.Ebook) "Ebook" else "Play" }
+                }
                 themeChoice += ImportantSemantic
                 onClick {
                     val currentBook = audioBook.invoke()
-                    if (onPlayClick != null) {
-                        onPlayClick(currentBook)
-                    } else {
-                        val startPosition = currentBook.userData?.playbackPositionTicks ?: 0L
-                        PlaybackState.play(currentBook, startPosition)
+                    // Only play audiobooks
+                    if (currentBook.itemType == ItemType.AudioBook) {
+                        if (onPlayClick != null) {
+                            onPlayClick(currentBook)
+                        } else {
+                            val startPosition = currentBook.userData?.playbackPositionTicks ?: 0L
+                            PlaybackState.play(currentBook, startPosition)
+                        }
+                    }
+                    if(currentBook.itemType == ItemType.Ebook) {
+                        mainPageNavigator.navigate(EbookReaderPage(currentBook.id))
                     }
                 }
             }

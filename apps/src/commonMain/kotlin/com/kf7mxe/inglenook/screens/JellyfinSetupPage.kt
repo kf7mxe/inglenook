@@ -11,8 +11,8 @@ import com.lightningkite.kiteui.views.expanding
 import com.lightningkite.kiteui.views.l2.icon
 import com.kf7mxe.inglenook.*
 import com.kf7mxe.inglenook.jellyfin.JellyfinClient
-import com.kf7mxe.inglenook.jellyfin.jellyfinServerConfig
-import com.kf7mxe.inglenook.jellyfin.jellyfinClient
+import com.kf7mxe.inglenook.jellyfin.addServer
+import com.kf7mxe.inglenook.jellyfin.jellyfinServers
 import com.lightningkite.kiteui.Routable
 import com.lightningkite.kiteui.views.dynamicTheme
 import com.lightningkite.reactive.core.Signal
@@ -63,6 +63,14 @@ class JellyfinSetupPage : Page {
                     gap = 0.5.rem
                     h1 { content = "Inglenook" }
                     subtext { content = "Connect to your Jellyfin server" }
+                }
+
+                // Show cancel button if user already has servers configured
+                shownWhen { jellyfinServers.value.isNotEmpty() }.button {
+                    centered.text("Cancel")
+                    onClick {
+                        mainPageNavigator.goBack()
+                    }
                 }
 
                 card.col {
@@ -149,8 +157,7 @@ class JellyfinSetupPage : Page {
                                     try {
                                         val client = JellyfinClient(serverUrl.value)
                                         val config = client.authenticate(username.value, password.value)
-                                        jellyfinServerConfig.value = config
-                                        jellyfinClient.value = client
+                                        addServer(config)
                                         mainPageNavigator.navigate(DashboardPage())
                                     } catch (e: Exception) {
                                         errorMessage.value = e.message ?: "Connection failed"
@@ -248,8 +255,7 @@ class JellyfinSetupPage : Page {
                                                     if (authorized) {
                                                         // Authenticate with the secret
                                                         val config = client.authenticateWithQuickConnect(secret)
-                                                        jellyfinServerConfig.value = config
-                                                        jellyfinClient.value = client
+                                                        addServer(config)
                                                         stopPolling()
                                                         mainPageNavigator.navigate(DashboardPage())
                                                         return@launch

@@ -1,6 +1,7 @@
 package com.kf7mxe.inglenook.screens
 
 import com.kf7mxe.inglenook.AudioBook
+import com.kf7mxe.inglenook.ItemType
 import com.kf7mxe.inglenook.ViewMode
 import com.kf7mxe.inglenook.book
 import com.kf7mxe.inglenook.components.BookCard
@@ -51,6 +52,7 @@ class BooksPage : Page {
 
         val searchQuery = Signal("")
         val selectedFilter = Signal<FilterOption?>(null)
+        val bookTypeFilter = Signal<ItemType?>(null) // null = All
 
         val books = rememberSuspending {
             val client = jellyfinClient.value
@@ -78,6 +80,12 @@ class BooksPage : Page {
                 result = result.filter { filter.filterFn(it) }
             }
 
+            // Apply book type filter
+            val typeFilter = bookTypeFilter()
+            if (typeFilter != null) {
+                result = result.filter { it.itemType == typeFilter }
+            }
+
             result
         }
 
@@ -89,6 +97,23 @@ class BooksPage : Page {
                     hint = "Search books..."
                     keyboardHints = KeyboardHints(KeyboardCase.None, KeyboardType.Text)
                     content bind searchQuery
+                }
+
+                // Book type filter toggles
+                button {
+                    text("All")
+                    onClick { bookTypeFilter.value = null }
+                    dynamicTheme { if (bookTypeFilter() == null) ImportantSemantic else null }
+                }
+                button {
+                    text("Audio")
+                    onClick { bookTypeFilter.value = ItemType.AudioBook }
+                    dynamicTheme { if (bookTypeFilter() == ItemType.AudioBook) ImportantSemantic else null }
+                }
+                button {
+                    text("Ebooks")
+                    onClick { bookTypeFilter.value = ItemType.Ebook }
+                    dynamicTheme { if (bookTypeFilter() == ItemType.Ebook) ImportantSemantic else null }
                 }
 
                 // View mode toggle

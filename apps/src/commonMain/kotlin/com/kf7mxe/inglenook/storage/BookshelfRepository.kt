@@ -1,6 +1,7 @@
 package com.kf7mxe.inglenook.storage
 
 import com.kf7mxe.inglenook.Bookshelf
+import com.kf7mxe.inglenook.jellyfin.serverScopedProperty
 import com.lightningkite.kiteui.reactive.PersistentProperty
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
@@ -9,8 +10,9 @@ import kotlin.uuid.Uuid
 
 // Repository for managing local bookshelves
 object BookshelfRepository {
-    // Stored bookshelves (persisted)
-    private val storedBookshelves = PersistentProperty<List<Bookshelf>>("bookshelves", emptyList())
+    // Stored bookshelves (persisted, scoped per server)
+    private val storedBookshelves: PersistentProperty<List<Bookshelf>>
+        get() = serverScopedProperty("bookshelves", emptyList())
 
     fun getAllBookshelves(): List<Bookshelf> {
         return storedBookshelves.value.sortedBy { it.name.lowercase() }

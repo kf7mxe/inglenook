@@ -1,5 +1,8 @@
+@file:OptIn(ExperimentalUuidApi::class)
+
 package com.kf7mxe.inglenook.screens
 
+import kotlin.uuid.ExperimentalUuidApi
 import com.lightningkite.kiteui.models.*
 import com.lightningkite.kiteui.navigation.Page
 import com.lightningkite.kiteui.navigation.mainPageNavigator
@@ -14,6 +17,10 @@ import com.kf7mxe.inglenook.*
 import com.kf7mxe.inglenook.theming.createTheme
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.jellyfin.jellyfinServerConfig
+import com.kf7mxe.inglenook.jellyfin.jellyfinServers
+import com.kf7mxe.inglenook.jellyfin.activeServerId
+import com.kf7mxe.inglenook.jellyfin.switchToServer
+import com.kf7mxe.inglenook.jellyfin.removeServer
 import com.kf7mxe.inglenook.jellyfin.selectedLibraryIds
 import com.lightningkite.kiteui.Routable
 import com.lightningkite.kiteui.views.forEach
@@ -21,6 +28,7 @@ import com.lightningkite.reactive.context.invoke
 import com.lightningkite.reactive.core.Signal
 import com.lightningkite.reactive.core.AppScope
 import com.lightningkite.reactive.core.Constant
+import com.lightningkite.reactive.core.remember
 import com.lightningkite.reactive.core.rememberSuspending
 import kotlinx.coroutines.launch
 
@@ -40,42 +48,74 @@ class SettingsPage : Page {
             padding = 1.rem
             gap = 1.5.rem
 
-            // Jellyfin Server section
+            // Jellyfin Servers section
             col {
                 gap = 0.5.rem
-                h3 { content = "Jellyfin Server" }
+                h3 { content = "Jellyfin Servers" }
 
                 card.col {
-                    gap = 0.5.rem
+                    gap = 0.rem
 
-                    row {
-                        expanding.col {
-                            gap = 0.rem
-                            text { ::content { jellyfinServerConfig()?.serverName ?: "Connected Server" } }
-                            subtext { ::content { jellyfinServerConfig()?.serverUrl ?: "" } }
-                            subtext { ::content { "Logged in as ${jellyfinServerConfig()?.username ?: "Unknown"}" } }
-                        }
+                    forEach(remember { jellyfinServers.value }) { server ->
+                        val isActive = activeServerId.value == server._id.toString()
+
                         button {
-                            text("Change")
+                            row {
+                                expanding.col {
+                                    gap = 0.rem
+                                    text { content = server.displayName }
+                                    subtext { content = server.serverUrl }
+                                    subtext { content = "Logged in as ${server.username}" }
+                                }
+                                if (isActive) {
+                                    centered.icon(Icon.check, "Active")
+                                }
+                            }
                             onClick {
-                                mainPageNavigator.navigate(JellyfinSetupPage())
+                                if (!isActive) {
+                                    switchToServer(server._id.toString())
+                                    mainPageNavigator.navigate(DashboardPage())
+                                }
+                            }
+                            if (isActive) {
+                                dynamicTheme { SelectedSemantic }
                             }
                         }
+
+                        // Remove button for each server
+                        row {
+                            padding = 0.5.rem
+                            expanding.space(1.0)
+                            button {
+                                row {
+                                    gap = 0.25.rem
+                                    icon(Icon.close, "Remove")
+                                    text("Remove")
+                                }
+                                onClick {
+                                    removeServer(server._id.toString())
+                                    if (jellyfinServers.value.isEmpty()) {
+                                        mainPageNavigator.navigate(JellyfinSetupPage())
+                                    }
+                                }
+                                themeChoice += ThemeDerivation { it.copy(id = "danger", foreground = Color.red).withoutBack }
+                            }
+                        }
+
+                        separator()
                     }
 
-                    separator()
-
+                    // Add server button
                     button {
                         row {
-                            expanding.text("Disconnect")
-                            icon(Icon.logout, "Logout")
+                            gap = 0.5.rem
+                            icon(Icon.add, "Add")
+                            expanding.text("Add Server")
                         }
                         onClick {
-                            jellyfinServerConfig.value = null
-                            selectedLibraryIds.value = emptyList()
                             mainPageNavigator.navigate(JellyfinSetupPage())
                         }
-                        themeChoice += ThemeDerivation { it.copy(id = "danger", foreground = Color.red).withBack }
+                        themeChoice += ImportantSemantic
                     }
                 }
             }

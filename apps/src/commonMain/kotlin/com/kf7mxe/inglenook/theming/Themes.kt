@@ -64,6 +64,7 @@ fun Theme.Companion.cozy(accent: Color? = null): Theme {
             ) },
             MainContentSemantic.override { it.withBack(
                 cascading = false,
+//                cornerRadii = CornerRadii.Fixed(1.rem),
                 outlineWidth = 0.dp,
             )},
             ImportantSemantic.override {

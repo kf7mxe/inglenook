@@ -19,7 +19,16 @@ data class JellyfinServerConfig(
     val deviceId: String,
     val serverId: String? = null,
     val serverName: String? = null
-)
+) {
+    /** Stable key for scoping per-server persistent data. */
+    val storageKey: String get() = _id.toString()
+
+    /** Display name: serverName if available, otherwise the URL host. */
+    val displayName: String get() = serverName ?: serverUrl
+        .removePrefix("https://")
+        .removePrefix("http://")
+        .removeSuffix("/")
+}
 
 // Item type enum for distinguishing audiobooks from ebooks
 @Serializable

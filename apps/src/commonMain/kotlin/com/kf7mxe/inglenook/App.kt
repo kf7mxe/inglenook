@@ -154,7 +154,7 @@ fun ViewWriter.app(navigator: PageNavigator, dialog: PageNavigator) {
             })
 
             col {
-                gap = 0.0.rem
+                gap = 0.5.rem
                 // Top bar with back button, title, and search
                 shownWhen { mainPageNavigator.currentPage() !is FullScreen }.bar.row {
                     gap = 0.5.rem

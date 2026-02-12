@@ -1,13 +1,15 @@
 package com.kf7mxe.inglenook.downloads
 
 import com.kf7mxe.inglenook.*
+import com.kf7mxe.inglenook.jellyfin.serverScopedProperty
 import com.lightningkite.kiteui.reactive.PersistentProperty
 import com.lightningkite.reactive.core.Signal
 
 // Download manager for offline playback
 object DownloadManager {
-    // Stored downloads (persisted)
-    private val storedDownloads = PersistentProperty<List<DownloadedBook>>("downloads", emptyList())
+    // Stored downloads (persisted, scoped per server)
+    private val storedDownloads: PersistentProperty<List<DownloadedBook>>
+        get() = serverScopedProperty("downloads", emptyList())
 
     // Active downloads (in progress)
     val activeDownloads = Signal<Map<String, DownloadProgress>>(emptyMap())

@@ -415,69 +415,127 @@ class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
     }
 
     private suspend fun fetchAuthors(uid: String, libraryIds: List<String>): List<Author> {
-        // If specific libraries are selected, query each and merge
-        if (libraryIds.isNotEmpty()) {
-            val allAuthors = mutableListOf<Author>()
-            for (libId in libraryIds) {
-                val url = buildString {
+        val authorsById = mutableMapOf<String, Author>()
+        val authorTypes = setOf("Author", "AlbumArtist", "Artist", "Writer")
+
+        // 1. Fetch AlbumArtists for rich metadata (images, overviews)
+        val albumArtistUrls = if (libraryIds.isNotEmpty()) {
+            libraryIds.map { libId ->
+                buildString {
                     append("$serverUrl/Artists/AlbumArtists")
                     append("?UserId=$uid")
                     append("&SortBy=SortName")
                     append("&SortOrder=Ascending")
                     append("&ParentId=$libId")
                 }
+            }
+        } else {
+            listOf(buildString {
+                append("$serverUrl/Artists/AlbumArtists")
+                append("?UserId=$uid")
+                append("&SortBy=SortName")
+                append("&SortOrder=Ascending")
+            })
+        }
 
-                try {
-                    val response = client.get(url) {
-                        header("X-Emby-Authorization", getAuthHeader())
+        for (url in albumArtistUrls) {
+            try {
+                val response = client.get(url) {
+                    header("X-Emby-Authorization", getAuthHeader())
+                }
+                if (response.status.isSuccess()) {
+                    val itemsResponse: ItemsResponse = response.body()
+                    for (item in itemsResponse.Items) {
+                        authorsById[item.Id] = Author(
+                            id = item.Id,
+                            name = item.Name,
+                            imageId = item.ImageTags?.Primary,
+                            overview = item.Overview
+                        )
                     }
-                    if (response.status.isSuccess()) {
-                        val itemsResponse: ItemsResponse = response.body()
-                        allAuthors.addAll(itemsResponse.Items.map {
-                            Author(
-                                id = it.Id,
-                                name = it.Name,
-                                imageId = it.ImageTags?.Primary,
-                                overview = it.Overview
-                            )
-                        })
-                    }
-                } catch (e: Exception) {
-                    // Continue with other libraries
+                }
+            } catch (e: Exception) {
+                // Continue with other sources
+            }
+        }
+
+        // 2. Fetch all book items (AudioBook+Book) and extract authors from People metadata.
+        //    This catches ebook authors that don't appear in AlbumArtists.
+        val itemUrls = if (libraryIds.isNotEmpty()) {
+            libraryIds.map { libId ->
+                buildString {
+                    append("$serverUrl/Users/$uid/Items")
+                    append("?IncludeItemTypes=AudioBook,Book")
+                    append("&Recursive=true")
+                    append("&Fields=People")
+                    append("&ParentId=$libId")
                 }
             }
-            return allAuthors.distinctBy { it.id }.sortedBy { it.name }
+        } else {
+            listOf(buildString {
+                append("$serverUrl/Users/$uid/Items")
+                append("?IncludeItemTypes=AudioBook,Book")
+                append("&Recursive=true")
+                append("&Fields=People")
+            })
         }
 
-        // No specific libraries - get all authors
-        val url = buildString {
-            append("$serverUrl/Artists/AlbumArtists")
-            append("?UserId=$uid")
-            append("&SortBy=SortName")
-            append("&SortOrder=Ascending")
+        for (url in itemUrls) {
+            try {
+                val response = client.get(url) {
+                    header("X-Emby-Authorization", getAuthHeader())
+                }
+                if (response.status.isSuccess()) {
+                    val itemsResponse: ItemsResponse = response.body()
+                    for (item in itemsResponse.Items) {
+                        val people = item.People ?: continue
+                        for (person in people.filter { it.Type in authorTypes }) {
+                            val personId = person.Id ?: continue
+                            if (personId !in authorsById) {
+                                authorsById[personId] = Author(
+                                    id = personId,
+                                    name = normalizeAuthorName(person.Name),
+                                    imageId = null,
+                                    overview = null
+                                )
+                            }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                // Continue with other libraries
+            }
         }
 
-        val response = client.get(url) {
-            header("X-Emby-Authorization", getAuthHeader())
+        // Merge authors with the same normalized name (e.g. audiobook "Brandon Sanderson"
+        // and ebook "Sanderson, Brandon" become one entry with both IDs).
+        val mergedByName = mutableMapOf<String, Author>()
+        for (author in authorsById.values) {
+            val normalizedName = normalizeAuthorName(author.name)
+            val existing = mergedByName[normalizedName.lowercase()]
+            if (existing == null) {
+                mergedByName[normalizedName.lowercase()] = author.copy(name = normalizedName)
+            } else {
+                // Combine IDs (comma-separated) so both ArtistIds and PersonIds queries work.
+                // Prefer the entry that has richer metadata (image/overview).
+                val combinedIds = (existing.id.split(",") + author.id.split(",")).distinct().joinToString(",")
+                mergedByName[normalizedName.lowercase()] = if (existing.imageId != null) {
+                    existing.copy(id = combinedIds)
+                } else {
+                    author.copy(id = combinedIds, name = normalizedName)
+                }
+            }
         }
 
-        if (!response.status.isSuccess()) return emptyList()
-
-        val itemsResponse: ItemsResponse = response.body()
-        return itemsResponse.Items.map {
-            Author(
-                id = it.Id,
-                name = it.Name,
-                imageId = it.ImageTags?.Primary,
-                overview = it.Overview
-            )
-        }
+        return mergedByName.values.sortedBy { it.name }
     }
 
     suspend fun getAuthor(authorId: String): Author? {
         val uid = userId ?: return null
 
-        val response = client.get("$serverUrl/Users/$uid/Items/$authorId") {
+        // authorId may contain comma-separated IDs from merged authors; use the first one
+        val primaryId = authorId.split(",").first()
+        val response = client.get("$serverUrl/Users/$uid/Items/$primaryId") {
             header("X-Emby-Authorization", getAuthHeader())
         }
 
@@ -485,8 +543,8 @@ class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
 
         val item: JellyfinItem = response.body()
         return Author(
-            id = item.Id,
-            name = item.Name,
+            id = authorId,
+            name = normalizeAuthorName(item.Name),
             imageId = item.ImageTags?.Primary,
             overview = item.Overview
         )
@@ -495,9 +553,10 @@ class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
     suspend fun getBooksByAuthor(authorId: String): List<AudioBook> {
         val uid = userId ?: return emptyList()
 
-        val url = buildString {
+        // ArtistIds matches audiobooks (music model), PersonIds matches ebooks (book model)
+        val audioBookUrl = buildString {
             append("$serverUrl/Users/$uid/Items")
-            append("?IncludeItemTypes=AudioBook,Book")
+            append("?IncludeItemTypes=AudioBook")
             append("&Recursive=true")
             append("&Fields=Chapters,Overview,People")
             append("&ArtistIds=$authorId")
@@ -505,14 +564,35 @@ class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
             append("&SortOrder=Ascending")
         }
 
-        val response = client.get(url) {
-            header("X-Emby-Authorization", getAuthHeader())
+        val ebookUrl = buildString {
+            append("$serverUrl/Users/$uid/Items")
+            append("?IncludeItemTypes=Book")
+            append("&Recursive=true")
+            append("&Fields=Chapters,Overview,People")
+            append("&PersonIds=$authorId")
+            append("&SortBy=SortName")
+            append("&SortOrder=Ascending")
         }
 
-        if (!response.status.isSuccess()) return emptyList()
+        val results = mutableMapOf<String, AudioBook>()
 
-        val itemsResponse: ItemsResponse = response.body()
-        return itemsResponse.Items.map { it.toAudioBook() }
+        val audioBookResponse = client.get(audioBookUrl) {
+            header("X-Emby-Authorization", getAuthHeader())
+        }
+        if (audioBookResponse.status.isSuccess()) {
+            val itemsResponse: ItemsResponse = audioBookResponse.body()
+            itemsResponse.Items.forEach { results[it.Id] = it.toAudioBook() }
+        }
+
+        val ebookResponse = client.get(ebookUrl) {
+            header("X-Emby-Authorization", getAuthHeader())
+        }
+        if (ebookResponse.status.isSuccess()) {
+            val itemsResponse: ItemsResponse = ebookResponse.body()
+            itemsResponse.Items.forEach { results[it.Id] = it.toAudioBook() }
+        }
+
+        return results.values.sortedBy { it.sortTitle ?: it.title }
     }
 
     fun getImageUrl(imageId: String?, itemId: String? = null, imageType: String = "Primary"): String {
@@ -590,27 +670,53 @@ class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
         val libraryIds = selectedLibraryIds.value
 
         // Search for audiobooks and ebooks
-        val booksUrl = buildString {
-            append("$serverUrl/Users/$uid/Items")
-            append("?SearchTerm=$query")
-            append("&IncludeItemTypes=AudioBook,Book")
-            append("&Recursive=true")
-            append("&Fields=Chapters,Overview,People")
-            append("&Limit=$limit")
-        }
-
-        val books = try {
-            val response = client.get(booksUrl) {
-                header("X-Emby-Authorization", getAuthHeader())
+        val books = if (libraryIds.isNotEmpty()) {
+            // Search within each selected library using ParentId
+            val allBooks = mutableListOf<AudioBook>()
+            for (libId in libraryIds) {
+                val url = buildString {
+                    append("$serverUrl/Users/$uid/Items")
+                    append("?SearchTerm=$query")
+                    append("&IncludeItemTypes=AudioBook,Book")
+                    append("&Recursive=true")
+                    append("&Fields=Chapters,Overview,People")
+                    append("&Limit=$limit")
+                    append("&ParentId=$libId")
+                }
+                try {
+                    val response = client.get(url) {
+                        header("X-Emby-Authorization", getAuthHeader())
+                    }
+                    if (response.status.isSuccess()) {
+                        val itemsResponse: ItemsResponse = response.body()
+                        allBooks.addAll(itemsResponse.Items.map { it.toAudioBook() })
+                    }
+                } catch (e: Exception) {
+                    // Continue with other libraries
+                }
             }
-            if (response.status.isSuccess()) {
-                val itemsResponse: ItemsResponse = response.body()
-                val allBooks = itemsResponse.Items.map { it.toAudioBook() }
-                // Filter by selected libraries if any
-                if (libraryIds.isEmpty()) allBooks else allBooks.filter { it.libraryId in libraryIds }
-            } else emptyList()
-        } catch (e: Exception) {
-            emptyList()
+            allBooks.distinctBy { it.id }.take(limit)
+        } else {
+            // No libraries selected - search globally
+            val url = buildString {
+                append("$serverUrl/Users/$uid/Items")
+                append("?SearchTerm=$query")
+                append("&IncludeItemTypes=AudioBook,Book")
+                append("&Recursive=true")
+                append("&Fields=Chapters,Overview,People")
+                append("&Limit=$limit")
+            }
+            try {
+                val response = client.get(url) {
+                    header("X-Emby-Authorization", getAuthHeader())
+                }
+                if (response.status.isSuccess()) {
+                    val itemsResponse: ItemsResponse = response.body()
+                    itemsResponse.Items.map { it.toAudioBook() }
+                } else emptyList()
+            } catch (e: Exception) {
+                emptyList()
+            }
         }
 
         // Search for authors/people
@@ -778,7 +884,7 @@ class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
 
         // Build author list from multiple sources (People array, AlbumArtists, ArtistItems, etc.)
         val authorInfos = when {
-            authorPeople.isNotEmpty() -> authorPeople.map { AuthorInfo(name = it.Name, id = it.Id) }
+            authorPeople.isNotEmpty() -> authorPeople.map { AuthorInfo(name = normalizeAuthorName(it.Name), id = it.Id) }
             AlbumArtists?.isNotEmpty() == true -> AlbumArtists.map { AuthorInfo(name = it.Name, id = it.Id) }
             ArtistItems?.isNotEmpty() == true -> ArtistItems.map { AuthorInfo(name = it.Name, id = it.Id) }
             AlbumArtist != null -> listOf(AuthorInfo(name = AlbumArtist, id = null))
@@ -824,6 +930,21 @@ class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
             libraryId = ParentId,
             itemType = itemType
         )
+    }
+
+    companion object {
+        /** Convert "Last, First" format (common in EPUB metadata) to "First Last". */
+        fun normalizeAuthorName(name: String): String {
+            val parts = name.split(",")
+            if (parts.size == 2) {
+                val last = parts[0].trim()
+                val first = parts[1].trim()
+                if (first.isNotEmpty() && last.isNotEmpty()) {
+                    return "$first $last"
+                }
+            }
+            return name
+        }
     }
 }
 

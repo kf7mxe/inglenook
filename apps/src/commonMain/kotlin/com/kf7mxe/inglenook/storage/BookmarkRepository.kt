@@ -1,6 +1,7 @@
 package com.kf7mxe.inglenook.storage
 
 import com.kf7mxe.inglenook.Bookmark
+import com.kf7mxe.inglenook.jellyfin.serverScopedProperty
 import com.lightningkite.kiteui.reactive.PersistentProperty
 import kotlin.time.ExperimentalTime
 import kotlin.uuid.ExperimentalUuidApi
@@ -8,8 +9,9 @@ import kotlin.uuid.Uuid
 
 // Repository for managing audiobook bookmarks
 object BookmarkRepository {
-    // Stored bookmarks (persisted)
-    private val storedBookmarks = PersistentProperty<List<Bookmark>>("bookmarks", emptyList())
+    // Stored bookmarks (persisted, scoped per server)
+    private val storedBookmarks: PersistentProperty<List<Bookmark>>
+        get() = serverScopedProperty("bookmarks", emptyList())
 
     @OptIn(ExperimentalTime::class)
     fun getAllBookmarks(): List<Bookmark> {
