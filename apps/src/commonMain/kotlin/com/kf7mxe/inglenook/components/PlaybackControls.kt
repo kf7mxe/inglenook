@@ -12,6 +12,7 @@ import com.kf7mxe.inglenook.storage.BookmarkRepository
 import com.lightningkite.kiteui.views.atEnd
 import com.lightningkite.kiteui.views.card
 import com.lightningkite.kiteui.views.dynamicTheme
+import com.lightningkite.kiteui.views.fieldTheme
 import com.lightningkite.kiteui.views.forEach
 import com.lightningkite.kiteui.views.forEachById
 import com.lightningkite.reactive.context.invoke
@@ -77,7 +78,7 @@ fun ViewWriter.PlaybackControls(compact: Boolean = false) {
         col {
             gap = 0.25.rem
 
-            slider {
+           card.slider {
                 min = 0f
                 max = 1f
                 value bind seekRatio

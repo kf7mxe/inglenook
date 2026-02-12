@@ -19,6 +19,9 @@ import com.lightningkite.kiteui.views.l2.icon
 import com.lightningkite.kiteui.views.l2.navigatorView
 import com.kf7mxe.inglenook.components.PlaybackControls
 import com.kf7mxe.inglenook.components.blurredImage
+import com.kf7mxe.inglenook.components.connectivityDialog
+import com.kf7mxe.inglenook.components.offlineBanner
+import com.kf7mxe.inglenook.connectivity.ConnectivityState
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.jellyfin.jellyfinServerConfig
 import com.kf7mxe.inglenook.playback.PlaybackState
@@ -91,6 +94,9 @@ fun ViewWriter.app(navigator: PageNavigator, dialog: PageNavigator) {
         NavLink("Bookshelf", Icon.book) { BookshelfPage() },
         NavLink("Settings", Icon.settings) { SettingsPage() },
     )
+
+    // Restore last played book so the now-playing preview shows on relaunch
+    PlaybackState.restoreLastPlayed()
 
     // Check if Jellyfin is configured, if not go to setup
     AppScope.launch {
@@ -192,6 +198,9 @@ fun ViewWriter.app(navigator: PageNavigator, dialog: PageNavigator) {
                     }
                 }
 
+                // Offline mode banner
+                offlineBanner()
+
                 // Main content area with coordinator frame for bottom sheet
                 MainContentSemantic.onNext.expanding.navigatorView(navigator)
 
@@ -216,6 +225,24 @@ fun ViewWriter.app(navigator: PageNavigator, dialog: PageNavigator) {
 
 
             }
+
+            // Connectivity dialog overlay
+            var dialogShowing = false
+            ConnectivityState.showingConnectivityDialog.addListener {
+                val shouldShow = ConnectivityState.showingConnectivityDialog.value
+                if (shouldShow && !dialogShowing) {
+                    dialogShowing = true
+                    dialog { dismiss ->
+                        connectivityDialog {
+                            dialogShowing = false
+                            dismiss()
+                        }
+                    }
+                }
+            }
+
+            // Start connectivity monitoring AFTER listener is registered
+            ConnectivityState.initialize()
         }
     }
 }
@@ -408,6 +435,9 @@ fun ViewWriter.nowPlaying() {
 
 
                 button {
+                    ::shown {
+                        chapters().isNotEmpty()
+                    }
                     centered.text {
                         ::content {
 
@@ -522,84 +552,11 @@ fun ViewWriter.nowPlaying() {
                                         dismiss()
                                     }
                                 }
-
-
-//                    for ((index, chapter) in chapters.withIndex()) {
-//                        val currentChapter = PlaybackState.currentChapter.value
-//                        val currentIndex =
-//                            if (currentChapter != null) chapters.indexOf(currentChapter) else -1
-//                        val isCurrent = index == currentIndex
-//                        val isPast = index < currentIndex
-//
-//                        button {
-//                            row {
-//                                gap = 0.5.rem
-//                                padding = 0.5.rem
-//
-//                                // Chapter number
-//                                subtext { content = "${index + 1}" }
-//
-//                                // Chapter name
-//                                expanding.col {
-//                                    gap = 0.rem
-//                                    text {
-//                                        content = chapter.name
-//                                        ellipsis = true
-//                                    }
-//                                    // Show start time
-//                                    subtext {
-//                                        val totalSeconds = chapter.startPositionTicks / 10_000_000
-//                                        val hours = totalSeconds / 3600
-//                                        val minutes = (totalSeconds % 3600) / 60
-//                                        val seconds = totalSeconds % 60
-//                                        content = if (hours > 0) {
-//                                            "$hours:${
-//                                                minutes.toString().padStart(2, '0')
-//                                            }:${seconds.toString().padStart(2, '0')}"
-//                                        } else {
-//                                            "$minutes:${seconds.toString().padStart(2, '0')}"
-//                                        }
-//                                    }
-//                                }
-//
-//                                // Current indicator
-//                                if (isCurrent) {
-//                                    icon(Icon.playArrow, "Playing")
-//                                }
-//                            }
-//
-//                            onClick {
-//                                PlaybackState.seek(chapter.startPositionTicks)
-//                            }
-//
-//                            if (isCurrent) {
-//                                themeChoice += SelectedSemantic
-//                            }
-//                            if (isPast) {
-//                                themeChoice += ThemeDerivation {
-//                                    it.copy(
-//                                        id = "past-chapter",
-//                                        foreground = it.foreground.closestColor().applyAlpha(0.6f)
-//                                    ).withBack
-//                                }
-//                            }
-//                        }
-//
-//                        if (index < chapters.size - 1) {
-//                            separator()
-//                        }
-//                    }
                         }
                     }
                 }
             }
 
-            shownWhen { chapters()?.isNotEmpty() == true }.col {
-                gap = 0.5.rem
-
-                // Chapter list header (clickable to expand)
-
-                // Chapter list (expandable)
 
 
                 // Playback controls
@@ -691,7 +648,6 @@ fun ViewWriter.nowPlaying() {
                 isNowPlayingOpen.value = false
             }
         }
-    }
 }
 
 interface FullScreen

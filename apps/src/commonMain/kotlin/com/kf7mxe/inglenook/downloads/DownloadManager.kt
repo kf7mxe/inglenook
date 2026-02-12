@@ -148,3 +148,11 @@ object DownloadManager {
         activeDownloads.value = activeDownloads.value - bookId
     }
 }
+
+fun DownloadedBook.toAudioBook(): AudioBook = AudioBook(
+    id = _id,
+    title = title,
+    authors = authors,
+    duration = duration,
+    chapters = chapters,
+)

@@ -14,3 +14,4 @@ expect suspend fun blurAndCacheImage(
     overlayColor: Paint,
     quality: Float = 0.5f // Added quality parameter
 ): ImageSource?
+expect suspend fun clearImageCaches()

@@ -364,6 +364,15 @@ fun fastBlur(sentBitmap: Bitmap, radius: Int): Bitmap? {
     return bitmap
 }
 
+actual suspend fun clearImageCaches() {
+    withContext(Dispatchers.IO) {
+        val blurredCachedImagesDirectory = File(AndroidAppContext.applicationCtx.cacheDir, "blurredImages")
+        if (blurredCachedImagesDirectory.exists()) {
+            blurredCachedImagesDirectory.deleteRecursively()
+        }
+    }
+}
+
 actual suspend fun getBlurredCachedImage(localPath: String): ImageSource? {
     println("DEBUG localPath ${localPath}")
 //    val directory = splitDirectoryAndFileName[0]

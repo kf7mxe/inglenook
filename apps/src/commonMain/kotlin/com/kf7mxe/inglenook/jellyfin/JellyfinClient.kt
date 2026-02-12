@@ -3,6 +3,7 @@ package com.kf7mxe.inglenook.jellyfin
 import com.kf7mxe.inglenook.*
 import com.kf7mxe.inglenook.AuthorInfo
 import com.kf7mxe.inglenook.cache.ApiCache
+import com.kf7mxe.inglenook.connectivity.ConnectivityState
 import com.kf7mxe.inglenook.util.CueParser
 import io.ktor.client.*
 import io.ktor.client.call.*
@@ -89,33 +90,69 @@ class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
         }
     }
 
+    suspend fun pingServer(): Boolean {
+        return try {
+            val response = client.get("$serverUrl/System/Info/Public")
+            response.status.isSuccess()
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    private inline fun <T> handleNetworkException(e: Exception, fallback: T): T {
+        val msg = e.message?.lowercase() ?: ""
+        val isNetworkError = msg.contains("unable to resolve host") ||
+                msg.contains("network") ||
+                msg.contains("connect") ||
+                msg.contains("timeout") ||
+                msg.contains("failed to fetch") ||
+                msg.contains("econnrefused") ||
+                msg.contains("no address associated") ||
+                msg.contains("socket") ||
+                msg.contains("unreachable")
+        if (isNetworkError) {
+            ConnectivityState.onNetworkError(e.message ?: "Network error")
+        }
+        return fallback
+    }
+
     suspend fun getLibraries(): List<JellyfinLibrary> {
+        if (ConnectivityState.offlineMode.value) return emptyList()
         val uid = userId ?: return emptyList()
 
-        val response = client.get("$serverUrl/Users/$uid/Views") {
-            header("X-Emby-Authorization", getAuthHeader())
-        }
+        return try {
+            val response = client.get("$serverUrl/Users/$uid/Views") {
+                header("X-Emby-Authorization", getAuthHeader())
+            }
 
-        if (!response.status.isSuccess()) return emptyList()
+            if (!response.status.isSuccess()) return emptyList()
 
-        val views: ViewsResponse = response.body()
-        return views.Items.map {
-            JellyfinLibrary(
-                id = it.Id,
-                name = it.Name,
-                collectionType = it.CollectionType,
-                imageId = it.ImageTags?.Primary
-            )
+            val views: ViewsResponse = response.body()
+            views.Items.map {
+                JellyfinLibrary(
+                    id = it.Id,
+                    name = it.Name,
+                    collectionType = it.CollectionType,
+                    imageId = it.ImageTags?.Primary
+                )
+            }
+        } catch (e: Exception) {
+            handleNetworkException(e, emptyList())
         }
     }
 
     suspend fun getAllBooks(libraryId: String? = null, forceRefresh: Boolean = false): List<AudioBook> {
+        if (ConnectivityState.offlineMode.value) return emptyList()
         val uid = userId ?: return emptyList()
         val libraryIds = if (libraryId != null) listOf(libraryId) else selectedLibraryIds.value
         val cacheKey = ApiCache.booksKey(libraryIds)
 
-        return ApiCache.getOrPut(cacheKey, ApiCache.DEFAULT_TTL, forceRefresh) {
-            fetchAllBooks(uid, libraryIds)
+        return try {
+            ApiCache.getOrPut(cacheKey, ApiCache.DEFAULT_TTL, forceRefresh) {
+                fetchAllBooks(uid, libraryIds)
+            }
+        } catch (e: Exception) {
+            handleNetworkException(e, emptyList())
         }
     }
 
@@ -170,151 +207,171 @@ class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
     }
 
     suspend fun getInProgressBooks(): List<AudioBook> {
+        if (ConnectivityState.offlineMode.value) return emptyList()
         val uid = userId ?: return emptyList()
         val libraryIds = selectedLibraryIds.value
 
-        // Get all in-progress items first - the ParentId filter doesn't work reliably for resume items
-        val url = buildString {
-            append("$serverUrl/Users/$uid/Items/Resume")
-            append("?IncludeItemTypes=AudioBook,Book")
-            append("&Recursive=true")
-            append("&Fields=Chapters,Overview,People")
-            append("&Limit=50") // Get more to filter from
+        return try {
+            // Get all in-progress items first - the ParentId filter doesn't work reliably for resume items
+            val url = buildString {
+                append("$serverUrl/Users/$uid/Items/Resume")
+                append("?IncludeItemTypes=AudioBook,Book")
+                append("&Recursive=true")
+                append("&Fields=Chapters,Overview,People")
+                append("&Limit=50") // Get more to filter from
+            }
+
+            val response = client.get(url) {
+                header("X-Emby-Authorization", getAuthHeader())
+            }
+
+            if (!response.status.isSuccess()) return emptyList()
+
+            val itemsResponse: ItemsResponse = response.body()
+            val allInProgress = itemsResponse.Items.map { it.toAudioBook() }
+
+            // If specific libraries are selected, filter to only books in those libraries
+            if (libraryIds.isNotEmpty()) {
+                // Get all book IDs from selected libraries for cross-reference
+                val libraryBookIds = getAllBooks().map { it.id }.toSet()
+                allInProgress
+                    .filter { it.id in libraryBookIds }
+                    .distinctBy { it.id }
+                    .take(10)
+            } else {
+                allInProgress.take(10)
+            }
+        } catch (e: Exception) {
+            handleNetworkException(e, emptyList())
         }
-
-        val response = client.get(url) {
-            header("X-Emby-Authorization", getAuthHeader())
-        }
-
-        if (!response.status.isSuccess()) return emptyList()
-
-        val itemsResponse: ItemsResponse = response.body()
-        val allInProgress = itemsResponse.Items.map { it.toAudioBook() }
-
-        // If specific libraries are selected, filter to only books in those libraries
-        if (libraryIds.isNotEmpty()) {
-            // Get all book IDs from selected libraries for cross-reference
-            val libraryBookIds = getAllBooks().map { it.id }.toSet()
-            return allInProgress
-                .filter { it.id in libraryBookIds }
-                .distinctBy { it.id }
-                .take(10)
-        }
-
-        return allInProgress.take(10)
     }
 
     suspend fun getRecentlyAddedBooks(): List<AudioBook> {
+        if (ConnectivityState.offlineMode.value) return emptyList()
         val uid = userId ?: return emptyList()
         val libraryIds = selectedLibraryIds.value
 
-        // If specific libraries are selected, query each and merge
-        if (libraryIds.isNotEmpty()) {
-            val allBooks = mutableListOf<AudioBook>()
-            for (libId in libraryIds) {
+        return try {
+            // If specific libraries are selected, query each and merge
+            if (libraryIds.isNotEmpty()) {
+                val allBooks = mutableListOf<AudioBook>()
+                for (libId in libraryIds) {
+                    val url = buildString {
+                        append("$serverUrl/Users/$uid/Items/Latest")
+                        append("?IncludeItemTypes=AudioBook,Book")
+                        append("&Fields=Chapters,Overview,People")
+                        append("&Limit=20")
+                        append("&ParentId=$libId")
+                    }
+
+                    try {
+                        val response = client.get(url) {
+                            header("X-Emby-Authorization", getAuthHeader())
+                        }
+                        if (response.status.isSuccess()) {
+                            val items: List<JellyfinItem> = response.body()
+                            allBooks.addAll(items.map { it.toAudioBook() })
+                        }
+                    } catch (e: Exception) {
+                        // Continue with other libraries
+                    }
+                }
+                allBooks.distinctBy { it.id }.take(20)
+            } else {
+                // No specific libraries - get all recent
                 val url = buildString {
                     append("$serverUrl/Users/$uid/Items/Latest")
                     append("?IncludeItemTypes=AudioBook,Book")
                     append("&Fields=Chapters,Overview,People")
                     append("&Limit=20")
-                    append("&ParentId=$libId")
                 }
 
-                try {
-                    val response = client.get(url) {
-                        header("X-Emby-Authorization", getAuthHeader())
-                    }
-                    if (response.status.isSuccess()) {
-                        val items: List<JellyfinItem> = response.body()
-                        allBooks.addAll(items.map { it.toAudioBook() })
-                    }
-                } catch (e: Exception) {
-                    // Continue with other libraries
+                val response = client.get(url) {
+                    header("X-Emby-Authorization", getAuthHeader())
                 }
+
+                if (!response.status.isSuccess()) return emptyList()
+
+                val items: List<JellyfinItem> = response.body()
+                items.map { it.toAudioBook() }
             }
-            return allBooks.distinctBy { it.id }.take(20)
+        } catch (e: Exception) {
+            handleNetworkException(e, emptyList())
         }
-
-        // No specific libraries - get all recent
-        val url = buildString {
-            append("$serverUrl/Users/$uid/Items/Latest")
-            append("?IncludeItemTypes=AudioBook,Book")
-            append("&Fields=Chapters,Overview,People")
-            append("&Limit=20")
-        }
-
-        val response = client.get(url) {
-            header("X-Emby-Authorization", getAuthHeader())
-        }
-
-        if (!response.status.isSuccess()) return emptyList()
-
-        val items: List<JellyfinItem> = response.body()
-        return items.map { it.toAudioBook() }
     }
 
     suspend fun getSuggestedBooks(): List<AudioBook> {
+        if (ConnectivityState.offlineMode.value) return emptyList()
         val uid = userId ?: return emptyList()
         val libraryIds = selectedLibraryIds.value
 
-        // Get all suggestions first - the ParentId filter doesn't work reliably for suggestions
-        val url = buildString {
-            append("$serverUrl/Users/$uid/Suggestions")
-            append("?IncludeItemTypes=AudioBook,Book")
-            append("&Fields=Chapters,Overview,People")
-            append("&Limit=50") // Get more to filter from
+        return try {
+            // Get all suggestions first - the ParentId filter doesn't work reliably for suggestions
+            val url = buildString {
+                append("$serverUrl/Users/$uid/Suggestions")
+                append("?IncludeItemTypes=AudioBook,Book")
+                append("&Fields=Chapters,Overview,People")
+                append("&Limit=50") // Get more to filter from
+            }
+
+            val response = client.get(url) {
+                header("X-Emby-Authorization", getAuthHeader())
+            }
+
+            if (!response.status.isSuccess()) return emptyList()
+
+            val itemsResponse: ItemsResponse = response.body()
+            val allSuggestions = itemsResponse.Items.map { it.toAudioBook() }
+
+            // If specific libraries are selected, filter to only books in those libraries
+            if (libraryIds.isNotEmpty()) {
+                // Get all book IDs from selected libraries for cross-reference
+                val libraryBookIds = getAllBooks().map { it.id }.toSet()
+                allSuggestions
+                    .filter { it.id in libraryBookIds }
+                    .distinctBy { it.id }
+                    .take(10)
+            } else {
+                allSuggestions.take(10)
+            }
+        } catch (e: Exception) {
+            handleNetworkException(e, emptyList())
         }
-
-        val response = client.get(url) {
-            header("X-Emby-Authorization", getAuthHeader())
-        }
-
-        if (!response.status.isSuccess()) return emptyList()
-
-        val itemsResponse: ItemsResponse = response.body()
-        val allSuggestions = itemsResponse.Items.map { it.toAudioBook() }
-
-        // If specific libraries are selected, filter to only books in those libraries
-        if (libraryIds.isNotEmpty()) {
-            // Get all book IDs from selected libraries for cross-reference
-            val libraryBookIds = getAllBooks().map { it.id }.toSet()
-            return allSuggestions
-                .filter { it.id in libraryBookIds }
-                .distinctBy { it.id }
-                .take(10)
-        }
-
-        return allSuggestions.take(10)
     }
 
     suspend fun getBook(itemId: String): AudioBook? {
+        if (ConnectivityState.offlineMode.value) return null
         val uid = userId ?: return null
 
-        val response = client.get("$serverUrl/Users/$uid/Items/$itemId") {
-            header("X-Emby-Authorization", getAuthHeader())
-            parameter("Fields", "Chapters,Overview,People,Path,MediaSources")
+        return try {
+            val response = client.get("$serverUrl/Users/$uid/Items/$itemId") {
+                header("X-Emby-Authorization", getAuthHeader())
+                parameter("Fields", "Chapters,Overview,People,Path,MediaSources")
+            }
+
+            if (!response.status.isSuccess()) return null
+
+            val item: JellyfinItem = response.body()
+            var book = item.toAudioBook()
+
+            // Fetch chapters from the AudiobookChapters plugin endpoint
+            val pluginChapters = getAudiobookChapters(itemId)
+            if (pluginChapters.isNotEmpty()) {
+                book = book.copy(
+                    chapters = pluginChapters.map {
+                        Chapter(
+                            name = it.Name,
+                            startPositionTicks = it.StartPositionTicks,
+                            imageId = null
+                        )
+                    }
+                )
+            }
+
+            book
+        } catch (e: Exception) {
+            handleNetworkException(e, null)
         }
-
-        if (!response.status.isSuccess()) return null
-
-        val item: JellyfinItem = response.body()
-        var book = item.toAudioBook()
-
-        // Fetch chapters from the AudiobookChapters plugin endpoint
-        val pluginChapters = getAudiobookChapters(itemId)
-        if (pluginChapters.isNotEmpty()) {
-            book = book.copy(
-                chapters = pluginChapters.map {
-                    Chapter(
-                        name = it.Name,
-                        startPositionTicks = it.StartPositionTicks,
-                        imageId = null
-                    )
-                }
-            )
-        }
-
-        return book
     }
 
     /**
@@ -405,12 +462,17 @@ class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
 
 
     suspend fun getAuthors(forceRefresh: Boolean = false): List<Author> {
+        if (ConnectivityState.offlineMode.value) return emptyList()
         val uid = userId ?: return emptyList()
         val libraryIds = selectedLibraryIds.value
         val cacheKey = ApiCache.authorsKey(libraryIds)
 
-        return ApiCache.getOrPut(cacheKey, ApiCache.DEFAULT_TTL, forceRefresh) {
-            fetchAuthors(uid, libraryIds)
+        return try {
+            ApiCache.getOrPut(cacheKey, ApiCache.DEFAULT_TTL, forceRefresh) {
+                fetchAuthors(uid, libraryIds)
+            }
+        } catch (e: Exception) {
+            handleNetworkException(e, emptyList())
         }
     }
 
@@ -531,26 +593,32 @@ class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
     }
 
     suspend fun getAuthor(authorId: String): Author? {
+        if (ConnectivityState.offlineMode.value) return null
         val uid = userId ?: return null
 
-        // authorId may contain comma-separated IDs from merged authors; use the first one
-        val primaryId = authorId.split(",").first()
-        val response = client.get("$serverUrl/Users/$uid/Items/$primaryId") {
-            header("X-Emby-Authorization", getAuthHeader())
+        return try {
+            // authorId may contain comma-separated IDs from merged authors; use the first one
+            val primaryId = authorId.split(",").first()
+            val response = client.get("$serverUrl/Users/$uid/Items/$primaryId") {
+                header("X-Emby-Authorization", getAuthHeader())
+            }
+
+            if (!response.status.isSuccess()) return null
+
+            val item: JellyfinItem = response.body()
+            Author(
+                id = authorId,
+                name = normalizeAuthorName(item.Name),
+                imageId = item.ImageTags?.Primary,
+                overview = item.Overview
+            )
+        } catch (e: Exception) {
+            handleNetworkException(e, null)
         }
-
-        if (!response.status.isSuccess()) return null
-
-        val item: JellyfinItem = response.body()
-        return Author(
-            id = authorId,
-            name = normalizeAuthorName(item.Name),
-            imageId = item.ImageTags?.Primary,
-            overview = item.Overview
-        )
     }
 
     suspend fun getBooksByAuthor(authorId: String): List<AudioBook> {
+        if (ConnectivityState.offlineMode.value) return emptyList()
         val uid = userId ?: return emptyList()
 
         // ArtistIds matches audiobooks (music model), PersonIds matches ebooks (book model)
@@ -574,25 +642,29 @@ class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
             append("&SortOrder=Ascending")
         }
 
-        val results = mutableMapOf<String, AudioBook>()
+        return try {
+            val results = mutableMapOf<String, AudioBook>()
 
-        val audioBookResponse = client.get(audioBookUrl) {
-            header("X-Emby-Authorization", getAuthHeader())
-        }
-        if (audioBookResponse.status.isSuccess()) {
-            val itemsResponse: ItemsResponse = audioBookResponse.body()
-            itemsResponse.Items.forEach { results[it.Id] = it.toAudioBook() }
-        }
+            val audioBookResponse = client.get(audioBookUrl) {
+                header("X-Emby-Authorization", getAuthHeader())
+            }
+            if (audioBookResponse.status.isSuccess()) {
+                val itemsResponse: ItemsResponse = audioBookResponse.body()
+                itemsResponse.Items.forEach { results[it.Id] = it.toAudioBook() }
+            }
 
-        val ebookResponse = client.get(ebookUrl) {
-            header("X-Emby-Authorization", getAuthHeader())
-        }
-        if (ebookResponse.status.isSuccess()) {
-            val itemsResponse: ItemsResponse = ebookResponse.body()
-            itemsResponse.Items.forEach { results[it.Id] = it.toAudioBook() }
-        }
+            val ebookResponse = client.get(ebookUrl) {
+                header("X-Emby-Authorization", getAuthHeader())
+            }
+            if (ebookResponse.status.isSuccess()) {
+                val itemsResponse: ItemsResponse = ebookResponse.body()
+                itemsResponse.Items.forEach { results[it.Id] = it.toAudioBook() }
+            }
 
-        return results.values.sortedBy { it.sortTitle ?: it.title }
+            results.values.sortedBy { it.sortTitle ?: it.title }
+        } catch (e: Exception) {
+            handleNetworkException(e, emptyList())
+        }
     }
 
     fun getImageUrl(imageId: String?, itemId: String? = null, imageType: String = "Primary"): String {
@@ -666,6 +738,7 @@ class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
     }
 
     suspend fun search(query: String, limit: Int = 20): SearchResults {
+        if (ConnectivityState.offlineMode.value) return SearchResults()
         val uid = userId ?: return SearchResults()
         val libraryIds = selectedLibraryIds.value
 

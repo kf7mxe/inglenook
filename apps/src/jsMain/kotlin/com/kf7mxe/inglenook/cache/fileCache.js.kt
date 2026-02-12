@@ -100,6 +100,13 @@ actual suspend fun blurServerImageAndCacheImage(
     }
 }
 
+actual suspend fun clearImageCaches() {
+    database = database ?: getDatabase()
+    database?.writeTransaction("blurredImageCache") {
+        objectStore("blurredImageCache").clear()
+    }
+}
+
 actual suspend fun getBlurredCachedImage(localPath: String): ImageSource? {
     database = database ?: getDatabase()
     println("DEBUG getBlurredCachedImage ${localPath}")

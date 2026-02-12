@@ -3,8 +3,10 @@ package com.kf7mxe.inglenook.playback
 import com.kf7mxe.inglenook.AudioBook
 import com.kf7mxe.inglenook.Chapter
 import com.kf7mxe.inglenook.ItemType
+import com.kf7mxe.inglenook.connectivity.ConnectivityState
 import com.kf7mxe.inglenook.downloads.DownloadManager
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
+import com.kf7mxe.inglenook.jellyfin.serverScopedProperty
 import com.lightningkite.reactive.context.invoke
 import com.lightningkite.reactive.core.Signal
 import com.lightningkite.reactive.core.AppScope
@@ -40,10 +42,36 @@ object PlaybackState {
     // Platform audio player (expect/actual)
     private var audioPlayer: AudioPlayer? = null
 
+    // Persisted last-played state (survives app restart)
+    private val persistedLastBook get() = serverScopedProperty<AudioBook?>("lastPlayedBook", null)
+    private val persistedLastPosition get() = serverScopedProperty<Long>("lastPlayedPosition", 0L)
+
+    private fun saveLastPlayed() {
+        persistedLastBook.value = currentBook.value
+        persistedLastPosition.value = positionTicks.value
+    }
+
+    private fun clearLastPlayed() {
+        persistedLastBook.value = null
+        persistedLastPosition.value = 0L
+    }
+
+    fun restoreLastPlayed() {
+        if (currentBook.value != null) return // Already have an active book
+        val book = persistedLastBook.value ?: return
+        currentBook.value = book
+        positionTicks.value = persistedLastPosition.value
+        duration.value = book.duration
+        isPlaying.value = false
+    }
+
     suspend fun play(book: AudioBook, startPosition: Long = 0L) {
         currentBook.value = book
         duration.value = book.duration
         positionTicks.value = startPosition
+
+        // Persist for restore on next app launch
+        saveLastPlayed()
 
         // Update current chapter
         updateCurrentChapter()
@@ -61,8 +89,10 @@ object PlaybackState {
         startProgressSync()
 
         // Report playback start to Jellyfin (if online)
-        AppScope.launch {
-            jellyfinClient.value?.reportPlaybackStart(book.id, startPosition)
+        if (!ConnectivityState.offlineMode.value) {
+            AppScope.launch {
+                jellyfinClient.value?.reportPlaybackStart(book.id, startPosition)
+            }
         }
     }
 
@@ -71,9 +101,12 @@ object PlaybackState {
         isPlaying.value = false
         stopProgressSync()
 
+        // Persist position so it survives app restart
+        saveLastPlayed()
+
         // Report playback progress to Jellyfin
         val book = currentBook.value
-        if (book != null) {
+        if (book != null && !ConnectivityState.offlineMode.value) {
             AppScope.launch {
                 jellyfinClient.value?.reportPlaybackProgress(book.id, positionTicks.value, true)
             }
@@ -87,7 +120,7 @@ object PlaybackState {
 
         // Report playback progress to Jellyfin
         val book = currentBook.value
-        if (book != null) {
+        if (book != null && !ConnectivityState.offlineMode.value) {
             AppScope.launch {
                 jellyfinClient.value?.reportPlaybackProgress(book.id, positionTicks.value, false)
             }
@@ -110,8 +143,11 @@ object PlaybackState {
         isPlaying.value = false
         stopProgressSync()
 
+        // Clear persisted state (user explicitly stopped)
+        clearLastPlayed()
+
         // Report playback stopped to Jellyfin
-        if (book != null) {
+        if (book != null && !ConnectivityState.offlineMode.value) {
             AppScope.launch {
                 jellyfinClient.value?.reportPlaybackStopped(book.id, positionTicks.value)
             }
@@ -218,12 +254,17 @@ object PlaybackState {
                     }
                     updateCurrentChapter()
 
-                    // Report to Jellyfin
-                    jellyfinClient.value?.reportPlaybackProgress(
-                        book.id,
-                        positionTicks.value,
-                        !isPlaying.value
-                    )
+                    // Persist position for restore on next app launch
+                    saveLastPlayed()
+
+                    // Report to Jellyfin (if online)
+                    if (!ConnectivityState.offlineMode.value) {
+                        jellyfinClient.value?.reportPlaybackProgress(
+                            book.id,
+                            positionTicks.value,
+                            !isPlaying.value
+                        )
+                    }
                 }
             }
         }
@@ -243,7 +284,7 @@ object PlaybackState {
     // Handle playback completion
     fun onPlaybackComplete() {
         val book = currentBook.value
-        if (book != null) {
+        if (book != null && !ConnectivityState.offlineMode.value) {
             AppScope.launch {
                 jellyfinClient.value?.reportPlaybackStopped(book.id, duration.value)
             }

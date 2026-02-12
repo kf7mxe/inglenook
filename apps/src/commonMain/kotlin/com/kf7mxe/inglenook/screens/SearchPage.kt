@@ -14,6 +14,9 @@ import com.kf7mxe.inglenook.Author
 import com.kf7mxe.inglenook.book
 import com.kf7mxe.inglenook.searchOff
 import com.kf7mxe.inglenook.components.BookListItem
+import com.kf7mxe.inglenook.connectivity.ConnectivityState
+import com.kf7mxe.inglenook.downloads.DownloadManager
+import com.kf7mxe.inglenook.downloads.toAudioBook
 import com.kf7mxe.inglenook.jellyfin.SearchResults
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.lightningkite.kiteui.Routable
@@ -40,6 +43,18 @@ class SearchPage : Page {
             searchJob?.cancel()
             if (query.isBlank()) {
                 searchResults.value = null
+                return
+            }
+
+            if (ConnectivityState.offlineMode.value) {
+                val lowerQuery = query.lowercase()
+                val matchingBooks = DownloadManager.getDownloads()
+                    .filter { download ->
+                        download.title.lowercase().contains(lowerQuery) ||
+                        download.authors.any { it.lowercase().contains(lowerQuery) }
+                    }
+                    .map { it.toAudioBook() }
+                searchResults.value = SearchResults(books = matchingBooks, authors = emptyList())
                 return
             }
 

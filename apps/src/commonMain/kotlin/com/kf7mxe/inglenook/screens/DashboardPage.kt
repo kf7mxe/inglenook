@@ -11,6 +11,9 @@ import com.lightningkite.kiteui.views.l2.icon
 import com.kf7mxe.inglenook.AudioBook
 import com.kf7mxe.inglenook.book
 import com.kf7mxe.inglenook.components.BookCard
+import com.kf7mxe.inglenook.connectivity.ConnectivityState
+import com.kf7mxe.inglenook.downloads.DownloadManager
+import com.kf7mxe.inglenook.downloads.toAudioBook
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.lightningkite.kiteui.Routable
 import com.lightningkite.kiteui.views.direct.scrollsHorizontally
@@ -31,28 +34,64 @@ class DashboardPage : Page {
         val isLoading = Signal(true)
         val client = jellyfinClient.value
         val inProgressBooks= rememberSuspending {
-            val test = client?.getInProgressBooks()?:emptyList()
-            println("DEBUG test ${test.size}")
-            test
+            if (ConnectivityState.offlineMode()) emptyList()
+            else client?.getInProgressBooks()?:emptyList()
         }
         val recommendedBooks= rememberSuspending {
-         client?.getSuggestedBooks()?:emptyList()
+            if (ConnectivityState.offlineMode()) emptyList()
+            else client?.getSuggestedBooks()?:emptyList()
         }
         val recentlyAddedBooks = rememberSuspending {
-            client?.getRecentlyAddedBooks()?:emptyList()
+            if (ConnectivityState.offlineMode()) emptyList()
+            else client?.getRecentlyAddedBooks()?:emptyList()
+        }
+
+        val downloadedBooks = remember {
+            if (ConnectivityState.offlineMode())
+                DownloadManager.getDownloads().map { it.toAudioBook() }
+            else emptyList()
         }
 
         scrolling.col {
             padding = 1.rem
             gap = 1.5.rem
 
-            // Loading state
-//            shownWhen { isLoading() }.centered.activityIndicator()
+            // Offline: Downloaded Books section
+            shownWhen { ConnectivityState.offlineMode() }.col {
+                gap = 1.5.rem
 
-//
+                shownWhen { downloadedBooks().isNotEmpty() }.col {
+                    gap = 0.75.rem
 
-            // Content when loaded
-            col {
+                    row {
+                        expanding.h3 { content = "Downloaded Books" }
+                        link {
+                            text("Manage")
+                            to = { DownloadsPage() }
+                        }
+                    }
+
+                    scrollingHorizontally.row {
+                        gap = 1.rem
+                        forEachUpdating(downloadedBooks) { book ->
+                            BookCard(book) {
+                                mainPageNavigator.navigate(BookDetailPage(book.invoke().id))
+                            }
+                        }
+                    }
+                }
+
+                shownWhen { downloadedBooks().isEmpty() }.centered.col {
+                    padding = 2.rem
+                    gap = 1.rem
+                    icon(Icon.download.copy(width = 4.rem, height = 4.rem), "Downloads")
+                    h3 { content = "No Downloaded Books" }
+                    text { content = "Download books while online to listen offline." }
+                }
+            }
+
+            // Online: normal content
+            shownWhen { !ConnectivityState.offlineMode() }.col {
                 gap = 1.5.rem
 
                 // Continue Listening Section

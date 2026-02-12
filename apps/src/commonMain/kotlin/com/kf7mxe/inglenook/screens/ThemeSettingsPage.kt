@@ -10,6 +10,7 @@ import com.lightningkite.kiteui.views.expanding
 import com.lightningkite.kiteui.views.l2.icon
 import com.lightningkite.kiteui.views.dynamicTheme
 import com.kf7mxe.inglenook.*
+import com.kf7mxe.inglenook.cache.clearImageCaches
 import com.kf7mxe.inglenook.storage.ImageSemantic
 import com.kf7mxe.inglenook.storage.deleteImageFromStorage
 import com.kf7mxe.inglenook.storage.readImageFromStorage
@@ -327,7 +328,9 @@ class ThemeSettingsPage : Page {
                             text("Apply Background Effects")
                         }
                         onClick {
-                            applyTheme() }
+                            clearImageCaches()
+                            applyTheme()
+                        }
                         themeChoice += ImportantSemantic
                     }
                 }

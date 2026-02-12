@@ -128,14 +128,14 @@ val databaseName = "Recipe_data.json"
 
 suspend fun getDatabase(): Database {
     println("databaseVersion ${databaseVersion}")
-    val database = openDatabase("foodecision", databaseVersion) { database, oldVersion, newVersion ->
+    val database = openDatabase("inglenook", databaseVersion) { database, oldVersion, newVersion ->
         if (oldVersion < 1) {
-            val users = database.createObjectStore("User_data.json")
-            val recipes = database.createObjectStore("Recipe_data.json")
-            val mealPlans = database.createObjectStore("MealPlan_data.json")
-            val genericIngredient_offline = database.createObjectStore("GenericIngredient_offline.json")
-            val storeProduct_offline = database.createObjectStore("StoreProduct_offline.jso")
-            val userIngredientPrefernceFileName = database.createObjectStore("UserIngredientPreference_offline.json")
+//            val users = database.createObjectStore("User_data.json")
+//            val recipes = database.createObjectStore("Recipe_data.json")
+//            val mealPlans = database.createObjectStore("MealPlan_data.json")
+//            val genericIngredient_offline = database.createObjectStore("GenericIngredient_offline.json")
+//            val storeProduct_offline = database.createObjectStore("StoreProduct_offline.jso")
+//            val userIngredientPrefernceFileName = database.createObjectStore("UserIngredientPreference_offline.json")
             val images = database.createObjectStore("images")
             val blurred_images = database.createObjectStore("blurred_images")
             val blurredImageCache = database.createObjectStore("blurredImageCache")

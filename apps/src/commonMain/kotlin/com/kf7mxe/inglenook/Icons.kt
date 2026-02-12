@@ -28,6 +28,17 @@ val Icon.Companion.book get() = Icon(
     listOf("M240-80q-33 0-56.5-23.5T160-160v-640q0-33 23.5-56.5T240-880h480q33 0 56.5 23.5T800-800v640q0 33-23.5 56.5T720-80H240Zm0-80h480v-640H240v640Zm80-480h320v-80H320v80Zm0 160h320v-80H320v80Zm0 160h200v-80H320v80Zm-80 160h480-480Z")
 )
 
+// Cloud off / offline icon
+val Icon.Companion.cloudOff get() = Icon(
+    width = 1.5.rem,
+    height = 1.5.rem,
+    viewBoxMinX = 0,
+    viewBoxMinY = -960,
+    viewBoxWidth = 960,
+    viewBoxHeight = 960,
+    listOf("M791-55 686-160H260q-92 0-156-64T40-380q0-77 47.5-137T210-594q3-8 6-15.5t6-16.5L55-791l57-57 736 736-57 57ZM260-240h346L284-562q-2 11-3 21t-1 21h-20q-58 0-99 41t-41 99q0 58 41 99t99 41Zm185-241Zm419 127-58-56q17-14 25.5-32.5T840-480q0-42-29-71t-71-29h-60v-80q0-83-58.5-141.5T480-860q-60 0-109.5 32T300-746l-58-56q40-50 98-84t140-34q117 0 198.5 81.5T760-640q69 8 114.5 59.5T920-460q0 45-21 82.5T864-314Zm-306-82Z")
+)
+
 // Headphones icon for audiobooks
 val Icon.Companion.headphones get() = Icon(
     width = 1.5.rem,
