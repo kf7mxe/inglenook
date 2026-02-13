@@ -60,17 +60,19 @@ fun Theme.Companion.cozy(accent: Color? = null): Theme {
                 )
             },
             BarSemantic.override { it.withBack(
+
                 cornerRadii = CornerRadii.PerCorner(1.rem,false,false,true,true),
             ) },
             MainContentSemantic.override { it.withBack(
                 cascading = false,
-//                cornerRadii = CornerRadii.Fixed(1.rem),
+                padding = Edges(1.rem,0.rem,1.rem,0.rem),
+                        cornerRadii = CornerRadii.Fixed(0.rem),
                 outlineWidth = 0.dp,
             )},
             ImportantSemantic.override {
                 it.withBack(
-//                    background = primary,
-//                    foreground = if (primary.perceivedBrightness > 0.5f) Color.black else Color.white
+                    background = it.outline,
+                    foreground = if (it.outline.closestColor().perceivedBrightness > 0.5f) Color.black else Color.white
                 )
             },
             SelectedSemantic.override {
@@ -88,12 +90,25 @@ fun Theme.Companion.cozy(accent: Color? = null): Theme {
             },
             ImageSemantic.override {
                 it.withBack(
-                    cornerRadii = CornerRadii.RatioOfSpacing(1.5f),
+                    cornerRadii =CornerRadii.Fixed(1.rem),
                     padding = Edges.ZERO
                 )
             },
+            DialogSemantic.override {
+                  it.withBack(
+                      cornerRadii = CornerRadii.Fixed(1.rem),
+                      padding = Edges(1.rem,1.rem,1.rem,1.rem)
+                  )
+            },
             NavSemantic.override { it.withBack(
+                gap=0.5.rem,
                 cornerRadii = CornerRadii.PerCorner(1.rem,true,true,false,false)) },
+            UnselectedSemantic.override {
+                it.withBack()
+            },
+            ButtonSemantic.override {
+                it.withBack
+            },
 
             )
     )

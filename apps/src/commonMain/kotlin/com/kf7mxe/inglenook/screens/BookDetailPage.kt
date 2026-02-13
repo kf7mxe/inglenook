@@ -11,6 +11,7 @@ import com.lightningkite.kiteui.views.dynamicTheme
 import com.lightningkite.kiteui.views.forEachUpdating
 import com.lightningkite.kiteui.views.l2.icon
 import com.kf7mxe.inglenook.*
+import com.kf7mxe.inglenook.cache.ImageCache
 import com.kf7mxe.inglenook.cache.blurServerImageAndCacheImage
 import com.kf7mxe.inglenook.cache.getBlurredCachedImage
 import com.kf7mxe.inglenook.components.DownloadButton
@@ -18,6 +19,7 @@ import com.lightningkite.reactive.context.invoke
 import com.kf7mxe.inglenook.components.PlaybackControls
 import com.kf7mxe.inglenook.components.BookshelfPickerDialog
 import com.kf7mxe.inglenook.components.blurredImage
+import com.kf7mxe.inglenook.components.chaptersList
 import com.kf7mxe.inglenook.ebook.ebookReader
 import com.lightningkite.kiteui.views.l2.coordinatorFrame
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
@@ -51,15 +53,8 @@ class BookDetailPage(val bookId: String) : Page {
 
     }
     override fun ViewWriter.render() {
-
-
-//        val errorMessage = Signal<String?>(null)
         val showChapters = Signal(true)
-
-
-
-
-        unpadded.frame {
+        frame {
             // Blurred background layer (only when enabled in theme settings)
 
             blurredImage(book,remember {
@@ -69,44 +64,22 @@ class BookDetailPage(val bookId: String) : Page {
             // Content layer
 //            ThemeDerivation.invoke { it.withBack }.onNext.
             col {
-                gap = 0.rem
-
                 // Scrollable content
                 expanding.scrolling.col {
-                    padding = 1.rem
-                    gap = 1.5.rem
 
-                    // Loading state
-//                shownWhen { isLoading() }.centered.activityIndicator()
-
-                    // Error state
-//                shownWhen { errorMessage() != null && !book.state().ready }.centered.col {
-//                    gap = 0.5.rem
-//                    text { ::content { errorMessage() ?: "" } }
-//                    button {
-//                        text("Retry")
-////                        onClick { loadBook() }
-//                    }
-//                }
-
-                    // Book content
-                    shownWhen { book() != null && book.state().ready }. col {
-                        gap = 1.5.rem
-
-                        // Book header with cover and info
+                    shownWhen { book() != null && book.state().ready }.padded. col {
                         row {
-                            gap = 1.rem
+                            val cachedCover = rememberSuspending {
+                                val currentBook = book()
+                                val client = jellyfinClient()
+                                if (client != null && currentBook?.coverImageId != null) {
+                                    ImageCache.get(client.getImageUrl(currentBook.coverImageId, currentBook.id))
+                                } else null
+                            }
 
-                            // Cover image
                             sizeConstraints(width = 12.rem).frame {
                                 shownWhen { book()?.coverImageId != null }.themed(ImageSemantic).image {
-                                    ::source {
-                                        val currentBook = book()
-                                        val client = jellyfinClient()
-                                        if (client != null && currentBook?.coverImageId != null) {
-                                            ImageRemote(client.getImageUrl(currentBook.coverImageId, currentBook.id))
-                                        } else null
-                                    }
+                                    ::source { cachedCover() }
                                     scaleType = ImageScaleType.Fit
                                 }
                                 shownWhen { book()?.coverImageId == null }.centered.icon {
@@ -115,9 +88,7 @@ class BookDetailPage(val bookId: String) : Page {
                                 }
                             }
 
-                            // Book info
                             expanding.col {
-                                gap = 0.25.rem
 
                                 h2 { ::content { book()?.title ?: "" } }
 
@@ -133,7 +104,6 @@ class BookDetailPage(val bookId: String) : Page {
                                 col {
                                     forEach(authorInfos) { author ->
                                         button {
-                                            // Author names (reactive)
                                             text {
                                                 ::content {
                                                     author.name
@@ -151,7 +121,6 @@ class BookDetailPage(val bookId: String) : Page {
 
                                 // Narrator (reactive)
                                 shownWhen { book()?.narrator != null }.row {
-                                    gap = 0.rem
                                     subtext { content = "Narrated by " }
                                     subtext { ::content { book()?.narrator ?: "" } }
                                 }
@@ -181,7 +150,6 @@ class BookDetailPage(val bookId: String) : Page {
 
                                 // Progress indicator
                                 shownWhen { (book()?.userData?.playbackPositionTicks ?: 0L) > 0L }.col {
-                                    gap = 0.25.rem
                                     progressBar {
                                         ::ratio {
                                             val b = book()
@@ -205,11 +173,8 @@ class BookDetailPage(val bookId: String) : Page {
 
                         // Action buttons for audiobooks
                         shownWhen { book()?.itemType == ItemType.AudioBook }.row {
-                            gap = 0.5.rem
-
                             expanding.button {
                                 row {
-                                    gap = 0.5.rem
                                     centered.icon(Icon.playArrow, "Play")
                                     centered.text {
                                         ::content {
@@ -360,15 +325,10 @@ class BookDetailPage(val bookId: String) : Page {
 
                         // Action buttons for ebooks
                         shownWhen { book()?.itemType == ItemType.Ebook }.col {
-                            gap = 0.5.rem
-
                             // Read button - opens in-app reader
                             row {
-                                gap = 0.5.rem
-
                                 expanding.button {
                                     row {
-                                        gap = 0.5.rem
                                         centered.icon(Icon.book, "Read")
                                         centered.text { content = "Read" }
                                     }
@@ -405,7 +365,6 @@ class BookDetailPage(val bookId: String) : Page {
                             // Open in browser as secondary option
                             button {
                                 row {
-                                    gap = 0.5.rem
                                     centered.icon(Icon.chevronRight, "Open in Browser")
                                     centered.text { content = "Open in Browser" }
                                 }
@@ -425,9 +384,8 @@ class BookDetailPage(val bookId: String) : Page {
 
                         // Description section
                         shownWhen { book()?.description != null }.col {
-                            gap = 0.5.rem
                             h3 { content = "Description" }
-                            text { ::content { book()?.description ?: "" } }
+                            text { ::setBasicHtmlContent { book()?.description ?: "" } }
                         }
 
                         // Chapters section (only for audiobooks)
@@ -435,11 +393,8 @@ class BookDetailPage(val bookId: String) : Page {
                             val b = book()
                             b?.itemType == ItemType.AudioBook && (b.chapters.size) > 0
                         }.col {
-                            gap = 0.5.rem
-
                             button {
                                 row {
-                                    gap = 0.5.rem
                                     expanding.h3 {
                                         ::content { "Chapters (${book()?.chapters?.size ?: 0})" }
                                     }
@@ -452,120 +407,15 @@ class BookDetailPage(val bookId: String) : Page {
                             }
 
                             shownWhen { showChapters() }.col {
-                                gap = 0.rem
-
                                 // Render chapters with reactive updates using forEachUpdating
                                 val chapters = remember {
                                     book()?.chapters ?: emptyList()
                                 }
 
-
-                                // Update chapters signal whenever book changes
-
-                                forEachUpdating(chapters) { chapterReactive ->
-                                    col {
-                                        gap = 0.rem
-
-                                        button {
-                                            row {
-                                                gap = 0.75.rem
-                                                padding = 0.5.rem
-
-                                                // Chapter index (reactive)
-                                                centered.text {
-                                                    ::content {
-                                                        val chapter = chapterReactive()
-                                                        val chapters = book()?.chapters ?: emptyList()
-                                                        val idx = chapters.indexOf(chapter) + 1
-                                                        "$idx"
-                                                    }
-                                                }
-
-                                                // Chapter name and duration
-                                                expanding.col {
-                                                    gap = 0.rem
-                                                    text {
-                                                        ::content { chapterReactive().name }
-                                                        ellipsis = true
-                                                    }
-                                                    subtext {
-                                                        ::content {
-                                                            val ticks = chapterReactive().startPositionTicks
-                                                            val totalSeconds = ticks / 10_000_000
-                                                            val hours = totalSeconds / 3600
-                                                            val minutes = (totalSeconds % 3600) / 60
-                                                            val seconds = totalSeconds % 60
-                                                            if (hours > 0) {
-                                                                "$hours:${
-                                                                    minutes.toString().padStart(2, '0')
-                                                                }:${seconds.toString().padStart(2, '0')}"
-                                                            } else {
-                                                                "$minutes:${seconds.toString().padStart(2, '0')}"
-                                                            }
-                                                        }
-                                                    }
-                                                }
-
-                                                // Current chapter indicator
-                                                icon {
-                                                    ::shown {
-                                                        val chapter = chapterReactive()
-                                                        val currentBook = book()
-                                                        val chapters = currentBook?.chapters ?: emptyList()
-                                                        val chapterIndex = chapters.indexOf(chapter)
-                                                        val nextChapterStart =
-                                                            chapters.getOrNull(chapterIndex + 1)?.startPositionTicks
-                                                                ?: Long.MAX_VALUE
-
-                                                        val position =
-                                                            if (currentBook != null && PlaybackState.currentBook()?.id == currentBook.id) {
-                                                                PlaybackState.positionTicks()
-                                                            } else {
-                                                                currentBook?.userData?.playbackPositionTicks ?: 0L
-                                                            }
-                                                        position >= chapter.startPositionTicks && position < nextChapterStart
-                                                    }
-                                                    source = Icon.playArrow
-                                                    description = "Currently playing"
-                                                }
-                                            }
-
-                                            onClick {
-                                                val currentBook = book()
-                                                val chapter = chapterReactive.invoke()
-                                                if (currentBook != null) {
-                                                    PlaybackState.play(currentBook, chapter.startPositionTicks)
-                                                }
-                                            }
-
-                                            dynamicTheme {
-                                                val chapter = chapterReactive()
-                                                val currentBook = book()
-                                                val chapters = currentBook?.chapters ?: emptyList()
-                                                val chapterIndex = chapters.indexOf(chapter)
-                                                val nextChapterStart =
-                                                    chapters.getOrNull(chapterIndex + 1)?.startPositionTicks
-                                                        ?: Long.MAX_VALUE
-
-                                                val position =
-                                                    if (currentBook != null && PlaybackState.currentBook()?.id == currentBook.id) {
-                                                        PlaybackState.positionTicks()
-                                                    } else {
-                                                        currentBook?.userData?.playbackPositionTicks ?: 0L
-                                                    }
-                                                val isCurrent =
-                                                    position >= chapter.startPositionTicks && position < nextChapterStart
-                                                if (isCurrent) SelectedSemantic else null
-                                            }
-                                        }
-                                        // Separator
-                                        shownWhen {
-                                            val chapter = chapterReactive()
-                                            val chapters = book()?.chapters ?: emptyList()
-                                            val idx = chapters.indexOf(chapter)
-                                            idx < chapters.size - 1
-                                        }.separator()
-
+                                chaptersList(chapters){chapter ->
+                                    val currentBook = book()
+                                    if (currentBook != null) {
+                                        PlaybackState.play(currentBook, chapter.startPositionTicks)
                                     }
                                 }
                             }
@@ -576,11 +426,8 @@ class BookDetailPage(val bookId: String) : Page {
                         val bookmarks = Signal(BookmarkRepository.getBookmarksForBook(bookId))
 
                         shownWhen { bookmarks().isNotEmpty() }.col {
-                            gap = 0.5.rem
-
                             button {
                                 row {
-                                    gap = 0.5.rem
                                     expanding.h3 {
                                         ::content { "Bookmarks (${bookmarks().size})" }
                                     }
@@ -593,19 +440,10 @@ class BookDetailPage(val bookId: String) : Page {
                             }
 
                             shownWhen { showBookmarks() }.col {
-                                gap = 0.rem
-
                                 for (bookmark in bookmarks.value) {
                                     row {
-                                        gap = 0.5.rem
-                                        padding = 0.5.rem
-
-                                        // Bookmark info
                                         expanding.button {
                                             col {
-                                                gap = 0.rem
-
-                                                // Time
                                                 text {
                                                     val totalSeconds = bookmark.positionTicks / 10_000_000
                                                     val hours = totalSeconds / 3600
@@ -620,7 +458,6 @@ class BookDetailPage(val bookId: String) : Page {
                                                     }
                                                 }
 
-                                                // Chapter name if available
                                                 bookmark.chapterName?.let { chapterName ->
                                                     subtext {
                                                         content = chapterName
@@ -628,7 +465,6 @@ class BookDetailPage(val bookId: String) : Page {
                                                     }
                                                 }
 
-                                                // Note if available
                                                 bookmark.note?.let { noteText ->
                                                     subtext {
                                                         content = noteText
@@ -644,7 +480,6 @@ class BookDetailPage(val bookId: String) : Page {
                                             }
                                         }
 
-                                        // Delete button
                                         button {
                                             icon(Icon.delete, "Delete bookmark")
                                             onClick {

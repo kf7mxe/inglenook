@@ -43,7 +43,7 @@ data class AudioBook(
     val id: String,
     val title: String,
     val sortTitle: String? = null,
-    val authors: List<String> = emptyList(),
+    val authors: List<Author> = emptyList(),
     val authorInfos: List<AuthorInfo> = emptyList(), // Authors with IDs for linking
     val narrator: String? = null,
     val narratorId: String? = null, // Narrator ID for linking
@@ -142,7 +142,7 @@ data class PlaybackProgress(
 data class DownloadedBook(
     override val _id: String, // bookId
     val title: String,
-    val authors: List<String> = emptyList(),
+    val authors: List<Author> = emptyList(),
     val localFilePath: String,
     val coverImagePath: String? = null,
     val downloadedAt: Instant = Clock.System.now(),

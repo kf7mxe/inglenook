@@ -8,60 +8,113 @@ import com.lightningkite.kiteui.views.expanding
 import com.lightningkite.kiteui.views.l2.icon
 import com.kf7mxe.inglenook.Chapter
 import com.kf7mxe.inglenook.playArrow
+import com.kf7mxe.inglenook.playback.PlaybackState
+import com.lightningkite.kiteui.views.dynamicTheme
+import com.lightningkite.kiteui.views.forEachUpdating
+import com.lightningkite.reactive.context.invoke
+import com.lightningkite.reactive.core.Reactive
+import com.lightningkite.reactive.core.remember
 
 /**
  * ChaptersList for displaying audiobook chapters
  */
-fun ViewWriter.ChaptersList(
-    chapters: List<Chapter>,
-    currentPositionTicks: Long,
-    onChapterClick: (Chapter) -> Unit
+fun ViewWriter.chaptersList(
+    chapters: Reactive<List<Chapter>>,
+    onTapChapter: suspend (chapter: Chapter) -> Unit
 ) {
-    col {
-        gap = 0.rem
+    scrolling.col {
 
-        for ((index, chapter) in chapters.withIndex()) {
-            val nextChapterStart = chapters.getOrNull(index + 1)?.startPositionTicks ?: Long.MAX_VALUE
-            val isCurrent = currentPositionTicks >= chapter.startPositionTicks &&
-                           currentPositionTicks < nextChapterStart
+        // Get chapters once for rendering
+        forEachUpdating(chapters) { chapter ->
+            val index = remember {
+
+                chapters().indexOf(chapter())
+            }
+            val currentIndex = remember {
+                println("DEBUG index() ${index()}")
+                println("DEBUG PlaybackState.currentChapter() ${PlaybackState.currentChapter() != null}")
+                if (chapters().indexOf(PlaybackState.currentChapter()) == index()) index() else -1
+            }
+
+
+            val isCurrent = remember {
+                println("DEBUG index ${index()}")
+                println("DEBUG currentIndex() ${currentIndex()}")
+                index() == currentIndex()
+            }
+            val isPast = remember {
+                index() < currentIndex()
+            }
 
             button {
                 row {
-                    gap = 0.75.rem
+                    gap = 0.5.rem
                     padding = 0.5.rem
 
                     // Chapter number
-                    centered.text {
-                        content = "${index + 1}"
+                    centered.subtext {
+                        ::content {
+                            "${index() + 1}"
+                        }
                     }
 
-                    // Chapter name and duration
+                    // Chapter name
                     expanding.col {
                         gap = 0.rem
                         text {
-                            content = chapter.name
+                            ::content {
+                                chapter().name
+                            }
                             ellipsis = true
                         }
+                        // Show start time
                         subtext {
-                            content = formatDuration(chapter.startPositionTicks)
+
+                            ::content {
+                                val totalSeconds = chapter().startPositionTicks / 10_000_000
+                                val hours = totalSeconds / 3600
+                                val minutes = (totalSeconds % 3600) / 60
+                                val seconds = totalSeconds % 60
+                                if (hours > 0) {
+                                    "$hours:${
+                                        minutes.toString().padStart(2, '0')
+                                    }:${seconds.toString().padStart(2, '0')}"
+                                } else {
+                                    "$minutes:${seconds.toString().padStart(2, '0')}"
+                                }
+                            }
                         }
                     }
 
                     // Current indicator
-                    if (isCurrent) {
-                        centered.icon(Icon.playArrow, "Currently playing")
+                    icon {
+                        ::shown {
+                            isCurrent()
+                        }
+                        source = Icon.playArrow
+                    }
+
+                }
+
+                dynamicTheme {
+                    when {
+                        isCurrent() -> SelectedSemantic
+
+                        isPast() -> ThemeDerivation {
+                            it.copy(
+                                id = "past-chapter",
+                                foreground = it.foreground.closestColor().applyAlpha(0.6f)
+                            ).withBack
+
+                        }
+
+                        else -> null
                     }
                 }
-                onClick { onChapterClick(chapter) }
 
-                if (isCurrent) {
-                    themeChoice += SelectedSemantic
+                onClick {
+                    onTapChapter(chapter())
                 }
-            }
-
-            // Separator between chapters
-            if (index < chapters.size - 1) {
-                separator()
             }
         }
     }

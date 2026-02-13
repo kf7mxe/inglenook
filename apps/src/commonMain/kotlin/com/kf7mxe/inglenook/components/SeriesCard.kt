@@ -8,15 +8,25 @@ import com.lightningkite.kiteui.views.expanding
 import com.lightningkite.kiteui.views.l2.icon
 import com.lightningkite.kiteui.views.card
 import com.kf7mxe.inglenook.Series
+import com.kf7mxe.inglenook.cache.ImageCache
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.book
 import com.lightningkite.reactive.core.Reactive
+import com.lightningkite.reactive.core.rememberSuspending
 import com.lightningkite.reactive.context.invoke
 
 fun ViewWriter.SeriesCard(
     series: Reactive<Series>,
     onClick: suspend () -> Unit
 ) {
+    val cachedCover = rememberSuspending {
+        val client = jellyfinClient()
+        val seriesData = series()
+        if (client != null && seriesData.imageId != null) {
+            ImageCache.get(client.getImageUrl(seriesData.imageId))
+        } else null
+    }
+
     centered.card.button {
         col {
             // Cover image
@@ -26,13 +36,7 @@ fun ViewWriter.SeriesCard(
                     this.rView::shown {
                         series().imageId != null
                     }
-                    ::source {
-                        val client = jellyfinClient()
-                        val seriesData = series()
-                        if (client != null && seriesData.imageId != null) {
-                            ImageRemote(client.getImageUrl(seriesData.imageId))
-                        } else null
-                    }
+                    ::source { cachedCover() }
                     scaleType = ImageScaleType.Crop
                 }
                 // Placeholder icon if no image

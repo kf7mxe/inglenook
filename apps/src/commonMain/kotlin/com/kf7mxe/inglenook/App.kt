@@ -21,6 +21,8 @@ import com.kf7mxe.inglenook.components.PlaybackControls
 import com.kf7mxe.inglenook.components.blurredImage
 import com.kf7mxe.inglenook.components.connectivityDialog
 import com.kf7mxe.inglenook.components.offlineBanner
+import com.kf7mxe.inglenook.cache.ImageCache
+import com.kf7mxe.inglenook.components.chaptersList
 import com.kf7mxe.inglenook.connectivity.ConnectivityState
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.jellyfin.jellyfinServerConfig
@@ -42,8 +44,12 @@ import com.lightningkite.kiteui.reactive.PersistentProperty
 import com.lightningkite.kiteui.views.RView
 import com.lightningkite.kiteui.views.atBottom
 import com.lightningkite.kiteui.views.atEnd
+import com.lightningkite.kiteui.views.closePopovers
+import com.lightningkite.kiteui.views.closeThisPopover
+import com.lightningkite.kiteui.views.forEach
 import com.lightningkite.kiteui.views.forEachById
 import com.lightningkite.kiteui.views.forEachUpdating
+import com.lightningkite.kiteui.views.important
 import com.lightningkite.kiteui.views.l2.dialog
 import com.lightningkite.kiteui.views.l2.overlayFrame
 import com.lightningkite.kiteui.views.nav
@@ -109,9 +115,9 @@ fun ViewWriter.app(navigator: PageNavigator, dialog: PageNavigator) {
     }
 
     appBase(navigator, dialog) {
-
+        applySafeInsets(bottom = false)
         OuterSemantic.onNext.coordinatorFrame {
-            applySafeInsets(bottom = false)
+
             mainPageNavigator = navigator
             dialog?.let {
                 dialogPageNavigator = it
@@ -159,8 +165,10 @@ fun ViewWriter.app(navigator: PageNavigator, dialog: PageNavigator) {
                 PlaybackState.currentBook() != null && persistedThemeSettings().showPlayingBookCoverAsWallpaper
             })
 
-            col {
-                gap = 0.5.rem
+            unpadded.col {
+                gap = 0.0.rem
+
+
                 // Top bar with back button, title, and search
                 shownWhen { mainPageNavigator.currentPage() !is FullScreen }.bar.row {
                     gap = 0.5.rem
@@ -204,24 +212,13 @@ fun ViewWriter.app(navigator: PageNavigator, dialog: PageNavigator) {
                 // Main content area with coordinator frame for bottom sheet
                 MainContentSemantic.onNext.expanding.navigatorView(navigator)
 
-                // Now playing bottom sheet - only show when something is playing
-                // and not on setup page
-//                    shownWhen {
-//                        val currentPage = mainPageNavigator.currentPage()
-//                        val hasBook = PlaybackState.currentBook() != null
-//                        hasBook && currentPage !is JellyfinSetupPage
-//                    }.
-                //            shownWhen { openNowPlaying() }.
-//                    nowPlaying(BottomSheetState.PARTIALLY_EXPANDED)
-
-
                 // Bottom navigation bar
                 beforeNextElementSetup {
                     applySafeInsets(top = false)
                 }.shownWhen {
                     val currentPage = mainPageNavigator.currentPage()
                     currentPage !is JellyfinSetupPage && !AppState.softInputOpen() && currentPage !is FullScreen
-                }.bottomBar(mainNavPages)
+                }.unpadded.bottomBar(mainNavPages)
 
 
             }
@@ -273,6 +270,14 @@ fun ViewWriter.bottomBar(navItems: List<NavLink>) {
 
 
 fun ViewWriter.nowPlayingPreview() {
+    val cachedPreviewCover = rememberSuspending {
+        val client = jellyfinClient()
+        val book = PlaybackState.currentBook()
+        if (client != null && book?.coverImageId != null) {
+            ImageCache.get(client.getImageUrl(book.coverImageId, book.id))
+        } else null
+    }
+
     // Mini player row (collapsed view)
     row {
         expanding.button {
@@ -280,15 +285,7 @@ fun ViewWriter.nowPlayingPreview() {
                 // Thumbnail
                 sizeConstraints(width = 3.rem, height = 3.rem).frame {
                     image {
-                        ::source {
-                            val client = jellyfinClient()
-
-                            PlaybackState.currentBook()?.let { book ->
-                                book.coverImageId?.let { coverImageId ->
-                                    client?.getImageUrl(coverImageId, book.id)?.let { ImageRemote(it) }
-                                }
-                            }
-                        }
+                        ::source { cachedPreviewCover() }
                         scaleType = ImageScaleType.Crop
                     }
                     centered.icon {
@@ -308,7 +305,7 @@ fun ViewWriter.nowPlayingPreview() {
                         ellipsis = true
                     }
                     subtext {
-                        ::content { PlaybackState.currentBook()?.authors?.joinToString(", ") ?: "" }
+                        ::content { PlaybackState.currentBook()?.authors?.map {it.name}?.joinToString(", ") ?: "" }
                         ellipsis = true
                     }
                 }
@@ -376,29 +373,23 @@ fun ViewWriter.nowPlaying() {
         // Content layer
         scrolling.col {
 //                applySafeInsets(top = false, bottom = true)
-            gap = 0.0.rem
-            padding = 0.rem
 
             col {
-                padding = 1.rem
-                gap = 1.5.rem
-
                 // Large cover image
+                val cachedOverlayCover = rememberSuspending {
+                    val client = jellyfinClient()
+                    val book = PlaybackState.currentBook()
+                    if (client != null && book?.coverImageId != null) {
+                        ImageCache.get(client.getImageUrl(book.coverImageId, book.id))
+                    } else null
+                }
+
                 centered.sizeConstraints(maxWidth = 16.rem, maxHeight = 16.rem).frame {
                     sizeConstraints(maxWidth = 16.rem, maxHeight = 16.rem).image {
                         rView::shown{
                             PlaybackState.currentBook() != null
                         }
-                        ::source {
-                            val client = jellyfinClient()
-                            println("DEBUG PlaybackState.currentBook()?.coverImageId ${PlaybackState.currentBook()?.coverImageId}")
-
-                            PlaybackState.currentBook()?.let { book ->
-                                book.coverImageId?.let { coverImageId ->
-                                    client?.getImageUrl(coverImageId, book.id)?.let { ImageRemote(it) }
-                                }
-                            }
-                        }
+                        ::source { cachedOverlayCover() }
                         scaleType = ImageScaleType.Fit
                     }
                     centered.icon {
@@ -412,27 +403,32 @@ fun ViewWriter.nowPlaying() {
 
                 // Title and author
                 centered.col {
-                    gap = 0.25.rem
-                    centered.h2 {
-                        ::content { PlaybackState.currentBook()?.title ?: "No book playing" }
+                    button {
+                        centered.h2 {
+                            ::content { PlaybackState.currentBook()?.title ?: "No book playing" }
+                        }
+                        onClick {
+                            PlaybackState.currentBook()?.let {
+                                mainPageNavigator.navigate(BookDetailPage(it.id))
+                                closePopovers()
+                            }
+                        }
                     }
-                    centered.subtext {
-                        ::content { PlaybackState.currentBook()?.authors?.joinToString(", ") ?: "" }
+                    col{
+                    forEach(remember { PlaybackState.currentBook()?.authors ?: listOf() }) { author ->
+                        button {
+                            centered.subtext {
+                                ::content {
+                                    PlaybackState.currentBook()?.authors?.map { it.name }?.joinToString(", ") ?: ""
+                                }
+                            }
+                            onClick {
+                                mainPageNavigator.navigate(AuthorDetailPage(author.id))
+                            }
+                        }
+                    }
                     }
                 }
-
-                // Current chapter info
-//                centered.text {
-//                    ::content {
-//                        PlaybackState.currentChapter()?.name ?: ""
-//                    }
-//                }
-
-
-                // Current chapter name (above seek bar)
-
-                val showChapters = Signal(false)
-
 
                 button {
                     ::shown {
@@ -444,108 +440,11 @@ fun ViewWriter.nowPlaying() {
                             PlaybackState.currentChapter()?.name ?: "${chapters().size} Chapters"
                         }
                     }
-//                    atEnd.icon {
-//                        ::source { if (showChapters()) Icon.unfoldLess else Icon.unfoldMore }
-//                        description = "Toggle chapters"
-//                    }
                     onClick {
                         dialog { dismiss ->
-                            card.sizeConstraints(width = 30.rem).scrolling.col {
-
-                                    // Get chapters once for rendering
-                                    forEachUpdating(chapters) { chapter ->
-                                        val index = remember {
-
-                                            chapters().indexOf(chapter())
-                                        }
-                                        val currentIndex = remember {
-                                            println("DEBUG index() ${index()}")
-                                            println("DEBUG PlaybackState.currentChapter() ${PlaybackState.currentChapter() != null}")
-                                            if (chapters().indexOf(PlaybackState.currentChapter()) == index()) index() else -1
-                                        }
-
-
-                                        val isCurrent = remember {
-                                            println("DEBUG index ${index()}")
-                                            println("DEBUG currentIndex() ${currentIndex()}")
-                                            index() == currentIndex()
-                                        }
-                                        val isPast = remember {
-                                            index() < currentIndex()
-                                        }
-
-                                        button {
-                                            row {
-                                                gap = 0.5.rem
-                                                padding = 0.5.rem
-
-                                                // Chapter number
-                                                centered.subtext {
-                                                    ::content {
-                                                        "${index() + 1}"
-                                                    }
-                                                }
-
-                                                // Chapter name
-                                                expanding.col {
-                                                    gap = 0.rem
-                                                    text {
-                                                        ::content {
-                                                            chapter().name
-                                                        }
-                                                        ellipsis = true
-                                                    }
-                                                    // Show start time
-                                                    subtext {
-
-                                                        ::content {
-                                                            val totalSeconds = chapter().startPositionTicks / 10_000_000
-                                                            val hours = totalSeconds / 3600
-                                                            val minutes = (totalSeconds % 3600) / 60
-                                                            val seconds = totalSeconds % 60
-                                                            if (hours > 0) {
-                                                                "$hours:${
-                                                                    minutes.toString().padStart(2, '0')
-                                                                }:${seconds.toString().padStart(2, '0')}"
-                                                            } else {
-                                                                "$minutes:${seconds.toString().padStart(2, '0')}"
-                                                            }
-                                                        }
-                                                    }
-                                                }
-
-                                                // Current indicator
-                                                icon {
-                                                    ::shown {
-                                                        isCurrent()
-                                                    }
-                                                    source = Icon.playArrow
-                                                }
-
-                                            }
-
-                                            dynamicTheme {
-                                                when {
-                                                    isCurrent() -> SelectedSemantic
-
-                                                    isPast() -> ThemeDerivation {
-                                                        it.copy(
-                                                            id = "past-chapter",
-                                                            foreground = it.foreground.closestColor().applyAlpha(0.6f)
-                                                        ).withBack
-
-                                                    }
-
-                                                    else -> null
-                                                }
-                                            }
-
-                                            onClick {
-                                                PlaybackState.seek(chapter.invoke().startPositionTicks)
-                                            }
-                                        }
-                                    }
-                                }
+                            sizeConstraints(width = 30.rem).chaptersList(chapters){chapter->
+                                PlaybackState.seek(chapter.startPositionTicks)
+                            }
                                 atBottom.card.button {
                                     centered.text("Cancel")
                                     onClick {
@@ -560,7 +459,7 @@ fun ViewWriter.nowPlaying() {
 
 
                 // Playback controls
-                PlaybackControls(compact = false)
+                PlaybackControls()
 
                 // Playback speed selector
                 centered.row {
@@ -579,11 +478,9 @@ fun ViewWriter.nowPlaying() {
 
                 // Sleep timer section
                 col {
-                    gap = 0.5.rem
 
                     // Show current timer status if active
                     shownWhen { PlaybackState.sleepTimerMode() != null }.centered.row {
-                        gap = 0.5.rem
                         icon(Icon.timer, "Sleep timer active")
                         text {
                             ::content {
@@ -606,7 +503,6 @@ fun ViewWriter.nowPlaying() {
 
                     // Timer options
                     centered.row {
-                        gap = 0.5.rem
                         text("Sleep:")
                         for (minutes in listOf(15, 30, 45, 60)) {
                             button {
@@ -632,7 +528,6 @@ fun ViewWriter.nowPlaying() {
                 // Stop button
                 centered.button {
                     row {
-                        gap = 0.5.rem
                         icon(Icon.stop, "Stop")
                         text("Stop Playback")
                     }

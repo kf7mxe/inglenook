@@ -16,6 +16,7 @@ import com.kf7mxe.inglenook.menu
 import com.kf7mxe.inglenook.dashboard
 import com.kf7mxe.inglenook.components.BookCard
 import com.kf7mxe.inglenook.components.BookListItem
+import com.kf7mxe.inglenook.cache.ImageCache
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.lightningkite.kiteui.Routable
 import com.lightningkite.kiteui.views.l2.RecyclerViewPlacerVerticalGrid
@@ -68,15 +69,20 @@ class AuthorDetailPage(val authorId: String) : Page {
                 subtext("This author has no audiobooks in your library")
             }
             // Author image
+            val cachedAuthorImage = rememberSuspending {
+                val client = jellyfinClient()
+                val imageId = author()?.imageId
+                if (client != null && imageId != null) {
+                    ImageCache.get(client.getImageUrl(imageId))
+                } else null
+            }
+
             sizedBox(SizeConstraints(width = 8.rem, height = 8.rem)).frame {
-                val client = jellyfinClient.value
                 image {
                     this.rView::shown{
                         author()?.imageId != null
                     }
-                    ::source {
-                        ImageRemote(client?.getImageUrl(author()?.imageId) ?: "")
-                    }
+                    ::source { cachedAuthorImage() }
                     scaleType = ImageScaleType.Crop
                 }
                 centered.icon {

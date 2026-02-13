@@ -10,6 +10,7 @@ import com.lightningkite.kiteui.views.expanding
 import com.lightningkite.kiteui.views.l2.icon
 import com.kf7mxe.inglenook.Author
 import com.kf7mxe.inglenook.ViewMode
+import com.kf7mxe.inglenook.cache.ImageCache
 import com.kf7mxe.inglenook.components.BookCard
 import com.kf7mxe.inglenook.components.BookListItem
 import com.kf7mxe.inglenook.dashboard
@@ -165,6 +166,13 @@ class AuthorsPage : Page {
 
 // Author card component
 fun ViewWriter.AuthorCard(author: Reactive<Author>, onClick: suspend () -> Unit) {
+    val cachedAuthorImage = rememberSuspending {
+        val client = jellyfinClient()
+        if (client != null && author().imageId != null) {
+            ImageCache.get(client.getImageUrl(author().imageId, author().id))
+        } else null
+    }
+
     button {
         col {
             // Author image/avatar
@@ -173,12 +181,7 @@ fun ViewWriter.AuthorCard(author: Reactive<Author>, onClick: suspend () -> Unit)
                     this.rView::shown{
                         author().imageId != null
                     }
-                    ::source {
-                        val client = jellyfinClient()
-                        if (client != null && author().imageId != null) {
-                            ImageRemote(client.getImageUrl(author().imageId, author().id))
-                        } else null
-                    }
+                    ::source { cachedAuthorImage() }
                     scaleType = ImageScaleType.Crop
                 }
                 centered.icon {
@@ -201,6 +204,13 @@ fun ViewWriter.AuthorCard(author: Reactive<Author>, onClick: suspend () -> Unit)
 
 // Author list item component
 fun ViewWriter.AuthorListItem(author: Reactive<Author>, onClick: suspend () -> Unit) {
+    val cachedAuthorImage = rememberSuspending {
+        val client = jellyfinClient()
+        if (client != null && author().imageId != null) {
+            ImageCache.get(client.getImageUrl(author().imageId, author().id))
+        } else null
+    }
+
     button {
         row {
             // Thumbnail
@@ -209,12 +219,7 @@ fun ViewWriter.AuthorListItem(author: Reactive<Author>, onClick: suspend () -> U
                     rView::shown {
                         author().imageId != null
                     }
-                    ::source {
-                        val client = jellyfinClient()
-                        if (client != null && author().imageId != null) {
-                            ImageRemote(client.getImageUrl(author().imageId, author().id))
-                        } else null
-                    }
+                    ::source { cachedAuthorImage() }
                     scaleType = ImageScaleType.Crop
                 }
                 centered.icon {

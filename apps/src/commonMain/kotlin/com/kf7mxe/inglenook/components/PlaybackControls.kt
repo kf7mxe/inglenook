@@ -9,6 +9,7 @@ import com.lightningkite.kiteui.views.l2.icon
 import com.kf7mxe.inglenook.*
 import com.kf7mxe.inglenook.playback.PlaybackState
 import com.kf7mxe.inglenook.storage.BookmarkRepository
+import com.kf7mxe.inglenook.storage.SeekBarSemantic
 import com.lightningkite.kiteui.views.atEnd
 import com.lightningkite.kiteui.views.card
 import com.lightningkite.kiteui.views.dynamicTheme
@@ -24,7 +25,7 @@ import kotlinx.datetime.Clock
 import kotlin.time.ExperimentalTime
 
 @OptIn(ExperimentalTime::class)
-fun ViewWriter.PlaybackControls(compact: Boolean = false) {
+fun ViewWriter.PlaybackControls() {
     // Create a signal for the seek bar that syncs with PlaybackState
     val seekRatio = Signal(0f)
 
@@ -65,10 +66,6 @@ fun ViewWriter.PlaybackControls(compact: Boolean = false) {
     }
 
     col {
-        gap = if (compact) 0.5.rem else 1.rem
-
-
-
         // Expandable chapter list
 
 
@@ -76,9 +73,7 @@ fun ViewWriter.PlaybackControls(compact: Boolean = false) {
 
         // Seek bar with time
         col {
-            gap = 0.25.rem
-
-           card.slider {
+           SeekBarSemantic.onNext.padded.slider {
                 min = 0f
                 max = 1f
                 value bind seekRatio
@@ -96,7 +91,7 @@ fun ViewWriter.PlaybackControls(compact: Boolean = false) {
         }
 
         // Chapter progress and time remaining (below seek bar)
-        shownWhen { PlaybackState.currentBook() != null && !compact }.centered.row {
+        shownWhen { PlaybackState.currentBook() != null }.centered.row {
             gap = 0.5.rem
 
             subtext {
@@ -139,7 +134,6 @@ fun ViewWriter.PlaybackControls(compact: Boolean = false) {
 
         // Control buttons
         centered.row {
-            gap = if (compact) 0.5.rem else 1.rem
 
             // Previous chapter
             button {
@@ -177,7 +171,7 @@ fun ViewWriter.PlaybackControls(compact: Boolean = false) {
         }
 
         // Bookmark button (only show when not compact and a book is playing)
-        shownWhen { !compact && PlaybackState.currentBook() != null }.centered.button {
+        shownWhen { PlaybackState.currentBook() != null }.centered.button {
             row {
                 gap = 0.5.rem
                 icon(Icon.bookmark, "Add bookmark")

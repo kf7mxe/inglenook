@@ -10,6 +10,7 @@ import com.lightningkite.kiteui.views.expanding
 import com.lightningkite.kiteui.views.l2.RecyclerViewPlacerVerticalGrid
 import com.lightningkite.kiteui.views.l2.children
 import com.kf7mxe.inglenook.AudioBook
+import com.kf7mxe.inglenook.cache.ImageCache
 import com.kf7mxe.inglenook.components.BookCard
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.playback.PlaybackState
@@ -18,6 +19,7 @@ import com.lightningkite.reactive.context.invoke
 import com.lightningkite.reactive.core.Signal
 import com.lightningkite.reactive.core.AppScope
 import com.lightningkite.reactive.core.Constant
+import com.lightningkite.reactive.core.rememberSuspending
 import com.lightningkite.reactive.core.Reactive
 import kotlinx.coroutines.launch
 
@@ -58,15 +60,17 @@ class SeriesDetailPage(val seriesName: String) : Page {
                 gap = 1.rem
 
                 // Series cover (first book's cover)
+                val cachedSeriesCover = rememberSuspending {
+                    val client = jellyfinClient()
+                    val firstBook = books().firstOrNull()
+                    if (client != null && firstBook?.coverImageId != null) {
+                        ImageCache.get(client.getImageUrl(firstBook.coverImageId, firstBook.id))
+                    } else null
+                }
+
                 sizedBox(SizeConstraints(width = 6.rem, height = 9.rem)).frame {
                     shownWhen { books().isNotEmpty() && books().first().coverImageId != null }.image {
-                        ::source {
-                            val client = jellyfinClient()
-                            val firstBook = books().firstOrNull()
-                            if (client != null && firstBook?.coverImageId != null) {
-                                ImageRemote(client.getImageUrl(firstBook.coverImageId, firstBook.id))
-                            } else null
-                        }
+                        ::source { cachedSeriesCover() }
                         scaleType = ImageScaleType.Crop
                     }
                 }

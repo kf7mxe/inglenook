@@ -10,6 +10,7 @@ import com.lightningkite.kiteui.views.atBottomEnd
 import com.lightningkite.kiteui.views.card
 import com.kf7mxe.inglenook.AudioBook
 import com.kf7mxe.inglenook.ItemType
+import com.kf7mxe.inglenook.cache.ImageCache
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.playback.PlaybackState
 import com.kf7mxe.inglenook.book
@@ -18,6 +19,7 @@ import com.kf7mxe.inglenook.screens.EbookReaderPage
 import com.kf7mxe.inglenook.storage.ImageSemantic
 import com.lightningkite.kiteui.navigation.mainPageNavigator
 import com.lightningkite.reactive.core.Reactive
+import com.lightningkite.reactive.core.rememberSuspending
 import com.lightningkite.reactive.context.invoke
 
 fun ViewWriter.BookCard(
@@ -25,6 +27,14 @@ fun ViewWriter.BookCard(
     onPlayClick: (suspend (AudioBook)-> Unit)? = null,
     onClick: suspend () -> Unit
 ) {
+    val cachedCover = rememberSuspending {
+        val client = jellyfinClient()
+        val bookData = audioBook()
+        if (client != null && bookData.coverImageId != null) {
+            ImageCache.get(client.getImageUrl(bookData.coverImageId, bookData.id))
+        } else null
+    }
+
     centered.card.sizeConstraints(width = 14.rem, height = 22.rem).col {
         // Play button overlay at bottom right
         button {
@@ -37,13 +47,7 @@ fun ViewWriter.BookCard(
                         this.rView::shown {
                             audioBook().coverImageId != null
                         }
-                        ::source {
-                            val client = jellyfinClient()
-                            val bookData = audioBook()
-                            if (client != null && bookData.coverImageId != null) {
-                                ImageRemote(client.getImageUrl(bookData.coverImageId, bookData.id))
-                            } else null
-                        }
+                        ::source { cachedCover() }
                         scaleType = ImageScaleType.Fit
                     }
                     centered.icon {
@@ -69,7 +73,7 @@ fun ViewWriter.BookCard(
                         lineClamp = 2
                     }
                     subtext {
-                        ::content { audioBook().authors.firstOrNull() ?: "Unknown Author" }
+                        ::content { audioBook().authors.takeIf { it.isNotEmpty() }?.map{it.name}?.joinToString(",") ?: "Unknown Author" }
                         ellipsis = true
                         lineClamp = 2
                     }

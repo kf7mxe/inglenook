@@ -130,19 +130,14 @@ suspend fun getDatabase(): Database {
     println("databaseVersion ${databaseVersion}")
     val database = openDatabase("inglenook", databaseVersion) { database, oldVersion, newVersion ->
         if (oldVersion < 1) {
-//            val users = database.createObjectStore("User_data.json")
-//            val recipes = database.createObjectStore("Recipe_data.json")
-//            val mealPlans = database.createObjectStore("MealPlan_data.json")
-//            val genericIngredient_offline = database.createObjectStore("GenericIngredient_offline.json")
-//            val storeProduct_offline = database.createObjectStore("StoreProduct_offline.jso")
-//            val userIngredientPrefernceFileName = database.createObjectStore("UserIngredientPreference_offline.json")
-            val images = database.createObjectStore("images")
-            val blurred_images = database.createObjectStore("blurred_images")
-            val blurredImageCache = database.createObjectStore("blurredImageCache")
-            val thumbnails = database.createObjectStore("thumbnails")
-            val thumbnailCache = database.createObjectStore("thumbnailCache")
-        } else {
-            println("old version less than 1")
+            database.createObjectStore("images")
+            database.createObjectStore("blurred_images")
+            database.createObjectStore("blurredImageCache")
+            database.createObjectStore("thumbnails")
+            database.createObjectStore("thumbnailCache")
+        }
+        if (oldVersion < 2) {
+            database.createObjectStore("imageCache")
         }
     }
     println("open database")

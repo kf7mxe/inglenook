@@ -964,7 +964,10 @@ class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
             Artists?.isNotEmpty() == true -> Artists.map { AuthorInfo(name = it, id = null) }
             else -> emptyList()
         }
-        val authorNames = authorInfos.map { it.name }
+        val authorNames = authorInfos.mapNotNull { authorInfo -> authorInfo.id?.let { Author(
+            id = it,
+            name = authorInfo.name,
+        )} }
 
         // Determine item type from Jellyfin Type field
         val itemType = if (Type == "Book") ItemType.Ebook else ItemType.AudioBook

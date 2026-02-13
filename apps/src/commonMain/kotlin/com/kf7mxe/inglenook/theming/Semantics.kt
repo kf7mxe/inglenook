@@ -39,3 +39,10 @@ data object ImageSemantic : Semantic("imageSemantic") {
 //        padding = Edges.ZERO
         ).withBackNoPadding
 }
+
+data object SeekBarSemantic : Semantic("seekbarSemantic") {
+    override fun default(theme: Theme): ThemeAndBack = FieldSemantic.default(theme).theme.alter(
+        background = if (theme.outline.closestColor().perceivedBrightness > 0.5f) theme.background.darken(0.5f) else theme.background.lighten(0.5f),
+        foreground = theme.foreground
+    ).withoutBack
+}

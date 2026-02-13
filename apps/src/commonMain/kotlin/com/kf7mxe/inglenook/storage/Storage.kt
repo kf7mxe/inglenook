@@ -6,7 +6,7 @@ import com.lightningkite.kiteui.models.VideoSource
 import com.lightningkite.lightningdb.*
 import kotlinx.serialization.ExperimentalSerializationApi
 
-const val databaseVersion = 1
+const val databaseVersion = 2
 
 
 expect suspend fun getFileByteArray(fileName:String): ByteArray?

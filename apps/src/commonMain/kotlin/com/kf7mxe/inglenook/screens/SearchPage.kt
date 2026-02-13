@@ -12,6 +12,7 @@ import com.lightningkite.kiteui.views.l2.icon
 import com.kf7mxe.inglenook.AudioBook
 import com.kf7mxe.inglenook.Author
 import com.kf7mxe.inglenook.book
+import com.kf7mxe.inglenook.cache.ImageCache
 import com.kf7mxe.inglenook.searchOff
 import com.kf7mxe.inglenook.components.BookListItem
 import com.kf7mxe.inglenook.connectivity.ConnectivityState
@@ -23,6 +24,7 @@ import com.lightningkite.kiteui.Routable
 import com.lightningkite.kiteui.views.forEach
 import com.lightningkite.reactive.core.Signal
 import com.lightningkite.reactive.core.AppScope
+import com.lightningkite.reactive.core.rememberSuspending
 import com.lightningkite.reactive.core.Constant
 import com.lightningkite.reactive.core.remember
 import kotlinx.coroutines.Job
@@ -51,7 +53,7 @@ class SearchPage : Page {
                 val matchingBooks = DownloadManager.getDownloads()
                     .filter { download ->
                         download.title.lowercase().contains(lowerQuery) ||
-                        download.authors.any { it.lowercase().contains(lowerQuery) }
+                        download.authors.any { it.name.lowercase().contains(lowerQuery) }
                     }
                     .map { it.toAudioBook() }
                 searchResults.value = SearchResults(books = matchingBooks, authors = emptyList())
@@ -183,6 +185,13 @@ class SearchPage : Page {
     }
 
     private fun ViewWriter.bookSearchResult(book: AudioBook) {
+        val cachedCover = rememberSuspending {
+            val client = jellyfinClient.value
+            if (client != null && book.coverImageId != null) {
+                ImageCache.get(client.getImageUrl(book.coverImageId, book.id))
+            } else null
+        }
+
         button {
             row {
                 gap = 0.75.rem
@@ -191,12 +200,7 @@ class SearchPage : Page {
                 // Cover image
                 sizeConstraints(width = 3.rem, height = 4.rem).frame {
                     shownWhen { book.coverImageId != null }.image {
-                        ::source {
-                            val client = jellyfinClient()
-                            if (client != null && book.coverImageId != null) {
-                                ImageRemote(client.getImageUrl(book.coverImageId, book.id))
-                            } else null
-                        }
+                        ::source { cachedCover() }
                         scaleType = ImageScaleType.Crop
                     }
                     shownWhen { book.coverImageId == null }.centered.icon(Icon.book, "Book")
@@ -232,6 +236,13 @@ class SearchPage : Page {
     }
 
     private fun ViewWriter.authorSearchResult(author: Author) {
+        val cachedAuthorImage = rememberSuspending {
+            val client = jellyfinClient.value
+            if (client != null && author.imageId != null) {
+                ImageCache.get(client.getImageUrl(author.imageId, author.id))
+            } else null
+        }
+
         button {
             row {
                 gap = 0.75.rem
@@ -240,12 +251,7 @@ class SearchPage : Page {
                 // Author image
                 sizeConstraints(width = 3.rem, height = 3.rem).frame {
                     shownWhen { author.imageId != null }.image {
-                        ::source {
-                            val client = jellyfinClient()
-                            if (client != null && author.imageId != null) {
-                                ImageRemote(client.getImageUrl(author.imageId, author.id))
-                            } else null
-                        }
+                        ::source { cachedAuthorImage() }
                         scaleType = ImageScaleType.Crop
                     }
                     shownWhen { author.imageId == null }.centered.icon(Icon.person, "Author")

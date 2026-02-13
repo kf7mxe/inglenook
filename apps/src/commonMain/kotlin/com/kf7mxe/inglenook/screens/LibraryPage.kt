@@ -17,6 +17,7 @@ import com.kf7mxe.inglenook.collectionsBookmark
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.storage.BookshelfRepository
 import com.lightningkite.kiteui.Routable
+import com.lightningkite.kiteui.views.buttonTheme
 import com.lightningkite.kiteui.views.forEach
 import com.lightningkite.reactive.core.Signal
 import com.lightningkite.reactive.core.AppScope
@@ -40,9 +41,9 @@ class LibraryPage : Page {
 
         col {
             // Tab buttons
+            paddingByEdge = Edges(0.rem,1.rem,0.rem,0.rem)
             row {
-
-                expanding.button {
+                expanding.buttonTheme.button {
                     centered.text("Books")
                     onClick { currentTab.set(BooksTab.Books) }
                     dynamicTheme {
@@ -50,7 +51,7 @@ class LibraryPage : Page {
                     }
                 }
 
-                expanding.button {
+                expanding.buttonTheme.button {
                     centered.text("Authors")
                     onClick { currentTab.set(BooksTab.Authors) }
                     dynamicTheme {
@@ -58,7 +59,7 @@ class LibraryPage : Page {
                     }
                 }
 
-                expanding.button {
+                expanding.buttonTheme.button {
                     centered.text("Series")
                     onClick { currentTab.set(BooksTab.Series) }
                     dynamicTheme {
@@ -66,7 +67,6 @@ class LibraryPage : Page {
                     }
                 }
             }
-
             expanding.swapView{
                 swapping(
                     current = {

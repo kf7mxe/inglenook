@@ -31,19 +31,18 @@ class DashboardPage : Page {
     override val title get() = Constant("Home")
 
     override fun ViewWriter.render() {
-        val isLoading = Signal(true)
         val client = jellyfinClient.value
-        val inProgressBooks= rememberSuspending {
+        val inProgressBooks = rememberSuspending {
             if (ConnectivityState.offlineMode()) emptyList()
-            else client?.getInProgressBooks()?:emptyList()
+            else client?.getInProgressBooks() ?: emptyList()
         }
-        val recommendedBooks= rememberSuspending {
+        val recommendedBooks = rememberSuspending {
             if (ConnectivityState.offlineMode()) emptyList()
-            else client?.getSuggestedBooks()?:emptyList()
+            else client?.getSuggestedBooks() ?: emptyList()
         }
         val recentlyAddedBooks = rememberSuspending {
             if (ConnectivityState.offlineMode()) emptyList()
-            else client?.getRecentlyAddedBooks()?:emptyList()
+            else client?.getRecentlyAddedBooks() ?: emptyList()
         }
 
         val downloadedBooks = remember {
@@ -52,17 +51,16 @@ class DashboardPage : Page {
             else emptyList()
         }
 
-        scrolling.col {
-            padding = 1.rem
-            gap = 1.5.rem
+        val allFinishedLoading = remember {
+            inProgressBooks.state().ready && recommendedBooks.state().ready && recentlyAddedBooks.state().ready
+        }
+
+        unpadded.scrolling.col {
+//            gap = 1.rem
 
             // Offline: Downloaded Books section
             shownWhen { ConnectivityState.offlineMode() }.col {
-                gap = 1.5.rem
-
                 shownWhen { downloadedBooks().isNotEmpty() }.col {
-                    gap = 0.75.rem
-
                     row {
                         expanding.h3 { content = "Downloaded Books" }
                         link {
@@ -72,7 +70,6 @@ class DashboardPage : Page {
                     }
 
                     scrollingHorizontally.row {
-                        gap = 1.rem
                         forEachUpdating(downloadedBooks) { book ->
                             BookCard(book) {
                                 mainPageNavigator.navigate(BookDetailPage(book.invoke().id))
@@ -82,8 +79,6 @@ class DashboardPage : Page {
                 }
 
                 shownWhen { downloadedBooks().isEmpty() }.centered.col {
-                    padding = 2.rem
-                    gap = 1.rem
                     icon(Icon.download.copy(width = 4.rem, height = 4.rem), "Downloads")
                     h3 { content = "No Downloaded Books" }
                     text { content = "Download books while online to listen offline." }
@@ -91,23 +86,23 @@ class DashboardPage : Page {
             }
 
             // Online: normal content
-            shownWhen { !ConnectivityState.offlineMode() }.col {
-                gap = 1.5.rem
+            shownWhen { !ConnectivityState.offlineMode() }.unpadded.col {
 
                 // Continue Listening Section
-                shownWhen { inProgressBooks().isNotEmpty() }.col {
-                    gap = 0.75.rem
-
-                    row {
+                col {
+                    padded.row {
                         expanding.h3 { content = "Continue Listening" }
                         link {
                             text("See All")
                             to = { LibraryPage() }
                         }
                     }
+                    shownWhen { !inProgressBooks.state().ready }.activityIndicator { }
 
-                    scrollingHorizontally.row {
-                        gap = 1.rem
+                    scrollingHorizontally.padded.row {
+                        ::shown {
+                            inProgressBooks().isNotEmpty()
+                        }
                         forEachUpdating(inProgressBooks) { book ->
                             BookCard(book) {
                                 mainPageNavigator.navigate(BookDetailPage(book.invoke().id))
@@ -117,10 +112,9 @@ class DashboardPage : Page {
                 }
 
                 // Recommended For You Section
-                shownWhen { recommendedBooks().isNotEmpty() }.col {
-                    gap = 0.75.rem
+                col {
 
-                    row {
+                    padded.row {
                         expanding.h3 { content = "Recommended For You" }
                         link {
                             text("See All")
@@ -128,8 +122,13 @@ class DashboardPage : Page {
                         }
                     }
 
-                    scrollingHorizontally.row {
-                        gap = 1.rem
+                    shownWhen { !recommendedBooks.state().ready }.activityIndicator { }
+
+
+                    scrollingHorizontally.padded.row {
+                        ::shown{
+                            recommendedBooks().isNotEmpty()
+                        }
                         forEachUpdating(recommendedBooks) { book ->
                             BookCard(book) {
                                 mainPageNavigator.navigate(BookDetailPage(book.invoke().id))
@@ -139,19 +138,22 @@ class DashboardPage : Page {
                 }
 
                 // Recently Added Section
-                shownWhen { recentlyAddedBooks().isNotEmpty() }.col {
-                    gap = 0.75.rem
-
-                    row {
+                .col {
+                    ::shown {
+                        recentlyAddedBooks().isNotEmpty()
+                    }
+                    padded.row {
                         expanding.h3 { content = "Recently Added" }
                         link {
                             text("See All")
                             to = { LibraryPage() }
                         }
                     }
+                    shownWhen { !recentlyAddedBooks.state().ready }.activityIndicator { }
 
-                    scrollsHorizontally.row {
-                        gap = 1.rem
+
+
+                    scrollingHorizontally.padded.row {
                         forEachUpdating(recentlyAddedBooks) { book ->
                             BookCard(book) {
                                 mainPageNavigator.navigate(BookDetailPage(book.invoke().id))
@@ -161,9 +163,7 @@ class DashboardPage : Page {
                 }
 
                 // Empty state when no books
-                shownWhen { inProgressBooks().isEmpty() && recommendedBooks().isEmpty() && recentlyAddedBooks().isEmpty() }.centered.col {
-                    padding = 2.rem
-                    gap = 1.rem
+                shownWhen { allFinishedLoading() && inProgressBooks().isEmpty() && recommendedBooks().isEmpty() && recentlyAddedBooks().isEmpty() }.unpadded.centered.col {
                     icon(Icon.book.copy(width = 4.rem, height = 4.rem), "Books")
                     h3 { content = "No Books Found" }
                     text { content = "Your audiobook library appears to be empty." }

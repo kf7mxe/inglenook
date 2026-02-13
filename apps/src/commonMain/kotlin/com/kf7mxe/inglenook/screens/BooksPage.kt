@@ -70,7 +70,7 @@ class BooksPage : Page {
             if (query.isNotEmpty()) {
                 result = result.filter { book ->
                     book.title.lowercase().contains(query) ||
-                            book.authors.any { it.lowercase().contains(query) } ||
+                            book.authors.any { it.name.lowercase().contains(query) } ||
                             book.seriesName?.lowercase()?.contains(query) == true
                 }
             }
@@ -100,24 +100,24 @@ class BooksPage : Page {
                 }
 
                 // Book type filter toggles
-                button {
+                buttonTheme.button {
                     text("All")
                     onClick { bookTypeFilter.value = null }
                     dynamicTheme { if (bookTypeFilter() == null) ImportantSemantic else null }
                 }
-                button {
+                buttonTheme.button {
                     text("Audio")
                     onClick { bookTypeFilter.value = ItemType.AudioBook }
                     dynamicTheme { if (bookTypeFilter() == ItemType.AudioBook) ImportantSemantic else null }
                 }
-                button {
+                buttonTheme.button {
                     text("Ebooks")
                     onClick { bookTypeFilter.value = ItemType.Ebook }
                     dynamicTheme { if (bookTypeFilter() == ItemType.Ebook) ImportantSemantic else null }
                 }
 
                 // View mode toggle
-                button {
+                buttonTheme.button {
                     icon {
                         ::source { if (viewMode() == ViewMode.Grid) Icon.menu else Icon.dashboard }
                         description = "Toggle view"

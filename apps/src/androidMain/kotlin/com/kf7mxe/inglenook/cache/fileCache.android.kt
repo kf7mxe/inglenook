@@ -371,6 +371,7 @@ actual suspend fun clearImageCaches() {
             blurredCachedImagesDirectory.deleteRecursively()
         }
     }
+    clearPersistedImageCache()
 }
 
 actual suspend fun getBlurredCachedImage(localPath: String): ImageSource? {

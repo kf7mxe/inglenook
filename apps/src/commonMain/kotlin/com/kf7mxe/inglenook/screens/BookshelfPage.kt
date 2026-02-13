@@ -10,6 +10,7 @@ import com.lightningkite.kiteui.models.rem
 import com.lightningkite.kiteui.navigation.Page
 import com.lightningkite.kiteui.navigation.mainPageNavigator
 import com.lightningkite.kiteui.views.ViewWriter
+import com.lightningkite.kiteui.views.buttonTheme
 import com.lightningkite.kiteui.views.card
 import com.lightningkite.kiteui.views.centered
 import com.lightningkite.kiteui.views.direct.activityIndicator
@@ -51,9 +52,9 @@ class BookshelfPage : Page {
         col {
 
             fun ViewWriter.addBookshelfDialog() {
-                dialog {
+                dialog {dismiss ->
                     val newBookshelfName = Signal("")
-                    card.col {
+                    col {
                         gap = 1.rem
                         padding = 1.rem
 
@@ -74,6 +75,7 @@ class BookshelfPage : Page {
                                 text("Cancel")
                                 onClick {
                                     newBookshelfName.value = ""
+                                    dismiss()
                                 }
                             }
                             expanding.button {
@@ -122,9 +124,9 @@ class BookshelfPage : Page {
                 padding = 2.rem
 
                 icon(Icon.collectionsBookmark.copy(width = 4.rem, height = 4.rem), "Bookshelves")
-                h3 { content = "No Bookshelves Yet" }
-                text { content = "Create a bookshelf to organize your audiobooks" }
-                button {
+                centered.h3 { content = "No Bookshelves Yet" }
+                centered.text { content = "Create a bookshelf to organize your audiobooks" }
+                centered.buttonTheme.button {
                     row {
                         gap = 0.25.rem
                         icon(Icon.add, "Add")
