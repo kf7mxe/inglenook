@@ -725,7 +725,11 @@ class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
             .sortedBy { it.name }
     }
 
-    fun getAudioStreamUrl(itemId: String): String {
+    fun getAudioStreamUrl(
+        itemId: String,
+        startPositionTicks: Long = 0L,
+        useHls: Boolean = false,
+    ): String {
         return buildString {
             append("$serverUrl/Audio/$itemId/universal")
             append("?UserId=$userId")
@@ -733,7 +737,15 @@ class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
             append("&api_key=$accessToken")
             append("&Container=opus,webm|opus,mp3,aac,m4a|aac,m4b|aac,flac,webma,webm|webma,wav,ogg")
             append("&TranscodingContainer=ts")
+            if (useHls) {
+                append("&TranscodingProtocol=hls")
+            }
             append("&AudioCodec=aac")
+            append("&EnableRedirection=true")
+            append("&EnableRemoteMedia=false")
+            if (startPositionTicks > 0) {
+                append("&StartTimeTicks=$startPositionTicks")
+            }
         }
     }
 

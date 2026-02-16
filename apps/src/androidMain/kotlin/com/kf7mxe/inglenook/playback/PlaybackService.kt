@@ -9,6 +9,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
+import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
@@ -30,7 +31,17 @@ class PlaybackService : MediaSessionService() {
             .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH)
             .build()
 
+        val loadControl = DefaultLoadControl.Builder()
+            .setBufferDurationsMs(
+                DefaultLoadControl.DEFAULT_MIN_BUFFER_MS,
+                DefaultLoadControl.DEFAULT_MAX_BUFFER_MS,
+                1000,  // Start playback after 1s of buffer (default 2500ms)
+                2000   // After rebuffer, start after 2s (default 5000ms)
+            )
+            .build()
+
         exoPlayer = ExoPlayer.Builder(this)
+            .setLoadControl(loadControl)
             .setAudioAttributes(audioAttributes, true) // true for handleAudioFocus
             .setHandleAudioBecomingNoisy(true) // Pause when headphones unplugged
             .build()
@@ -95,8 +106,8 @@ class PlaybackService : MediaSessionService() {
             // Use local file URI for offline playback
             "file://$localFilePath"
         } else {
-            // Stream from server
-            jellyfinClient.value?.getAudioStreamUrl(book.id) ?: return
+            // Stream from server with HLS for fast start — server begins transcoding at start position
+            jellyfinClient.value?.getAudioStreamUrl(book.id, startPositionTicks, useHls = true) ?: return
         }
 
         val imageUrl = book.coverImageId?.let { coverId ->

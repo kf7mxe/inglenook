@@ -378,7 +378,7 @@ fun ViewWriter.nowPlaying() {
         })
 
         // Content layer
-        scrolling.col {
+        scrolling.padded.col {
 //                applySafeInsets(top = false, bottom = true)
 
             col {
