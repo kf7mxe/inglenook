@@ -62,15 +62,6 @@ data object ToastSemantic : Semantic("toast-semantic") {
     }
 }
 
-data object NowPlayingSemantic : Semantic("now-playing-semantic") {
-    override fun default(theme: Theme): ThemeAndBack {
-        return theme.copy(
-            id = "now-playing",
-            cornerRadii = CornerRadii.PerCorner(1.rem, topLeft = true, topRight = true, bottomLeft = false, bottomRight = false),
-            elevation = 4.dp
-        ).withBack
-    }
-}
 
 data object HiddenButtonSemantic : Semantic("hidden-btn") {
     override fun default(theme: Theme): ThemeAndBack = theme.withoutBack(

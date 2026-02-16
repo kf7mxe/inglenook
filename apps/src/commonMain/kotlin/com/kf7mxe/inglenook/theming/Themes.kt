@@ -63,7 +63,7 @@ fun Theme.Companion.cozy(accent: Color? = null): Theme {
 
                 cornerRadii = CornerRadii.PerCorner(1.rem,false,false,true,true),
             ) },
-            MainContentSemantic.override { it.withBack(
+            MainContentSemantic.override { it.withoutBack(
                 cascading = false,
                 padding = Edges(1.rem,0.rem,1.rem,0.rem),
                         cornerRadii = CornerRadii.Fixed(0.rem),

@@ -12,6 +12,7 @@ import com.lightningkite.kiteui.models.ImageScaleType
 import com.lightningkite.kiteui.navigation.mainPageNavigator
 import com.lightningkite.kiteui.views.ViewWriter
 import com.lightningkite.kiteui.views.direct.image
+import com.lightningkite.kiteui.views.direct.unpadded
 import com.lightningkite.reactive.context.invoke
 import com.lightningkite.reactive.core.Reactive
 import com.lightningkite.reactive.core.rememberSuspending
@@ -73,8 +74,8 @@ fun ViewWriter.blurredImage(book: Reactive<AudioBook?>,shown:Reactive<Boolean>) 
 //                    imageSource = blurredImage,
 //                    blurRadius = blurSettings.blurRadius
 //                )
-    image {
-        rView::shown {
+    unpadded.image {
+       rView::shown {
             shown()
         }
         scaleType = ImageScaleType.Crop

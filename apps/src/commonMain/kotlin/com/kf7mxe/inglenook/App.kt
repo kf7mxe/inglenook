@@ -29,6 +29,7 @@ import com.kf7mxe.inglenook.jellyfin.jellyfinServerConfig
 import com.kf7mxe.inglenook.playback.PlaybackState
 import com.kf7mxe.inglenook.playback.SleepTimerMode
 import com.kf7mxe.inglenook.screens.*
+import com.kf7mxe.inglenook.storage.NowPlayingSemantic
 import com.kf7mxe.inglenook.storage.readImageFromStorage
 import com.kf7mxe.inglenook.theming.createTheme
 import com.lightningkite.kiteui.current
@@ -66,6 +67,9 @@ val persistedThemeSettings = PersistentProperty<ThemeSettings>("themeSettings", 
 
 // Initialize theme from persisted settings
 val appTheme = Signal<Theme>(createTheme(persistedThemePreset.value, persistedThemeSettings.value))
+
+
+val bookToShowBlurredBackgroundCoverOf = Signal<AudioBook?>(null)
 
 // Current theme preset setting (reactive, synced with persisted)
 val currentThemePreset get() = persistedThemePreset
@@ -163,6 +167,9 @@ fun ViewWriter.app(navigator: PageNavigator, dialog: PageNavigator) {
             }
             blurredImage(PlaybackState.currentBook, remember {
                 PlaybackState.currentBook() != null && persistedThemeSettings().showPlayingBookCoverAsWallpaper
+            })
+            blurredImage(bookToShowBlurredBackgroundCoverOf, remember {
+                mainPageNavigator.currentPage() is BookDetailPage && persistedThemeSettings().showPlayingBookCoverOnNowPlayingAndBookDetail
             })
 
             unpadded.col {
@@ -305,7 +312,7 @@ fun ViewWriter.nowPlayingPreview() {
                         ellipsis = true
                     }
                     subtext {
-                        ::content { PlaybackState.currentBook()?.authors?.map {it.name}?.joinToString(", ") ?: "" }
+                        ::content { PlaybackState.currentBook()?.authors?.map { it.name }?.joinToString(", ") ?: "" }
                         ellipsis = true
                     }
                 }
@@ -342,7 +349,7 @@ fun ViewWriter.nowPlayingBottomSheet() {
         partialRatio = 0.5f,
         startState = BottomSheetState.PARTIALLY_EXPANDED
     ) {
-        nowPlaying()
+        unpadded.nowPlaying()
     }
 }
 
@@ -364,7 +371,7 @@ fun ViewWriter.nowPlaying() {
         } ?: emptyList()
     }
 
-    card.frame {
+    NowPlayingSemantic.onNext.frame {
         // Blurred background layer (only when enabled in theme settings)
         blurredImage(PlaybackState.currentBook, rememberSuspending {
             persistedThemeSettings().showPlayingBookCoverOnNowPlayingAndBookDetail
@@ -414,19 +421,19 @@ fun ViewWriter.nowPlaying() {
                             }
                         }
                     }
-                    col{
-                    forEach(remember { PlaybackState.currentBook()?.authors ?: listOf() }) { author ->
-                        button {
-                            centered.subtext {
-                                ::content {
-                                    PlaybackState.currentBook()?.authors?.map { it.name }?.joinToString(", ") ?: ""
+                    col {
+                        forEach(remember { PlaybackState.currentBook()?.authors ?: listOf() }) { author ->
+                            button {
+                                centered.subtext {
+                                    ::content {
+                                        PlaybackState.currentBook()?.authors?.map { it.name }?.joinToString(", ") ?: ""
+                                    }
+                                }
+                                onClick {
+                                    mainPageNavigator.navigate(AuthorDetailPage(author.id))
                                 }
                             }
-                            onClick {
-                                mainPageNavigator.navigate(AuthorDetailPage(author.id))
-                            }
                         }
-                    }
                     }
                 }
 
@@ -442,107 +449,106 @@ fun ViewWriter.nowPlaying() {
                     }
                     onClick {
                         dialog { dismiss ->
-                            sizeConstraints(width = 30.rem).chaptersList(chapters){chapter->
+                            sizeConstraints(width = 30.rem).chaptersList(chapters) { chapter ->
                                 PlaybackState.seek(chapter.startPositionTicks)
                             }
-                                atBottom.card.button {
-                                    centered.text("Cancel")
-                                    onClick {
-                                        dismiss()
-                                    }
+                            atBottom.card.button {
+                                centered.text("Cancel")
+                                onClick {
+                                    dismiss()
                                 }
+                            }
                         }
                     }
                 }
             }
 
 
+            // Playback controls
+            PlaybackControls()
 
-                // Playback controls
-                PlaybackControls()
+            // Playback speed selector
+            centered.row {
+                gap = 0.5.rem
+                text("Speed:")
+                for (speed in listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f)) {
+                    button {
+                        text("${speed}x")
+                        onClick { PlaybackState.setPlaybackSpeed(speed) }
+                        dynamicTheme {
+                            if (PlaybackState.playbackSpeed() == speed) ImportantSemantic else null
+                        }
+                    }
+                }
+            }
 
-                // Playback speed selector
+            // Sleep timer section
+            col {
+
+                // Show current timer status if active
+                shownWhen { PlaybackState.sleepTimerMode() != null }.centered.row {
+                    icon(Icon.timer, "Sleep timer active")
+                    text {
+                        ::content {
+                            when (PlaybackState.sleepTimerMode()) {
+                                is SleepTimerMode.Minutes -> {
+                                    val remaining = PlaybackState.sleepTimerMinutesRemaining() ?: 0
+                                    "Sleep in ${remaining}m"
+                                }
+
+                                SleepTimerMode.EndOfChapter -> "Sleep at end of chapter"
+                                null -> ""
+                            }
+                        }
+                    }
+                    button {
+                        icon(Icon.close, "Cancel timer")
+                        onClick { PlaybackState.cancelSleepTimer() }
+                    }
+                }
+
+                // Timer options
                 centered.row {
-                    gap = 0.5.rem
-                    text("Speed:")
-                    for (speed in listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f)) {
+                    text("Sleep:")
+                    for (minutes in listOf(15, 30, 45, 60)) {
                         button {
-                            text("${speed}x")
-                            onClick { PlaybackState.setPlaybackSpeed(speed) }
+                            text("${minutes}m")
+                            onClick { PlaybackState.setSleepTimer(SleepTimerMode.Minutes(minutes)) }
                             dynamicTheme {
-                                if (PlaybackState.playbackSpeed() == speed) ImportantSemantic else null
+                                val mode = PlaybackState.sleepTimerMode()
+                                if (mode is SleepTimerMode.Minutes && mode.minutes == minutes) ImportantSemantic else null
                             }
+                        }
+                    }
+                    button {
+                        text("End chapter")
+                        onClick { PlaybackState.setSleepTimer(SleepTimerMode.EndOfChapter) }
+                        dynamicTheme {
+                            if (PlaybackState.sleepTimerMode() == SleepTimerMode.EndOfChapter) ImportantSemantic else null
                         }
                     }
                 }
+            }
 
-                // Sleep timer section
-                col {
 
-                    // Show current timer status if active
-                    shownWhen { PlaybackState.sleepTimerMode() != null }.centered.row {
-                        icon(Icon.timer, "Sleep timer active")
-                        text {
-                            ::content {
-                                when (PlaybackState.sleepTimerMode()) {
-                                    is SleepTimerMode.Minutes -> {
-                                        val remaining = PlaybackState.sleepTimerMinutesRemaining() ?: 0
-                                        "Sleep in ${remaining}m"
-                                    }
-
-                                    SleepTimerMode.EndOfChapter -> "Sleep at end of chapter"
-                                    null -> ""
-                                }
-                            }
-                        }
-                        button {
-                            icon(Icon.close, "Cancel timer")
-                            onClick { PlaybackState.cancelSleepTimer() }
-                        }
-                    }
-
-                    // Timer options
-                    centered.row {
-                        text("Sleep:")
-                        for (minutes in listOf(15, 30, 45, 60)) {
-                            button {
-                                text("${minutes}m")
-                                onClick { PlaybackState.setSleepTimer(SleepTimerMode.Minutes(minutes)) }
-                                dynamicTheme {
-                                    val mode = PlaybackState.sleepTimerMode()
-                                    if (mode is SleepTimerMode.Minutes && mode.minutes == minutes) ImportantSemantic else null
-                                }
-                            }
-                        }
-                        button {
-                            text("End chapter")
-                            onClick { PlaybackState.setSleepTimer(SleepTimerMode.EndOfChapter) }
-                            dynamicTheme {
-                                if (PlaybackState.sleepTimerMode() == SleepTimerMode.EndOfChapter) ImportantSemantic else null
-                            }
-                        }
-                    }
+            // Stop button
+            centered.button {
+                row {
+                    icon(Icon.stop, "Stop")
+                    text("Stop Playback")
                 }
+                onClick { PlaybackState.stop() }
+                themeChoice += ThemeDerivation { it.copy(id = "danger", foreground = Color.red).withoutBack }
+            }
 
-
-                // Stop button
-                centered.button {
-                    row {
-                        icon(Icon.stop, "Stop")
-                        text("Stop Playback")
-                    }
-                    onClick { PlaybackState.stop() }
-                    themeChoice += ThemeDerivation { it.copy(id = "danger", foreground = Color.red).withoutBack }
-                }
-
-                // Spacer at bottom
+            // Spacer at bottom
 //                space(2.0)
-            }
-
-            onRemove {
-                isNowPlayingOpen.value = false
-            }
         }
+
+        onRemove {
+            isNowPlayingOpen.value = false
+        }
+    }
 }
 
 interface FullScreen

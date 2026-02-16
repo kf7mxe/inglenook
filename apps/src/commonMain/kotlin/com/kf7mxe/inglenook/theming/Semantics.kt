@@ -46,3 +46,13 @@ data object SeekBarSemantic : Semantic("seekbarSemantic") {
         foreground = theme.foreground
     ).withoutBack
 }
+
+data object NowPlayingSemantic : Semantic("nowPlayingSemantic") {
+    override fun default(theme: Theme) =theme.copy(id="nowPlayingSemantic",
+        cascading = false,
+        cornerRadii = CornerRadii.PerCorner(1.rem, topLeft = true, topRight = true, bottomLeft = false, bottomRight = false),
+//        padding = Edges.ZERO
+        elevation = 4.dp
+
+    ).withBack
+}

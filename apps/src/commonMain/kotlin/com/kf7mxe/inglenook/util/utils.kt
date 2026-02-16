@@ -10,3 +10,12 @@ fun getFileExtensionFromMimeType(mimeType: String): String {
         else -> return ""
     }
 }
+
+
+fun String.truncateDisplay(limit: Int): String {
+    return if (this.length > limit) {
+        "${this.take(limit)}..."
+    } else {
+        this
+    }
+}

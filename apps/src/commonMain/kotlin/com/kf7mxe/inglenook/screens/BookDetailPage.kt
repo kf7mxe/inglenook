@@ -26,6 +26,7 @@ import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.playback.PlaybackState
 import com.kf7mxe.inglenook.storage.BookmarkRepository
 import com.kf7mxe.inglenook.storage.ImageSemantic
+import com.kf7mxe.inglenook.util.truncateDisplay
 import com.lightningkite.kiteui.Routable
 import com.lightningkite.kiteui.current
 import com.lightningkite.kiteui.views.closeThisPopover
@@ -45,24 +46,16 @@ import kotlin.uuid.ExperimentalUuidApi
 @Routable("book/{bookId}")
 class BookDetailPage(val bookId: String) : Page {
     override val title: Reactive<String> = rememberSuspending {
-     book()?.title?:"Book"
+     book()?.title?.truncateDisplay(35)?:"Book"
     }
     val book = rememberSuspending {
         val client = jellyfinClient()
-       client?.getBook(bookId)
-
+       val book = client?.getBook(bookId)
+        bookToShowBlurredBackgroundCoverOf.set(book)
+        book
     }
     override fun ViewWriter.render() {
         val showChapters = Signal(true)
-        frame {
-            // Blurred background layer (only when enabled in theme settings)
-
-            blurredImage(book,remember {
-                persistedThemeSettings().showPlayingBookCoverOnNowPlayingAndBookDetail
-            })
-
-            // Content layer
-//            ThemeDerivation.invoke { it.withBack }.onNext.
             col {
                 // Scrollable content
                 expanding.scrolling.col {
@@ -496,7 +489,7 @@ class BookDetailPage(val bookId: String) : Page {
                     }
                 }
             }
-        }
+
     }
 }
 

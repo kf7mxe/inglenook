@@ -11,6 +11,7 @@ import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.storage.BookshelfRepository
 import com.kf7mxe.inglenook.viewMode
 import com.lightningkite.kiteui.Routable
+import com.lightningkite.kiteui.models.Edges
 import com.lightningkite.kiteui.models.Icon
 import com.lightningkite.kiteui.models.ImportantSemantic
 import com.lightningkite.kiteui.models.KeyboardCase
@@ -89,7 +90,6 @@ class BooksPage : Page {
             result
         }
 
-
         col {
 // Search bar and view toggle
             row {
@@ -127,6 +127,7 @@ class BooksPage : Page {
                     }
                 }
             }
+            separator()
 
             shownWhen { !books.state().ready }.centered.activityIndicator()
 
@@ -163,6 +164,7 @@ class BooksPage : Page {
             // Books list/grid
 //                    col {
             expanding.swapView {
+                paddingByEdge = Edges(1.rem,0.rem,1.rem,0.rem)
                 swapping(
                     current = {
                         viewMode()
