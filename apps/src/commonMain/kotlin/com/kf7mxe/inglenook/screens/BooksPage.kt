@@ -10,6 +10,7 @@ import com.kf7mxe.inglenook.dashboard
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.storage.BookshelfRepository
 import com.kf7mxe.inglenook.viewMode
+import com.lightningkite.kiteui.QueryParameter
 import com.lightningkite.kiteui.Routable
 import com.lightningkite.kiteui.models.Edges
 import com.lightningkite.kiteui.models.Icon
@@ -42,18 +43,21 @@ import com.lightningkite.reactive.core.Reactive
 import com.lightningkite.reactive.core.Signal
 import com.lightningkite.reactive.core.remember
 import com.lightningkite.reactive.core.rememberSuspending
+import io.ktor.client.request.invoke
 import kotlin.uuid.ExperimentalUuidApi
 
 
-class BooksPage : Page {
+class BooksPage(
+    val searchQuery: Signal<String> = Signal(""),
+    val selectedFilter: Signal<FilterOption?> = Signal(null),
+    val bookTypeFilter: Signal<ItemType?> = Signal(null)
+) : Page {
     override val title get() = Constant("Books")
+
 
     @OptIn(ExperimentalUuidApi::class)
     override fun ViewWriter.render() {
 
-        val searchQuery = Signal("")
-        val selectedFilter = Signal<FilterOption?>(null)
-        val bookTypeFilter = Signal<ItemType?>(null) // null = All
 
         val books = rememberSuspending {
             val client = jellyfinClient.value
@@ -91,6 +95,8 @@ class BooksPage : Page {
         }
 
         col {
+            paddingByEdge = Edges(1.rem, 0.rem, 1.rem, 0.rem)
+
 // Search bar and view toggle
             row {
                 expanding.fieldTheme.textInput {
@@ -127,8 +133,6 @@ class BooksPage : Page {
                     }
                 }
             }
-            separator()
-
             shownWhen { !books.state().ready }.centered.activityIndicator()
 
             // Loading state
@@ -164,7 +168,6 @@ class BooksPage : Page {
             // Books list/grid
 //                    col {
             expanding.swapView {
-                paddingByEdge = Edges(1.rem,0.rem,1.rem,0.rem)
                 swapping(
                     current = {
                         viewMode()

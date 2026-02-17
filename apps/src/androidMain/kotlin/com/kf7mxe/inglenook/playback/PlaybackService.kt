@@ -117,7 +117,7 @@ class PlaybackService : MediaSessionService() {
         // Build media metadata
         val metadata = MediaMetadata.Builder()
             .setTitle(book.title)
-            .setArtist(book.authors.joinToString(", "))
+            .setArtist(book.authors.map{it.name}.joinToString(", "))
             .setAlbumTitle(book.seriesName)
             .apply {
                 if (imageUrl != null) {

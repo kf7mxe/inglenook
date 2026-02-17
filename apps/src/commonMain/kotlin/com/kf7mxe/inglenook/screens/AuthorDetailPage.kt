@@ -18,6 +18,7 @@ import com.kf7mxe.inglenook.components.BookCard
 import com.kf7mxe.inglenook.components.BookListItem
 import com.kf7mxe.inglenook.cache.ImageCache
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
+import com.kf7mxe.inglenook.viewMode
 import com.lightningkite.kiteui.Routable
 import com.lightningkite.kiteui.views.l2.RecyclerViewPlacerVerticalGrid
 import com.lightningkite.kiteui.views.l2.children
@@ -41,25 +42,9 @@ class AuthorDetailPage(val authorId: String) : Page {
         val books = rememberSuspending {
             client?.getBooksByAuthor(authorId) ?: emptyList()
         }
-        val viewMode = Signal(ViewMode.Grid)
-        val errorMessage = Signal<String?>(null)
-
         col {
-            gap = 0.rem
 
-
-            // Loading state
             shownWhen { !books.state().ready }.centered.activityIndicator()
-
-            // Error state
-//                shownWhen { errorMessage() != null && !isLoading() }.centered.col {
-//                    gap = 0.5.rem
-//                    text { ::content { errorMessage() ?: "" } }
-//                    button {
-//                        text("Retry")
-//                        onClick { loadData() }
-//                    }
-//                }
 
             // No books state
             shownWhen { books.state().ready && books().isEmpty() }.centered.col {
@@ -72,37 +57,45 @@ class AuthorDetailPage(val authorId: String) : Page {
             val cachedAuthorImage = rememberSuspending {
                 val client = jellyfinClient()
                 val imageId = author()?.imageId
-                if (client != null && imageId != null) {
-                    ImageCache.get(client.getImageUrl(imageId))
+                val test = if (client != null && imageId != null) {
+                    println("DEBUg imageId ${imageId}")
+                    println("DEBUG client.getImageUr(imageId ${client.getImageUrl(imageId)}")
+                    ImageCache.get(client.getImageUrl( imageId,authorId))
                 } else null
+                println("DEBUg test ${test}")
+                test
             }
 
-            sizedBox(SizeConstraints(width = 8.rem, height = 8.rem)).frame {
-                image {
-                    this.rView::shown{
-                        author()?.imageId != null
+            row {
+                sizeConstraints(width = 8.rem, height = 8.rem).frame {
+                    image {
+                        this.rView::shown{
+                            author()?.imageId != null
+                        }
+                        ::source {cachedAuthorImage() }
+                        scaleType = ImageScaleType.Crop
                     }
-                    ::source { cachedAuthorImage() }
-                    scaleType = ImageScaleType.Crop
-                }
-                centered.icon {
-                    ::shown{
-                        author()?.imageId == null
+                    centered.icon {
+                        ::shown{
+                            author()?.imageId == null
+                        }
+                        source = Icon.person.copy(width = 4.rem, height = 4.rem)
                     }
-                    source = Icon.person.copy(width = 4.rem, height = 4.rem)
+
                 }
+                col {
 
-            }
+                    h2 { ::content { author()?.name ?: "Unknown Author" } }
 
-            h2 { ::content { author()?.name ?: "Unknown Author" } }
+                    // Overview
+                    shownWhen { author()?.overview != null }.sizeConstraints(height = 8.rem).scrolling.text {
+                        ::content { author()?.overview ?: "" }
+                    }
 
-            // Overview
-            shownWhen { author()?.overview != null }.text {
-                ::content { author()?.overview ?: "" }
-            }
-
-            subtext {
-                ::content { "${books().size} ${if (books().size == 1) "book" else "books"}" }
+                    subtext {
+                        ::content { "${books().size} ${if (books().size == 1) "book" else "books"}" }
+                    }
+                }
             }
 
 
@@ -113,9 +106,7 @@ class AuthorDetailPage(val authorId: String) : Page {
 
             // View mode toggle header
             row {
-                h3 { content = "Books" }
-                padding = 1.rem
-                expanding.space(1.0)
+                expanding.h3 { content = "Books" }
                 button {
                     icon {
                         ::source { if (viewMode() == ViewMode.Grid) Icon.menu else Icon.dashboard }

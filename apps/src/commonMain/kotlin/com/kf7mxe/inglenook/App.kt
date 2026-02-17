@@ -60,6 +60,7 @@ import com.lightningkite.reactive.core.remember
 import com.lightningkite.reactive.core.rememberSuspending
 import io.ktor.util.Platform
 import kotlinx.coroutines.launch
+import kotlinx.serialization.Serializable
 
 // Persistent theme settings - survives app restart
 val persistedThemePreset = PersistentProperty<ThemePreset>("themePreset", ThemePreset.Cozy)
@@ -74,10 +75,11 @@ val bookToShowBlurredBackgroundCoverOf = Signal<AudioBook?>(null)
 // Current theme preset setting (reactive, synced with persisted)
 val currentThemePreset get() = persistedThemePreset
 
-val viewMode = Signal(ViewMode.Grid)
+val viewMode = PersistentProperty("viewMode",ViewMode.Grid)
 
 
 // View mode for book lists
+@Serializable
 enum class ViewMode {
     Grid,
     List
@@ -346,8 +348,8 @@ fun ViewWriter.nowPlayingPreview() {
 fun ViewWriter.nowPlayingBottomSheet() {
     println("DEBUG coordinatorFram ${coordinatorFrame}")
     coordinatorFrame?.bottomSheet(
-        partialRatio = 0.5f,
-        startState = BottomSheetState.PARTIALLY_EXPANDED
+        partialRatio = 0.75f,
+        startState = BottomSheetState.EXPANDED
     ) {
         unpadded.nowPlaying()
     }

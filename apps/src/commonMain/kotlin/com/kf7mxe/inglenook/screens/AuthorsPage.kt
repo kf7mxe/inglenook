@@ -29,14 +29,14 @@ import com.lightningkite.reactive.core.Constant
 import com.lightningkite.reactive.core.Reactive
 import com.lightningkite.reactive.core.remember
 import com.lightningkite.reactive.core.rememberSuspending
+import com.lightningkite.services.database.Query
 import kotlinx.coroutines.launch
 
 @Routable("AuthorsPage")
-class AuthorsPage : Page {
+class AuthorsPage(val searchQuery:Signal<String> = Signal("")) : Page {
     override val title: Reactive<String> = Constant("Authors")
 
     override fun ViewWriter.render() {
-        val searchQuery = Signal("")
 //        val errorMessage = Signal<String?>(null)
 
         // Load authors
@@ -56,6 +56,7 @@ class AuthorsPage : Page {
 
 
         col {
+            paddingByEdge = Edges(1.rem,0.rem,1.rem,0.rem)
 
             // Search bar and view toggle
             row {

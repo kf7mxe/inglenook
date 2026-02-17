@@ -33,22 +33,17 @@ class DashboardPage : Page {
     override fun ViewWriter.render() {
         val client = jellyfinClient.value
         val inProgressBooks = rememberSuspending {
-            if (ConnectivityState.offlineMode()) emptyList()
-            else client?.getInProgressBooks() ?: emptyList()
+            client?.getInProgressBooks() ?: emptyList()
         }
         val recommendedBooks = rememberSuspending {
-            if (ConnectivityState.offlineMode()) emptyList()
-            else client?.getSuggestedBooks() ?: emptyList()
+            client?.getSuggestedBooks() ?: emptyList()
         }
         val recentlyAddedBooks = rememberSuspending {
-            if (ConnectivityState.offlineMode()) emptyList()
-            else client?.getRecentlyAddedBooks() ?: emptyList()
+            client?.getRecentlyAddedBooks() ?: emptyList()
         }
 
         val downloadedBooks = remember {
-            if (ConnectivityState.offlineMode())
-                DownloadManager.getDownloads().map { it.toAudioBook() }
-            else emptyList()
+            DownloadManager.getDownloads().map { it.toAudioBook() }
         }
 
         val allFinishedLoading = remember {
@@ -58,9 +53,9 @@ class DashboardPage : Page {
         unpadded.scrolling.col {
 //            gap = 1.rem
 
-            // Offline: Downloaded Books section
-            shownWhen { ConnectivityState.offlineMode() }.col {
-                shownWhen { downloadedBooks().isNotEmpty() }.col {
+            // Downloaded Books section (shown when offline or has downloads)
+            shownWhen { ConnectivityState.offlineMode() && downloadedBooks().isNotEmpty() }.col {
+                col {
                     row {
                         expanding.h3 { content = "Downloaded Books" }
                         link {
@@ -78,15 +73,15 @@ class DashboardPage : Page {
                     }
                 }
 
-                shownWhen { downloadedBooks().isEmpty() }.centered.col {
+                shownWhen { downloadedBooks().isEmpty() && ConnectivityState.offlineMode() }.centered.col {
                     icon(Icon.download.copy(width = 4.rem, height = 4.rem), "Downloads")
                     h3 { content = "No Downloaded Books" }
                     text { content = "Download books while online to listen offline." }
                 }
             }
 
-            // Online: normal content
-            shownWhen { !ConnectivityState.offlineMode() }.unpadded.col {
+            // Main content sections (shown online, or offline with cached data)
+            unpadded.col {
 
                 // Continue Listening Section
                 col {

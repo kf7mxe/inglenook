@@ -85,14 +85,20 @@ object ApiCache {
             return cached
         }
 
-        val computed = compute()
-        put(key, computed, ttl)
-        return computed
+        return try {
+            val computed = compute()
+            put(key, computed, ttl)
+            computed
+        } catch (e: Exception) {
+            val stale = getStale<T>(key)
+            if (stale != null) stale else throw e
+        }
     }
 
     /**
      * Get or compute a value, using the cache if available.
      * Force refresh will bypass the cache and recompute.
+     * On failure, returns stale cached data if available rather than propagating the error.
      */
     suspend fun <T : Any> getOrPut(
         key: String,
@@ -107,9 +113,24 @@ object ApiCache {
             }
         }
 
-        val computed = compute()
-        put(key, computed, ttl)
-        return computed
+        return try {
+            val computed = compute()
+            put(key, computed, ttl)
+            computed
+        } catch (e: Exception) {
+            // On failure, return stale cache (even if expired) rather than crashing
+            val stale = getStale<T>(key)
+            if (stale != null) stale else throw e
+        }
+    }
+
+    /**
+     * Get a cached value even if expired (for fallback on errors).
+     */
+    @Suppress("UNCHECKED_CAST")
+    fun <T> getStale(key: String): T? {
+        val entry = cache[key] ?: return null
+        return entry.data as? T
     }
 
     // Convenience methods for common cache keys

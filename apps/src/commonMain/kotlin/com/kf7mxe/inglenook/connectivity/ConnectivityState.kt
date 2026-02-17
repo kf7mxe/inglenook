@@ -44,8 +44,17 @@ object ConnectivityState {
     }
 
     fun initialize() {
+        // If app was persisted as offline, do an immediate connectivity check
+        // to avoid staying stuck in offline mode after restart
         if (offlineMode.value) {
-            startReconnectChecks()
+            AppScope.launch {
+                val success = jellyfinClient.value?.pingServer() ?: false
+                if (success) {
+                    exitOfflineMode()
+                } else {
+                    startReconnectChecks()
+                }
+            }
         } else {
             startConnectivityChecks()
         }
@@ -63,8 +72,8 @@ object ConnectivityState {
     private fun startConnectivityChecks() {
         connectivityCheckJob?.cancel()
         connectivityCheckJob = AppScope.launch {
-            // Initial check after short delay to let listeners register
-            delay(2_000)
+            // Short initial delay for UI to register listeners
+            delay(1_000)
             while (!offlineMode.value) {
                 val client = jellyfinClient.value
                 if (client != null) {
@@ -73,7 +82,7 @@ object ConnectivityState {
                         onNetworkError("Unable to reach Jellyfin server")
                     }
                 }
-                delay(30_000)
+                delay(10_000) // Check every 10 seconds
             }
         }
     }
@@ -86,13 +95,14 @@ object ConnectivityState {
     private fun startReconnectChecks() {
         reconnectJob?.cancel()
         reconnectJob = AppScope.launch {
+            // Immediate first check, then periodic
             while (offlineMode.value) {
-                delay(30_000)
                 val success = jellyfinClient.value?.pingServer() ?: false
                 if (success) {
                     exitOfflineMode()
                     break
                 }
+                delay(10_000) // Check every 10 seconds
             }
         }
     }

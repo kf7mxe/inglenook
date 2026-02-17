@@ -10,10 +10,13 @@ import com.lightningkite.kiteui.views.expanding
 import com.lightningkite.kiteui.views.l2.RecyclerViewPlacerVerticalGrid
 import com.lightningkite.kiteui.views.l2.children
 import com.kf7mxe.inglenook.AudioBook
+import com.kf7mxe.inglenook.ViewMode
 import com.kf7mxe.inglenook.cache.ImageCache
 import com.kf7mxe.inglenook.components.BookCard
+import com.kf7mxe.inglenook.components.BookListItem
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.playback.PlaybackState
+import com.kf7mxe.inglenook.viewMode
 import com.lightningkite.kiteui.Routable
 import com.lightningkite.reactive.context.invoke
 import com.lightningkite.reactive.core.Signal
@@ -28,31 +31,10 @@ class SeriesDetailPage(val seriesName: String) : Page {
     override val title: Reactive<String> = Constant(seriesName)
 
     override fun ViewWriter.render() {
-        val isLoading = Signal(true)
-        val books = Signal<List<AudioBook>>(emptyList())
-        val errorMessage = Signal<String?>(null)
-
-        // Load books in series
-        fun loadBooks() {
-            isLoading.value = true
-            errorMessage.value = null
-            AppScope.launch {
-                try {
-                    val client = jellyfinClient.value
-                    if (client != null) {
-                        books.value = client.getBooksBySeries(seriesName)
-                    }
-                } catch (e: Exception) {
-                    errorMessage.value = "Failed to load books: ${e.message}"
-                } finally {
-                    isLoading.value = false
-                }
-            }
+        val books: Reactive<List<AudioBook>>  = rememberSuspending {
+            val client = jellyfinClient.invoke()
+            client?.getBooksBySeries(seriesName)?:emptyList()
         }
-
-        // Initial load
-        loadBooks()
-
         col {
             // Series header
             row {
@@ -90,7 +72,7 @@ class SeriesDetailPage(val seriesName: String) : Page {
                     shownWhen { books().isNotEmpty() }.subtext {
                         ::content {
                             val allAuthors = books().flatMap { it.authors }.distinct()
-                            "by ${allAuthors.joinToString(", ")}"
+                            "by ${allAuthors.map{it.name}.joinToString(", ")}"
                         }
                     }
                 }
@@ -99,39 +81,68 @@ class SeriesDetailPage(val seriesName: String) : Page {
             separator()
 
             // Loading state
-            shownWhen { isLoading() }.centered.activityIndicator()
-
-            // Error state
-            shownWhen { errorMessage() != null && !isLoading() }.centered.col {
-                gap = 0.5.rem
-                text { ::content { errorMessage() ?: "" } }
-                button {
-                    text("Retry")
-                    onClick { loadBooks() }
-                }
-            }
+            shownWhen { !books.state().ready }.centered.activityIndicator()
 
             // Empty state
-            shownWhen { books().isEmpty() && !isLoading() && errorMessage() == null }.centered.col {
+            shownWhen { books().isEmpty() && books.state().ready }.centered.col {
                 text { content = "No books found in this series" }
             }
 
             // Books list
-            shownWhen { !isLoading() && errorMessage() == null }.expanding.recyclerView {
-                ::placer { RecyclerViewPlacerVerticalGrid(2) }
-                children(books, { it.id }) { bookReactive ->
-                    BookCard(
-                        audioBook = bookReactive,
-                        onPlayClick = { book ->
-                            val startPosition = book.userData?.playbackPositionTicks ?: 0L
-                            PlaybackState.play(book, startPosition)
-                        },
-                        onClick = {
-                            mainPageNavigator.navigate(BookDetailPage(bookReactive().id))
+
+
+
+
+            expanding.swapView {
+                swapping(current = {
+                    viewMode()
+                },
+                    views = {viewMode ->
+                        when (viewMode) {
+                            ViewMode.Grid ->  {
+                                expanding.recyclerView {
+                                    ::placer { RecyclerViewPlacerVerticalGrid(2) }
+                                    children(books, { it.id }) { bookReactive ->
+                                        BookCard(
+                                            audioBook = bookReactive,
+                                            onPlayClick = { book ->
+                                                val startPosition = book.userData?.playbackPositionTicks ?: 0L
+                                                PlaybackState.play(book, startPosition)
+                                            },
+                                            onClick = {
+                                                mainPageNavigator.navigate(BookDetailPage(bookReactive().id))
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                            ViewMode.List ->  {
+                                expanding.recyclerView {
+                                    children(books, { it.id }) { bookReactive ->
+                                        BookListItem(
+                                            audioBook = bookReactive,
+                                            onPlayClick = { book ->
+                                                val startPosition = book.userData?.playbackPositionTicks ?: 0L
+                                                PlaybackState.play(book, startPosition)
+                                            },
+                                            onClick = {
+                                                mainPageNavigator.navigate(BookDetailPage(bookReactive().id))
+                                            }
+                                        )
+                                    }
+                                }
+                            }
                         }
-                    )
-                }
+                    }
+
+                )
             }
+
+
+
+
+
+
         }
     }
 }

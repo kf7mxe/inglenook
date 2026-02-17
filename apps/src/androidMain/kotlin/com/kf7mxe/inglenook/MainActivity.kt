@@ -1,6 +1,7 @@
 package com.kf7mxe.inglenook
 
 import android.os.Bundle
+import androidx.activity.OnBackPressedCallback
 import com.lightningkite.kiteui.KiteUiActivity
 import com.lightningkite.kiteui.Throwable_report
 import com.lightningkite.kiteui.models.Theme
@@ -32,6 +33,22 @@ class MainActivity : KiteUiActivity() {
 
         // Initialize Jellyfin client from stored config
         initializeJellyfinClient()
+
+
+
+
+        val callback = object : OnBackPressedCallback(true /* enabled by default */) {
+            override fun handleOnBackPressed() {
+                // Handle the back button event
+                // Example: Show a confirmation dialog
+                mainNavigator.goBack()
+            }
+        }
+
+        // Add the callback to the dispatcher
+        onBackPressedDispatcher.addCallback(this, callback)
+
+
 
         with(viewWriter) {
             app(main, dialog)

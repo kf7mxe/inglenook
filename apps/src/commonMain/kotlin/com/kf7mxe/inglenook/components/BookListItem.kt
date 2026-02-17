@@ -21,7 +21,7 @@ import com.lightningkite.reactive.context.invoke
 
 fun ViewWriter.BookListItem(
     audioBook: Reactive<AudioBook>,
-    onPlayClick: ((AudioBook) -> Unit)? = null,
+    onPlayClick: (suspend (AudioBook) -> Unit)? = null,
     onClick: suspend () -> Unit
 ) {
     val cachedCover = rememberSuspending {
@@ -59,12 +59,12 @@ fun ViewWriter.BookListItem(
                 }
             }
         }
-
-        // Main content (clickable to go to detail)
+//
+//        // Main content (clickable to go to detail)
         expanding.button {
             row {
                 // Thumbnail
-                sizeConstraints(width = 4.rem).frame {
+                sizeConstraints(height = 7.rem, width=5.rem).frame {
                     image {
                         this.rView::shown {
                             audioBook().coverImageId != null
@@ -82,7 +82,7 @@ fun ViewWriter.BookListItem(
                     }
                 }
 
-                // Book info
+//                // Book info
                 expanding.col {
 
                     text {
@@ -91,7 +91,7 @@ fun ViewWriter.BookListItem(
                     }
 
                     subtext {
-                        ::content { audioBook().authors.joinToString(", ").ifEmpty { "Unknown Author" } }
+                        ::content { audioBook().authors.map{it.name}.joinToString(", ").ifEmpty { "Unknown Author" } }
                         ellipsis = true
                     }
 

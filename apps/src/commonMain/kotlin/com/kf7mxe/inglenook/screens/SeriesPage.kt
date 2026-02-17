@@ -10,9 +10,14 @@ import com.lightningkite.kiteui.views.expanding
 import com.lightningkite.kiteui.views.l2.RecyclerViewPlacerVerticalGrid
 import com.lightningkite.kiteui.views.l2.children
 import com.kf7mxe.inglenook.Series
+import com.kf7mxe.inglenook.ViewMode
 import com.kf7mxe.inglenook.components.SeriesCard
+import com.kf7mxe.inglenook.components.SeriesListItem
+import com.kf7mxe.inglenook.dashboard
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
+import com.kf7mxe.inglenook.viewMode
 import com.lightningkite.kiteui.Routable
+import com.lightningkite.kiteui.views.fieldTheme
 import com.lightningkite.reactive.context.invoke
 import com.lightningkite.reactive.core.Signal
 import com.lightningkite.reactive.core.AppScope
@@ -23,7 +28,7 @@ import com.lightningkite.reactive.core.rememberSuspending
 import kotlinx.coroutines.launch
 
 @Routable("series")
-class SeriesPage : Page {
+class SeriesPage(val searchQuery:Signal<String> = Signal("")) : Page {
     override val title: Reactive<String> = Constant("Series")
 
     override fun ViewWriter.render() {
@@ -33,21 +38,29 @@ class SeriesPage : Page {
             println("DEBUG test ${test.size}")
             test
         }
-        val searchQuery = Signal("")
         val errorMessage = Signal<String?>(null)
 
 
         col {
+            paddingByEdge = Edges(1.rem,0.rem,1.rem,0.rem)
             // Search bar
-            row {
-                padding = 1.rem
-                gap = 0.5.rem
 
-                expanding.textInput {
+            row {
+                expanding.fieldTheme.textInput {
                     hint = "Search series..."
                     content bind searchQuery
                 }
+                button {
+                    icon {
+                        ::source { if (viewMode() == ViewMode.Grid) Icon.menu else Icon.dashboard }
+                        description = "Toggle view"
+                    }
+                    onClick {
+                        viewMode.value = if (viewMode.value == ViewMode.Grid) ViewMode.List else ViewMode.Grid
+                    }
+                }
             }
+
 
             // Loading state
             shownWhen { !allSeries.state().ready }.centered.activityIndicator()
@@ -62,33 +75,65 @@ class SeriesPage : Page {
 //                }
 //            }
 
-            // Empty state
+
+
             shownWhen { allSeries().isEmpty() && allSeries.state().ready && errorMessage() == null }.centered.col {
-                gap = 0.5.rem
                 text { content = "No series found" }
                 subtext { content = "Books with series metadata will appear here" }
             }
 
-            // Series grid with search filtering
-            shownWhen { allSeries.state().ready && errorMessage() == null }.recyclerView {
-                ::placer { RecyclerViewPlacerVerticalGrid(2) }
 
-                // Create a reactive filtered list
-                val filteredSeries = com.lightningkite.reactive.core.remember {
-                    val query = searchQuery().lowercase()
-                    if (query.isBlank()) {
-                        allSeries()
-                    } else {
-                        allSeries().filter { it.name.lowercase().contains(query) }
-                    }
-                }
-
-                children(allSeries, { it.id }) { seriesReactive ->
-                    SeriesCard(seriesReactive) {
-                        mainPageNavigator.navigate(SeriesDetailPage(seriesReactive().name))
-                    }
+            val filteredSeries = com.lightningkite.reactive.core.remember {
+                val query = searchQuery().lowercase()
+                if (query.isBlank()) {
+                    allSeries()
+                } else {
+                    allSeries().filter { it.name.lowercase().contains(query) }
                 }
             }
+
+
+
+
+            expanding.swapView {
+                swapping(current = {
+                    viewMode()
+                },
+                    views = {viewMode ->
+                        when(viewMode) {
+                            ViewMode.Grid -> {
+                                expanding.recyclerView {
+                                    ::placer { RecyclerViewPlacerVerticalGrid(2) }
+
+                                    // Create a reactive filtered list
+
+
+                                    children(allSeries, { it.id }) { seriesReactive ->
+                                        SeriesCard(seriesReactive) {
+                                            mainPageNavigator.navigate(SeriesDetailPage(seriesReactive().name))
+                                        }
+                                    }
+                                }
+                            }
+                            ViewMode.List -> {
+                                expanding.recyclerView {
+                                    children(allSeries, { it.id }) { seriesReactive ->
+                                        SeriesListItem(seriesReactive) {
+                                            mainPageNavigator.navigate(SeriesDetailPage(seriesReactive().name))
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    })
+            }
+
+
+            // Empty state
+
+
+            // Series grid with search filtering
+
         }
     }
 }

@@ -46,9 +46,27 @@ object PlaybackState {
     private val persistedLastBook get() = serverScopedProperty<AudioBook?>("lastPlayedBook", null)
     private val persistedLastPosition get() = serverScopedProperty<Long>("lastPlayedPosition", 0L)
 
+    // Per-book local position store (survives offline mode)
+    private val persistedBookPositions get() = serverScopedProperty<Map<String, Long>>("bookPositions", emptyMap())
+
+    /** Get the locally persisted playback position for a book. */
+    fun getLocalPosition(bookId: String): Long {
+        return persistedBookPositions.value[bookId] ?: 0L
+    }
+
+    private fun saveBookPosition(bookId: String, position: Long) {
+        persistedBookPositions.value = persistedBookPositions.value + (bookId to position)
+    }
+
     private fun saveLastPlayed() {
-        persistedLastBook.value = currentBook.value
-        persistedLastPosition.value = positionTicks.value
+        val book = currentBook.value
+        val position = positionTicks.value
+        persistedLastBook.value = book
+        persistedLastPosition.value = position
+        // Also save to per-book position store
+        if (book != null && position > 0L) {
+            saveBookPosition(book.id, position)
+        }
     }
 
     private fun clearLastPlayed() {
