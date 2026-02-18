@@ -8,7 +8,7 @@ actual object PlatformDownloader {
     actual suspend fun performDownload(
         book: AudioBook,
         onProgress: (DownloadProgress) -> Unit
-    ): DownloadedBook {
+    ): DownloadedBook? {
         throw NotImplementedError("iOS downloads not yet implemented")
     }
 

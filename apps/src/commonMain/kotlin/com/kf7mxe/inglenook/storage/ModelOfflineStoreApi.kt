@@ -66,7 +66,6 @@ class ModelOfflineStoreApi<T, ID, UID>(
             } else {
                 // --- First Time / No Cache Path ---
                 // No local data, fetch from remote before declaring loaded
-                if(className=="GenericIngredient") return
                 persistItems()
                 isLoaded = true
             }

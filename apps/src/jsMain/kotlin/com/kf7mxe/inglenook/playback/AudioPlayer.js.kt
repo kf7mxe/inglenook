@@ -4,7 +4,7 @@ import com.kf7mxe.inglenook.Book
 import com.kf7mxe.inglenook.downloads.PlatformDownloader
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import kotlinx.browser.window
-import kotlinx.coroutines.GlobalScope
+import com.lightningkite.reactive.core.AppScope
 import kotlinx.coroutines.launch
 import org.w3c.dom.Audio
 import org.w3c.dom.events.Event
@@ -26,7 +26,7 @@ class JsAudioPlayer : AudioPlayer {
         if (localFilePath != null && localFilePath.startsWith("indexeddb://")) {
             // Need to fetch blob URL asynchronously
             val bookId = localFilePath.removePrefix("indexeddb://")
-            GlobalScope.launch {
+            AppScope.launch {
                 val blobUrl = PlatformDownloader.getBlobUrl(bookId)
                 if (blobUrl != null) {
                     startPlayback(book, blobUrl, startPositionTicks)
@@ -58,7 +58,7 @@ class JsAudioPlayer : AudioPlayer {
                 val currentTimeSeconds = currentTime
                 val positionTicks = (currentTimeSeconds * 10_000_000).toLong()
 
-                GlobalScope.launch {
+                AppScope.launch {
                     PlaybackState.onPositionUpdate(positionTicks)
                 }
             }

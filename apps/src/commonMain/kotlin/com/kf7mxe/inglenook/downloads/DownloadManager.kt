@@ -40,22 +40,18 @@ object DownloadManager {
         ))
 
         try {
-            // Start download using platform-specific implementation
-            // On Android, this delegates to DownloadService and may throw UnsupportedOperationException
-            // The service will call notifyDownloadComplete() when done
+            // Start download using platform-specific implementation.
+            // Returns null if the download is handled asynchronously (e.g. Android service).
             val downloadedBook = PlatformDownloader.performDownload(book) { progress ->
                 activeDownloads.value = activeDownloads.value + (book.id to progress)
             }
 
-            // Add to stored downloads (for platforms that return synchronously)
-            storedDownloads.value = storedDownloads.value + downloadedBook
-
-            // Remove from active downloads
-            activeDownloads.value = activeDownloads.value - book.id
-        } catch (e: UnsupportedOperationException) {
-            // Android uses async service-based downloads - this is expected
-            // Progress and completion will be handled via notifyDownloadComplete() callback
-            // Keep the download in activeDownloads with Pending status
+            if (downloadedBook != null) {
+                // Synchronous completion (JS/iOS) — add to stored downloads
+                storedDownloads.value = storedDownloads.value + downloadedBook
+                activeDownloads.value = activeDownloads.value - book.id
+            }
+            // null means async (Android service) — progress via DownloadManager callbacks
         } catch (e: Exception) {
             // Mark as failed
             activeDownloads.value = activeDownloads.value + (book.id to DownloadProgress(

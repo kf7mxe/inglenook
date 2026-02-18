@@ -11,8 +11,7 @@ import com.lightningkite.kiteui.models.ImageSource
 import com.lightningkite.kiteui.models.Paint
 import com.lightningkite.kiteui.views.direct.createObjectURL
 import kotlinx.browser.document
-import kotlinx.coroutines.DelicateCoroutinesApi
-import kotlinx.coroutines.GlobalScope
+import com.lightningkite.reactive.core.AppScope
 import kotlinx.coroutines.launch
 import org.w3c.dom.CanvasRenderingContext2D
 import org.w3c.dom.HTMLCanvasElement
@@ -23,7 +22,6 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 import kotlin.js.add
 
-@OptIn(DelicateCoroutinesApi::class)
 actual suspend fun blurServerImageAndCacheImage(
     location: String,
     image: ImageRemote,
@@ -80,7 +78,7 @@ actual suspend fun blurServerImageAndCacheImage(
             // 3. Convert to Blob
             canvas.toBlob({ blurredImageBlob ->
                 if (blurredImageBlob != null) {
-                    GlobalScope.launch {
+                    AppScope.launch {
                         database?.writeTransaction("blurredImageCache") {
                             val store = objectStore("blurredImageCache")
                             store.add(blurredImageBlob, Key(getCacheFileName(location)))
@@ -117,7 +115,6 @@ actual suspend fun getBlurredCachedImage(localPath: String): ImageSource? {
     return image?.let { ImageRaw(it) }
 }
 
-@OptIn(DelicateCoroutinesApi::class)
 actual suspend fun blurAndCacheImage(
     cacheFileName: String,
     localPath: String,
@@ -186,7 +183,7 @@ actual suspend fun blurAndCacheImage(
             // Convert the canvas to a Blob and resume the coroutine
             canvas.toBlob({ blurredImageBlob ->
                 if (blurredImageBlob != null) {
-                    GlobalScope.launch {
+                    AppScope.launch {
                         database?.writeTransaction("blurredImageCache") {
                             val store = objectStore("blurredImageCache")
                             store.add(blurredImageBlob, Key(cacheFileName))

@@ -18,6 +18,7 @@ object ConnectivityState {
 
     private var reconnectJob: Job? = null
     private var connectivityCheckJob: Job? = null
+    private var connectivityListener: (() -> Unit)? = null
     private var consecutiveFailures = 0
     private const val FAILURES_BEFORE_DIALOG = 3
     private const val INITIAL_DELAY_MS = 1_000L
@@ -83,8 +84,9 @@ object ConnectivityState {
             startConnectivityChecks()
         }
 
-        // Listen to KiteUI's built-in connectivity detection
-        Connectivity.lastConnectivityIssueCode.addListener {
+        // Listen to KiteUI's built-in connectivity detection (remove previous listener if re-initialized)
+        connectivityListener?.invoke()
+        connectivityListener = Connectivity.lastConnectivityIssueCode.addListener {
             val code = Connectivity.lastConnectivityIssueCode.value
             if (code != 0.toShort()) {
                 onNetworkError("Connection issue (HTTP $code)")

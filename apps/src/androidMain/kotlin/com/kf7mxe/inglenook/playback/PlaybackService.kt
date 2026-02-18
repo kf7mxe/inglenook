@@ -19,6 +19,7 @@ import androidx.media3.session.SessionResult
 import com.kf7mxe.inglenook.Book
 import com.kf7mxe.inglenook.MainActivity
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
+import java.lang.ref.WeakReference
 
 class PlaybackService : MediaSessionService() {
 
@@ -220,12 +221,12 @@ class PlaybackService : MediaSessionService() {
         private const val ACTION_SKIP_BACK = "com.kf7mxe.inglenook.SKIP_BACK"
         private const val ACTION_SKIP_FORWARD = "com.kf7mxe.inglenook.SKIP_FORWARD"
 
-        private var instance: PlaybackService? = null
+        private var instanceRef: WeakReference<PlaybackService>? = null
 
-        fun getInstance(): PlaybackService? = instance
+        fun getInstance(): PlaybackService? = instanceRef?.get()
     }
 
     init {
-        instance = this
+        instanceRef = WeakReference(this)
     }
 }

@@ -86,7 +86,7 @@ actual object PlatformDownloader {
     actual suspend fun performDownload(
         book: Book,
         onProgress: (DownloadProgress) -> Unit
-    ): DownloadedBook {
+    ): DownloadedBook? {
         val client = jellyfinClient.value
             ?: throw IllegalStateException("Not connected to Jellyfin server")
 

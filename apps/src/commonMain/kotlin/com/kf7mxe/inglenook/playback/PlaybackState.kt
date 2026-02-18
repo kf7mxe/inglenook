@@ -12,6 +12,7 @@ import com.lightningkite.reactive.core.Signal
 import com.lightningkite.reactive.core.AppScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 object PlaybackState {
@@ -294,7 +295,7 @@ object PlaybackState {
             isBuffering.value = false // Clear even if player didn't report position yet
 
             // Normal sync loop
-            while (true) {
+            while (isActive) {
                 delay(PROGRESS_SYNC_INTERVAL_MS)
 
                 val book = currentBook.value

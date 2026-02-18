@@ -2,14 +2,21 @@
 
 package com.kf7mxe.inglenook.cache
 
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlin.time.Clock
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
 
 /**
  * Simple in-memory cache for API responses with TTL support.
+ *
+ * Non-suspend methods (get, put, invalidate, clear, getStale) assume main-thread access.
+ * The suspend getOrPut() overloads are protected by a Mutex for safe concurrent use.
  */
 object ApiCache {
+
+    private val mutex = Mutex()
 
     private data class CacheEntry<T>(
         val data: T,
@@ -82,18 +89,15 @@ object ApiCache {
         onError: ((Exception) -> Unit)? = null,
         compute: suspend () -> T
     ): T {
-        val cached = get<T>(key)
-        if (cached != null) {
-            return cached
-        }
+        mutex.withLock { get<T>(key) }?.let { return it }
 
         return try {
             val computed = compute()
-            put(key, computed, ttl)
+            mutex.withLock { put(key, computed, ttl) }
             computed
         } catch (e: Exception) {
             onError?.invoke(e)
-            val stale = getStale<T>(key)
+            val stale = mutex.withLock { getStale<T>(key) }
             if (stale != null) stale else throw e
         }
     }
@@ -112,19 +116,16 @@ object ApiCache {
         compute: suspend () -> T
     ): T {
         if (!forceRefresh) {
-            val cached = get<T>(key)
-            if (cached != null) {
-                return cached
-            }
+            mutex.withLock { get<T>(key) }?.let { return it }
         }
 
         return try {
             val computed = compute()
-            put(key, computed, ttl)
+            mutex.withLock { put(key, computed, ttl) }
             computed
         } catch (e: Exception) {
             onError?.invoke(e)
-            val stale = getStale<T>(key)
+            val stale = mutex.withLock { getStale<T>(key) }
             if (stale != null) stale else throw e
         }
     }

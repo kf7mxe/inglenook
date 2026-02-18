@@ -1,6 +1,8 @@
 package com.kf7mxe.inglenook.cache
 
 import com.lightningkite.kiteui.models.ImageSource
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 expect suspend fun fetchAndPersistImage(url: String, key: String): ImageSource?
 expect suspend fun loadPersistedImage(key: String): ImageSource?
@@ -10,8 +12,9 @@ object ImageCache {
     private const val MAX_MEMORY_ENTRIES = 100
     private val memoryCache = mutableMapOf<String, ImageSource>()
     private val accessOrder = mutableListOf<String>()
+    private val mutex = Mutex()
 
-    private fun putInMemory(key: String, value: ImageSource) {
+    private fun putInMemoryUnsafe(key: String, value: ImageSource) {
         if (memoryCache.containsKey(key)) {
             accessOrder.remove(key)
         } else if (memoryCache.size >= MAX_MEMORY_ENTRIES) {
@@ -22,7 +25,7 @@ object ImageCache {
         accessOrder.add(key)
     }
 
-    private fun getFromMemory(key: String): ImageSource? {
+    private fun getFromMemoryUnsafe(key: String): ImageSource? {
         val value = memoryCache[key] ?: return null
         // Move to end (most recently used)
         accessOrder.remove(key)
@@ -45,26 +48,28 @@ object ImageCache {
         val key = cacheKey(url)
 
         // L1: Check in-memory cache
-        getFromMemory(key)?.let { return it }
+        mutex.withLock { getFromMemoryUnsafe(key) }?.let { return it }
 
         // L2: Check persistent cache
         val persisted = loadPersistedImage(key)
         if (persisted != null) {
-            putInMemory(key, persisted)
+            mutex.withLock { putInMemoryUnsafe(key, persisted) }
             return persisted
         }
 
         // L3: Fetch from network, persist, and return
         val fetched = fetchAndPersistImage(url, key)
         if (fetched != null) {
-            putInMemory(key, fetched)
+            mutex.withLock { putInMemoryUnsafe(key, fetched) }
         }
         return fetched
     }
 
     suspend fun clear() {
-        memoryCache.clear()
-        accessOrder.clear()
+        mutex.withLock {
+            memoryCache.clear()
+            accessOrder.clear()
+        }
         clearPersistedImageCache()
     }
 }

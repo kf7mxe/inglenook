@@ -21,7 +21,7 @@ actual object PlatformDownloader {
     actual suspend fun performDownload(
         book: Book,
         onProgress: (DownloadProgress) -> Unit
-    ): DownloadedBook {
+    ): DownloadedBook? {
         // Queue the download with the service
         val service = DownloadService.getInstance()
         if (service != null) {
@@ -41,19 +41,13 @@ actual object PlatformDownloader {
             }
 
             // Queue download once service starts (it will pick up pending items)
-            // The service will be started and will call processQueue()
-            // We need to queue the book - do this via a small delay or callback
-            // For now, we'll re-queue once the service is available
             kotlinx.coroutines.delay(100) // Small delay to let service start
             DownloadService.getInstance()?.queueDownload(book)
         }
 
-        // Return a placeholder - actual completion is handled via DownloadManager callbacks
-        // The service will call DownloadManager.notifyDownloadComplete() when done
-        throw UnsupportedOperationException(
-            "Android downloads are handled asynchronously via DownloadService. " +
-            "Use DownloadManager callbacks for progress and completion."
-        )
+        // Return null — Android downloads are handled asynchronously via DownloadService.
+        // Progress and completion are reported through DownloadManager callbacks.
+        return null
     }
 
     actual suspend fun cancelDownload(bookId: String) {

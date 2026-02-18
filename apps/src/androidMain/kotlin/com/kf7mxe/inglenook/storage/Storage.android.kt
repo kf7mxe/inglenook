@@ -48,8 +48,6 @@ actual suspend fun saveImageToStorage(
     when (image) {
         null -> return
         is ImageRemote -> {
-            client.prepareGet(image.url)
-
             val directory = File(AndroidAppContext.applicationCtx.filesDir, directoryName)
             if (!directory.exists()) {
                 directory.mkdirs()
@@ -67,7 +65,6 @@ actual suspend fun saveImageToStorage(
                                     outputStream.write(buffer, 0, bytesRead)
                                 }
                             }
-                            outputStream.close()
                         }
 
                         true
@@ -98,13 +95,11 @@ actual suspend fun saveImageToStorage(
             withContext(Dispatchers.IO) {
                 savedImageFile.createNewFile()
                 try {
-                    val oStream = FileOutputStream(savedImageFile)
-                    val inputStream =
-                        AndroidAppContext.applicationCtx.contentResolver.openInputStream(image.file.uri)
-                    inputStream?.let {
-                        copy(inputStream, oStream)
+                    FileOutputStream(savedImageFile).use { oStream ->
+                        AndroidAppContext.applicationCtx.contentResolver.openInputStream(image.file.uri)?.use { inputStream ->
+                            copy(inputStream, oStream)
+                        }
                     }
-                    oStream.flush()
                 } catch (e: Exception) {
                     e.printStackTrace()
                 }

@@ -423,7 +423,7 @@ class BookDetailPage(val bookId: String) : Page {
                         }
 
                         shownWhen { showBookmarks() }.col {
-                            for (bookmark in bookmarks.value) {
+                            forEach(bookmarks) { bookmark ->
                                 row {
                                     expanding.button {
                                         col {

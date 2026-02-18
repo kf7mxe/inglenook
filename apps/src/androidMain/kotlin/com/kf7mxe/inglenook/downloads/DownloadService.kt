@@ -29,6 +29,7 @@ import java.io.FileOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.concurrent.ConcurrentHashMap
+import java.lang.ref.WeakReference
 import java.util.concurrent.ConcurrentLinkedQueue
 
 class DownloadService : Service() {
@@ -42,8 +43,8 @@ class DownloadService : Service() {
         const val ACTION_CANCEL_DOWNLOAD = "com.kf7mxe.inglenook.CANCEL_DOWNLOAD"
         const val EXTRA_BOOK_ID = "book_id"
 
-        private var instance: DownloadService? = null
-        fun getInstance(): DownloadService? = instance
+        private var instanceRef: WeakReference<DownloadService>? = null
+        fun getInstance(): DownloadService? = instanceRef?.get()
     }
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -54,7 +55,7 @@ class DownloadService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        instance = this
+        instanceRef = WeakReference(this)
         createNotificationChannel()
     }
 
@@ -82,7 +83,7 @@ class DownloadService : Service() {
 
     override fun onDestroy() {
         serviceScope.cancel()
-        instance = null
+        instanceRef = null
         super.onDestroy()
     }
 
