@@ -5,15 +5,14 @@ import com.lightningkite.kiteui.views.ViewWriter
 import com.lightningkite.kiteui.views.centered
 import com.lightningkite.kiteui.views.direct.*
 import com.lightningkite.kiteui.views.expanding
-import com.lightningkite.kiteui.views.l2.icon
-import com.lightningkite.kiteui.views.atBottomEnd
 import com.lightningkite.kiteui.views.card
-import com.kf7mxe.inglenook.AudioBook
+import com.kf7mxe.inglenook.Book
 import com.kf7mxe.inglenook.ItemType
 import com.kf7mxe.inglenook.cache.ImageCache
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.playback.PlaybackState
 import com.kf7mxe.inglenook.book
+import com.kf7mxe.inglenook.pause
 import com.kf7mxe.inglenook.playArrow
 import com.kf7mxe.inglenook.screens.EbookReaderPage
 import com.kf7mxe.inglenook.storage.ImageSemantic
@@ -23,13 +22,13 @@ import com.lightningkite.reactive.core.rememberSuspending
 import com.lightningkite.reactive.context.invoke
 
 fun ViewWriter.BookCard(
-    audioBook: Reactive<AudioBook>,
-    onPlayClick: (suspend (AudioBook)-> Unit)? = null,
+    book: Reactive<Book>,
+    onPlayClick: (suspend (Book)-> Unit)? = null,
     onClick: suspend () -> Unit
 ) {
     val cachedCover = rememberSuspending {
         val client = jellyfinClient()
-        val bookData = audioBook()
+        val bookData = book()
         if (client != null && bookData.coverImageId != null) {
             ImageCache.get(client.getImageUrl(bookData.coverImageId, bookData.id))
         } else null
@@ -45,17 +44,17 @@ fun ViewWriter.BookCard(
                     // Cover image
                     themed(ImageSemantic).sizeConstraints( height = 12.rem).centered.image {
                         this.rView::shown {
-                            audioBook().coverImageId != null
+                            book().coverImageId != null
                         }
                         ::source { cachedCover() }
                         scaleType = ImageScaleType.Fit
                     }
-                    centered.icon {
+                    centered.sizeConstraints( height = 12.rem).icon {
                         ::shown {
-                            audioBook().coverImageId == null
+                            book().coverImageId == null
                         }
                         source = Icon.book
-                        ::description { audioBook().title }
+                        ::description { book().title }
                     }
                 }
 
@@ -68,12 +67,12 @@ fun ViewWriter.BookCard(
                 // Title and author (clickable to go to detail)
                 col {
                     text {
-                        ::content { audioBook().title }
+                        ::content { book().title }
                         ellipsis = true
                         lineClamp = 2
                     }
                     subtext {
-                        ::content { audioBook().authors.takeIf { it.isNotEmpty() }?.map{it.name}?.joinToString(",") ?: "Unknown Author" }
+                        ::content { book().authors.takeIf { it.isNotEmpty() }?.map{it.name}?.joinToString(",") ?: "Unknown Author" }
                         ellipsis = true
                         lineClamp = 2
                     }
@@ -86,11 +85,22 @@ fun ViewWriter.BookCard(
                     themeChoice += ImportantSemantic
                     // Show play icon for audiobooks, book icon for ebooks
                     centered.icon {
-                        ::source { if (audioBook().itemType == ItemType.Ebook) Icon.book else Icon.playArrow }
-                        ::description { if (audioBook().itemType == ItemType.Ebook) "Ebook" else "Play" }
+                        ::source {
+                            if (book().itemType == ItemType.Ebook)  Icon.book else {
+                                println("DEBUG PlaybackState.currentBook() == book() ${PlaybackState.currentBook() == book()}")
+                                println("DEBUG PlaybackState.isPlaying() ${PlaybackState.isPlaying()}")
+                                if( PlaybackState.currentBook() == book() && PlaybackState.isPlaying()) {
+                                    Icon.pause
+                                } else {
+                                    Icon.playArrow
+
+                                }
+                            }
+                        }
+                        ::description { if (book().itemType == ItemType.Ebook) "Ebook" else "Play" }
                     }
                     onClick {
-                        val currentBook = audioBook.invoke()
+                        val currentBook = book.invoke()
                         // Only play audiobooks
                         if (currentBook.itemType == ItemType.AudioBook) {
                             if (onPlayClick != null) {

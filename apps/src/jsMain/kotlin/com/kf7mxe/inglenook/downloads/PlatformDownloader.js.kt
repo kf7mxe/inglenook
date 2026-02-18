@@ -2,7 +2,7 @@
 
 package com.kf7mxe.inglenook.downloads
 
-import com.kf7mxe.inglenook.AudioBook
+import com.kf7mxe.inglenook.Book
 import com.kf7mxe.inglenook.DownloadProgress
 import com.kf7mxe.inglenook.DownloadStatus
 import com.kf7mxe.inglenook.DownloadedBook
@@ -84,7 +84,7 @@ actual object PlatformDownloader {
     }
 
     actual suspend fun performDownload(
-        book: AudioBook,
+        book: Book,
         onProgress: (DownloadProgress) -> Unit
     ): DownloadedBook {
         val client = jellyfinClient.value

@@ -44,13 +44,8 @@ import com.lightningkite.reactive.core.Signal
 import com.lightningkite.kiteui.reactive.PersistentProperty
 import com.lightningkite.kiteui.views.RView
 import com.lightningkite.kiteui.views.atBottom
-import com.lightningkite.kiteui.views.atEnd
 import com.lightningkite.kiteui.views.closePopovers
-import com.lightningkite.kiteui.views.closeThisPopover
 import com.lightningkite.kiteui.views.forEach
-import com.lightningkite.kiteui.views.forEachById
-import com.lightningkite.kiteui.views.forEachUpdating
-import com.lightningkite.kiteui.views.important
 import com.lightningkite.kiteui.views.l2.dialog
 import com.lightningkite.kiteui.views.l2.overlayFrame
 import com.lightningkite.kiteui.views.nav
@@ -58,7 +53,6 @@ import com.lightningkite.kiteui.views.rContextAddon
 import com.lightningkite.reactive.context.invoke
 import com.lightningkite.reactive.core.remember
 import com.lightningkite.reactive.core.rememberSuspending
-import io.ktor.util.Platform
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 
@@ -70,7 +64,7 @@ val persistedThemeSettings = PersistentProperty<ThemeSettings>("themeSettings", 
 val appTheme = Signal<Theme>(createTheme(persistedThemePreset.value, persistedThemeSettings.value))
 
 
-val bookToShowBlurredBackgroundCoverOf = Signal<AudioBook?>(null)
+val bookToShowBlurredBackgroundCoverOf = Signal<Book?>(null)
 
 // Current theme preset setting (reactive, synced with persisted)
 val currentThemePreset get() = persistedThemePreset
@@ -261,6 +255,19 @@ fun ViewWriter.bottomBar(navItems: List<NavLink>) {
             gap = 0.dp
             for (navLink in navItems) {
                 expanding.link {
+
+                    dynamicTheme {
+                        val test = mainPageNavigator.currentPage()
+                            ?.let { mainPageNavigator.routes.render(it) }?.urlLikePath?.segments
+
+
+                        val matchingScreen = mainPageNavigator.currentPage()
+                            ?.let { mainPageNavigator.routes.render(it) }?.urlLikePath?.segments == mainPageNavigator.routes.render(
+                            navLink.destination.invoke()
+                        )?.urlLikePath?.segments
+                        if (matchingScreen) SelectedSemantic else null
+                    }
+
                     resetsStack = true
                     col {
                         gap = 0.0.rem
@@ -339,6 +346,7 @@ fun ViewWriter.nowPlayingPreview() {
                 ::description { if (PlaybackState.isPlaying()) "Pause" else "Play" }
             }
             onClick {
+                println("DEBUG ")
                 PlaybackState.togglePlayPause()
             }
         }
@@ -349,7 +357,7 @@ fun ViewWriter.nowPlayingBottomSheet() {
     println("DEBUG coordinatorFram ${coordinatorFrame}")
     coordinatorFrame?.bottomSheet(
         partialRatio = 0.75f,
-        startState = BottomSheetState.EXPANDED
+        startState = BottomSheetState.PARTIALLY_EXPANDED
     ) {
         unpadded.nowPlaying()
     }
@@ -439,7 +447,7 @@ fun ViewWriter.nowPlaying() {
                     }
                 }
 
-                button {
+               unpadded. button {
                     ::shown {
                         chapters().isNotEmpty()
                     }
@@ -472,9 +480,9 @@ fun ViewWriter.nowPlaying() {
             // Playback speed selector
             centered.row {
                 gap = 0.5.rem
-                text("Speed:")
+                centered.text("Speed:")
                 for (speed in listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f)) {
-                    button {
+                    centered.button {
                         text("${speed}x")
                         onClick { PlaybackState.setPlaybackSpeed(speed) }
                         dynamicTheme {
@@ -511,7 +519,7 @@ fun ViewWriter.nowPlaying() {
 
                 // Timer options
                 centered.row {
-                    text("Sleep:")
+                    centered.text("Sleep:")
                     for (minutes in listOf(15, 30, 45, 60)) {
                         button {
                             text("${minutes}m")

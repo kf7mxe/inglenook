@@ -13,6 +13,8 @@ import com.kf7mxe.inglenook.Series
 import com.kf7mxe.inglenook.ViewMode
 import com.kf7mxe.inglenook.components.SeriesCard
 import com.kf7mxe.inglenook.components.SeriesListItem
+import com.kf7mxe.inglenook.components.connectionError
+import com.kf7mxe.inglenook.connectivity.ConnectivityState
 import com.kf7mxe.inglenook.dashboard
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.viewMode
@@ -77,7 +79,12 @@ class SeriesPage(val searchQuery:Signal<String> = Signal("")) : Page {
 
 
 
-            shownWhen { allSeries().isEmpty() && allSeries.state().ready && errorMessage() == null }.centered.col {
+            // Connection error state
+            shownWhen { allSeries().isEmpty() && allSeries.state().ready && ConnectivityState.lastNetworkError() != null }.connectionError {
+                mainPageNavigator.navigate(LibraryPage())
+            }
+
+            shownWhen { allSeries().isEmpty() && allSeries.state().ready && ConnectivityState.lastNetworkError() == null }.centered.col {
                 text { content = "No series found" }
                 subtext { content = "Books with series metadata will appear here" }
             }

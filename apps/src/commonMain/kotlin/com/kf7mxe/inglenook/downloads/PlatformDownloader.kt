@@ -1,6 +1,6 @@
 package com.kf7mxe.inglenook.downloads
 
-import com.kf7mxe.inglenook.AudioBook
+import com.kf7mxe.inglenook.Book
 import com.kf7mxe.inglenook.DownloadProgress
 import com.kf7mxe.inglenook.DownloadedBook
 
@@ -15,7 +15,7 @@ expect object PlatformDownloader {
      * @return The downloaded book information including local file path
      */
     suspend fun performDownload(
-        book: AudioBook,
+        book: Book,
         onProgress: (DownloadProgress) -> Unit
     ): DownloadedBook
 

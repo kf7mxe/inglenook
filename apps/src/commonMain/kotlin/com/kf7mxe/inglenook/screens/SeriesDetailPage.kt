@@ -9,29 +9,28 @@ import com.lightningkite.kiteui.views.direct.*
 import com.lightningkite.kiteui.views.expanding
 import com.lightningkite.kiteui.views.l2.RecyclerViewPlacerVerticalGrid
 import com.lightningkite.kiteui.views.l2.children
-import com.kf7mxe.inglenook.AudioBook
+import com.kf7mxe.inglenook.Book
 import com.kf7mxe.inglenook.ViewMode
 import com.kf7mxe.inglenook.cache.ImageCache
 import com.kf7mxe.inglenook.components.BookCard
 import com.kf7mxe.inglenook.components.BookListItem
+import com.kf7mxe.inglenook.components.connectionError
+import com.kf7mxe.inglenook.connectivity.ConnectivityState
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.playback.PlaybackState
 import com.kf7mxe.inglenook.viewMode
 import com.lightningkite.kiteui.Routable
 import com.lightningkite.reactive.context.invoke
-import com.lightningkite.reactive.core.Signal
-import com.lightningkite.reactive.core.AppScope
 import com.lightningkite.reactive.core.Constant
 import com.lightningkite.reactive.core.rememberSuspending
 import com.lightningkite.reactive.core.Reactive
-import kotlinx.coroutines.launch
 
 @Routable("series/{seriesName}")
 class SeriesDetailPage(val seriesName: String) : Page {
     override val title: Reactive<String> = Constant(seriesName)
 
     override fun ViewWriter.render() {
-        val books: Reactive<List<AudioBook>>  = rememberSuspending {
+        val books: Reactive<List<Book>>  = rememberSuspending {
             val client = jellyfinClient.invoke()
             client?.getBooksBySeries(seriesName)?:emptyList()
         }
@@ -83,8 +82,13 @@ class SeriesDetailPage(val seriesName: String) : Page {
             // Loading state
             shownWhen { !books.state().ready }.centered.activityIndicator()
 
+            // Connection error state
+            shownWhen { books().isEmpty() && books.state().ready && ConnectivityState.lastNetworkError() != null }.connectionError {
+                mainPageNavigator.navigate(SeriesDetailPage(seriesName))
+            }
+
             // Empty state
-            shownWhen { books().isEmpty() && books.state().ready }.centered.col {
+            shownWhen { books().isEmpty() && books.state().ready && ConnectivityState.lastNetworkError() == null }.centered.col {
                 text { content = "No books found in this series" }
             }
 
@@ -104,7 +108,7 @@ class SeriesDetailPage(val seriesName: String) : Page {
                                     ::placer { RecyclerViewPlacerVerticalGrid(2) }
                                     children(books, { it.id }) { bookReactive ->
                                         BookCard(
-                                            audioBook = bookReactive,
+                                            book = bookReactive,
                                             onPlayClick = { book ->
                                                 val startPosition = book.userData?.playbackPositionTicks ?: 0L
                                                 PlaybackState.play(book, startPosition)
@@ -120,7 +124,7 @@ class SeriesDetailPage(val seriesName: String) : Page {
                                 expanding.recyclerView {
                                     children(books, { it.id }) { bookReactive ->
                                         BookListItem(
-                                            audioBook = bookReactive,
+                                            book = bookReactive,
                                             onPlayClick = { book ->
                                                 val startPosition = book.userData?.playbackPositionTicks ?: 0L
                                                 PlaybackState.play(book, startPosition)

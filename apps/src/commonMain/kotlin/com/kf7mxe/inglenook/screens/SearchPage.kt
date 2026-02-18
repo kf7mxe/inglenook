@@ -4,17 +4,15 @@ import com.lightningkite.kiteui.models.*
 import com.lightningkite.kiteui.navigation.Page
 import com.lightningkite.kiteui.navigation.mainPageNavigator
 import com.lightningkite.kiteui.views.ViewWriter
-import com.lightningkite.kiteui.views.card
 import com.lightningkite.kiteui.views.centered
 import com.lightningkite.kiteui.views.direct.*
 import com.lightningkite.kiteui.views.expanding
 import com.lightningkite.kiteui.views.l2.icon
-import com.kf7mxe.inglenook.AudioBook
+import com.kf7mxe.inglenook.Book
 import com.kf7mxe.inglenook.Author
 import com.kf7mxe.inglenook.book
 import com.kf7mxe.inglenook.cache.ImageCache
 import com.kf7mxe.inglenook.searchOff
-import com.kf7mxe.inglenook.components.BookListItem
 import com.kf7mxe.inglenook.connectivity.ConnectivityState
 import com.kf7mxe.inglenook.downloads.DownloadManager
 import com.kf7mxe.inglenook.downloads.toAudioBook
@@ -71,7 +69,7 @@ class SearchPage : Page {
                         searchResults.value = client.search(query)
                     }
                 } catch (e: Exception) {
-                    // Handle error silently
+                    ConnectivityState.onNetworkError(e.message ?: "Search failed")
                 } finally {
                     isLoading.value = false
                 }
@@ -184,7 +182,7 @@ class SearchPage : Page {
         }
     }
 
-    private fun ViewWriter.bookSearchResult(book: AudioBook) {
+    private fun ViewWriter.bookSearchResult(book: Book) {
         val cachedCover = rememberSuspending {
             val client = jellyfinClient.value
             if (client != null && book.coverImageId != null) {

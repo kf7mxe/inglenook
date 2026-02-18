@@ -1,35 +1,31 @@
 package com.kf7mxe.inglenook.screens
 
-import com.kf7mxe.inglenook.AudioBook
+import com.kf7mxe.inglenook.Book
 import com.kf7mxe.inglenook.ItemType
 import com.kf7mxe.inglenook.ViewMode
 import com.kf7mxe.inglenook.book
 import com.kf7mxe.inglenook.components.BookCard
 import com.kf7mxe.inglenook.components.BookListItem
+import com.kf7mxe.inglenook.components.connectionError
+import com.kf7mxe.inglenook.connectivity.ConnectivityState
 import com.kf7mxe.inglenook.dashboard
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
-import com.kf7mxe.inglenook.storage.BookshelfRepository
 import com.kf7mxe.inglenook.viewMode
-import com.lightningkite.kiteui.QueryParameter
-import com.lightningkite.kiteui.Routable
 import com.lightningkite.kiteui.models.Edges
 import com.lightningkite.kiteui.models.Icon
 import com.lightningkite.kiteui.models.ImportantSemantic
 import com.lightningkite.kiteui.models.KeyboardCase
 import com.lightningkite.kiteui.models.KeyboardHints
 import com.lightningkite.kiteui.models.KeyboardType
-import com.lightningkite.kiteui.models.div
 import com.lightningkite.kiteui.models.rem
 import com.lightningkite.kiteui.navigation.Page
 import com.lightningkite.kiteui.navigation.mainPageNavigator
-import com.lightningkite.kiteui.reactive.AppState
 import com.lightningkite.kiteui.views.ViewWriter
 import com.lightningkite.kiteui.views.direct.button
 import com.lightningkite.kiteui.views.direct.col
 import com.lightningkite.kiteui.views.direct.frame
 import com.lightningkite.kiteui.views.direct.onClick
 import com.lightningkite.kiteui.views.direct.row
-import com.lightningkite.kiteui.views.direct.scrollingHorizontally
 import com.lightningkite.kiteui.views.direct.shownWhen
 import com.lightningkite.kiteui.views.direct.textInput
 import com.lightningkite.kiteui.views.*
@@ -43,7 +39,6 @@ import com.lightningkite.reactive.core.Reactive
 import com.lightningkite.reactive.core.Signal
 import com.lightningkite.reactive.core.remember
 import com.lightningkite.reactive.core.rememberSuspending
-import io.ktor.client.request.invoke
 import kotlin.uuid.ExperimentalUuidApi
 
 
@@ -66,7 +61,7 @@ class BooksPage(
 
 
         // Filter books based on search query and selected filter
-        val filteredBooks: Reactive<List<AudioBook>> = remember {
+        val filteredBooks: Reactive<List<Book>> = remember {
             val query = searchQuery().lowercase().trim()
             val filter = selectedFilter()
             var result = books()
@@ -147,8 +142,13 @@ class BooksPage(
 //                }
 //            }
 
+            // Connection error state
+            shownWhen { books.state().ready && books().isEmpty() && ConnectivityState.lastNetworkError() != null }.connectionError {
+                mainPageNavigator.navigate(LibraryPage())
+            }
+
             // Content
-            shownWhen { books.state().ready && books().isEmpty() }.frame {
+            shownWhen { books.state().ready && books().isEmpty() && ConnectivityState.lastNetworkError() == null }.frame {
                 // Empty state
                 shownWhen { books().isEmpty() }.centered.col {
                     icon(Icon.book.copy(width = 3.rem, height = 3.rem), "Books")

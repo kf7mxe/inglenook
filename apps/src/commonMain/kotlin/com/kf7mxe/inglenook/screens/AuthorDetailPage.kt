@@ -8,14 +8,13 @@ import com.lightningkite.kiteui.views.centered
 import com.lightningkite.kiteui.views.direct.*
 import com.lightningkite.kiteui.views.expanding
 import com.lightningkite.kiteui.views.l2.icon
-import com.kf7mxe.inglenook.AudioBook
-import com.kf7mxe.inglenook.Author
 import com.kf7mxe.inglenook.ViewMode
 import com.kf7mxe.inglenook.book
-import com.kf7mxe.inglenook.menu
 import com.kf7mxe.inglenook.dashboard
 import com.kf7mxe.inglenook.components.BookCard
 import com.kf7mxe.inglenook.components.BookListItem
+import com.kf7mxe.inglenook.components.connectionError
+import com.kf7mxe.inglenook.connectivity.ConnectivityState
 import com.kf7mxe.inglenook.cache.ImageCache
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.viewMode
@@ -23,12 +22,9 @@ import com.lightningkite.kiteui.Routable
 import com.lightningkite.kiteui.views.l2.RecyclerViewPlacerVerticalGrid
 import com.lightningkite.kiteui.views.l2.children
 import com.lightningkite.reactive.context.invoke
-import com.lightningkite.reactive.core.Signal
-import com.lightningkite.reactive.core.AppScope
 import com.lightningkite.reactive.core.Constant
 import com.lightningkite.reactive.core.Reactive
 import com.lightningkite.reactive.core.rememberSuspending
-import kotlinx.coroutines.launch
 
 @Routable("authors-detail/{authorId}")
 class AuthorDetailPage(val authorId: String) : Page {
@@ -46,8 +42,13 @@ class AuthorDetailPage(val authorId: String) : Page {
 
             shownWhen { !books.state().ready }.centered.activityIndicator()
 
+            // Connection error state
+            shownWhen { books.state().ready && books().isEmpty() && ConnectivityState.lastNetworkError() != null }.connectionError {
+                mainPageNavigator.navigate(AuthorDetailPage(authorId))
+            }
+
             // No books state
-            shownWhen { books.state().ready && books().isEmpty() }.centered.col {
+            shownWhen { books.state().ready && books().isEmpty() && ConnectivityState.lastNetworkError() == null }.centered.col {
                 gap = 0.5.rem
                 icon(Icon.book.copy(width = 3.rem, height = 3.rem), "Books")
                 text("No books found")

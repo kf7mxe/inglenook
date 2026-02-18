@@ -2,7 +2,6 @@ package com.kf7mxe.inglenook.screens
 
 import com.lightningkite.kiteui.models.*
 import com.lightningkite.kiteui.navigation.Page
-import com.lightningkite.kiteui.navigation.mainPageNavigator
 import com.lightningkite.kiteui.views.ViewWriter
 import com.lightningkite.kiteui.views.centered
 import com.lightningkite.kiteui.views.card
@@ -11,8 +10,6 @@ import com.lightningkite.kiteui.views.expanding
 import com.lightningkite.kiteui.views.l2.icon
 import com.kf7mxe.inglenook.*
 import com.kf7mxe.inglenook.downloads.DownloadManager
-import com.kf7mxe.inglenook.downloads.DownloadManager.activeDownloads
-import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.playback.PlaybackState
 import com.lightningkite.kiteui.Routable
 import com.lightningkite.kiteui.views.forEach
@@ -170,7 +167,7 @@ class DownloadsPage : Page {
                             }
                             onClick {
                                 // Play the downloaded book
-                                val book = AudioBook(
+                                val book = Book(
                                     id = download._id,
                                     title = download.title,
                                     authors = download.authors,

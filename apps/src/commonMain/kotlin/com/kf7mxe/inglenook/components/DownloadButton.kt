@@ -4,7 +4,6 @@ import com.lightningkite.kiteui.models.*
 import com.lightningkite.kiteui.views.ViewWriter
 import com.lightningkite.kiteui.views.centered
 import com.lightningkite.kiteui.views.direct.*
-import com.lightningkite.kiteui.views.l2.icon
 import com.kf7mxe.inglenook.*
 import com.kf7mxe.inglenook.downloads.DownloadManager
 import com.lightningkite.reactive.core.AppScope
@@ -13,7 +12,7 @@ import kotlinx.coroutines.launch
 /**
  * A button that shows download status and allows downloading books for offline playback.
  */
-fun ViewWriter.DownloadButton(book: AudioBook) {
+fun ViewWriter.DownloadButton(book: Book) {
     button {
         centered.row {
             gap = 0.5.rem

@@ -4,7 +4,7 @@ package com.kf7mxe.inglenook.downloads
 
 import android.content.Intent
 import android.os.Build
-import com.kf7mxe.inglenook.AudioBook
+import com.kf7mxe.inglenook.Book
 import com.kf7mxe.inglenook.DownloadProgress
 import com.kf7mxe.inglenook.DownloadedBook
 import com.lightningkite.kiteui.views.AndroidAppContext
@@ -19,7 +19,7 @@ actual object PlatformDownloader {
      * Progress and completion are reported through DownloadManager callbacks.
      */
     actual suspend fun performDownload(
-        book: AudioBook,
+        book: Book,
         onProgress: (DownloadProgress) -> Unit
     ): DownloadedBook {
         // Queue the download with the service

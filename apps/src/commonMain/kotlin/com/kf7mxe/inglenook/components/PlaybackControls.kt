@@ -66,26 +66,30 @@ fun ViewWriter.PlaybackControls() {
     }
 
     col {
-        // Expandable chapter list
-
-
-
-
         // Seek bar with time
         col {
-           SeekBarSemantic.onNext.padded.slider {
-                min = 0f
-                max = 1f
-                value bind seekRatio
+            // Show loading indicator while buffering, seek bar when ready
+            shownWhen { PlaybackState.isBuffering() }.centered.row {
+                gap = 0.5.rem
+                activityIndicator { }
+                subtext { content = "Loading..." }
             }
 
-            row {
-                subtext {
-                    ::content { formatDuration(PlaybackState.positionTicks()) }
+            shownWhen { !PlaybackState.isBuffering() }.col {
+                SeekBarSemantic.onNext.padded.slider {
+                    min = 0f
+                    max = 1f
+                    value bind seekRatio
                 }
-                expanding.space(1.0)
-                subtext {
-                    ::content { formatDuration(PlaybackState.duration()) }
+
+                row {
+                    subtext {
+                        ::content { formatDuration(PlaybackState.positionTicks()) }
+                    }
+                    expanding.space(1.0)
+                    subtext {
+                        ::content { formatDuration(PlaybackState.duration()) }
+                    }
                 }
             }
         }

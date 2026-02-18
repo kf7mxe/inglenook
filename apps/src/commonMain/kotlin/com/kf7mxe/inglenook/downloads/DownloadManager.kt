@@ -30,7 +30,7 @@ object DownloadManager {
         return storedDownloads.value.find { it._id == bookId }?.localFilePath
     }
 
-    suspend fun downloadBook(book: AudioBook) {
+    suspend fun downloadBook(book: Book) {
         // Add to active downloads
         activeDownloads.value = activeDownloads.value + (book.id to DownloadProgress(
             bookId = book.id,
@@ -149,7 +149,7 @@ object DownloadManager {
     }
 }
 
-fun DownloadedBook.toAudioBook(): AudioBook = AudioBook(
+fun DownloadedBook.toAudioBook(): Book = Book(
     id = _id,
     title = title,
     authors = authors,

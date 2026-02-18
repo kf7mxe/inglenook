@@ -2,7 +2,7 @@ package com.kf7mxe.inglenook.playback
 
 import android.app.PendingIntent
 import android.content.Intent
-import android.os.Build
+import android.os.Bundle
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -11,9 +11,12 @@ import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.session.CommandButton
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
-import com.kf7mxe.inglenook.AudioBook
+import androidx.media3.session.SessionCommand
+import androidx.media3.session.SessionResult
+import com.kf7mxe.inglenook.Book
 import com.kf7mxe.inglenook.MainActivity
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 
@@ -68,9 +71,59 @@ class PlaybackService : MediaSessionService() {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
-        // Create MediaSession
+        // Custom commands for skip forward/backward
+        val skipBackCommand = SessionCommand(ACTION_SKIP_BACK, Bundle.EMPTY)
+        val skipForwardCommand = SessionCommand(ACTION_SKIP_FORWARD, Bundle.EMPTY)
+
+        val skipBackButton = CommandButton.Builder(CommandButton.ICON_SKIP_BACK_15)
+            .setDisplayName("Skip back 15s")
+            .setSessionCommand(skipBackCommand)
+            .build()
+        val skipForwardButton = CommandButton.Builder(CommandButton.ICON_SKIP_FORWARD_30)
+            .setDisplayName("Skip forward 30s")
+            .setSessionCommand(skipForwardCommand)
+            .build()
+
+        // Create MediaSession with custom commands
         mediaSession = MediaSession.Builder(this, exoPlayer!!)
             .setSessionActivity(sessionActivityPendingIntent)
+            .setCustomLayout(listOf(skipBackButton, skipForwardButton))
+            .setCallback(object : MediaSession.Callback {
+                override fun onConnect(
+                    session: MediaSession,
+                    controller: MediaSession.ControllerInfo
+                ): MediaSession.ConnectionResult {
+                    return MediaSession.ConnectionResult.AcceptedResultBuilder(session)
+                        .setAvailableSessionCommands(
+                            MediaSession.ConnectionResult.DEFAULT_SESSION_COMMANDS.buildUpon()
+                                .add(skipBackCommand)
+                                .add(skipForwardCommand)
+                                .build()
+                        )
+                        .build()
+                }
+
+                override fun onCustomCommand(
+                    session: MediaSession,
+                    controller: MediaSession.ControllerInfo,
+                    customCommand: SessionCommand,
+                    args: Bundle
+                ): com.google.common.util.concurrent.ListenableFuture<SessionResult> {
+                    when (customCommand.customAction) {
+                        ACTION_SKIP_BACK -> {
+                            val player = session.player
+                            player.seekTo(maxOf(0, player.currentPosition - 15_000))
+                        }
+                        ACTION_SKIP_FORWARD -> {
+                            val player = session.player
+                            player.seekTo(player.currentPosition + 30_000)
+                        }
+                    }
+                    return com.google.common.util.concurrent.Futures.immediateFuture(
+                        SessionResult(SessionResult.RESULT_SUCCESS)
+                    )
+                }
+            })
             .build()
     }
 
@@ -98,7 +151,7 @@ class PlaybackService : MediaSessionService() {
 
     // Public methods for controlling playback from the app
 
-    fun playBook(book: AudioBook, startPositionTicks: Long, localFilePath: String? = null) {
+    fun playBook(book: Book, startPositionTicks: Long, localFilePath: String? = null) {
         val player = exoPlayer ?: return
 
         // Use local file if available (offline playback), otherwise stream from server
@@ -164,6 +217,9 @@ class PlaybackService : MediaSessionService() {
     }
 
     companion object {
+        private const val ACTION_SKIP_BACK = "com.kf7mxe.inglenook.SKIP_BACK"
+        private const val ACTION_SKIP_FORWARD = "com.kf7mxe.inglenook.SKIP_FORWARD"
+
         private var instance: PlaybackService? = null
 
         fun getInstance(): PlaybackService? = instance

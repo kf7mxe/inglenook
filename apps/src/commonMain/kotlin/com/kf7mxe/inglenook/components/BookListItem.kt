@@ -6,12 +6,13 @@ import com.lightningkite.kiteui.views.centered
 import com.lightningkite.kiteui.views.direct.*
 import com.lightningkite.kiteui.views.expanding
 import com.lightningkite.kiteui.views.l2.icon
-import com.kf7mxe.inglenook.AudioBook
+import com.kf7mxe.inglenook.Book
 import com.kf7mxe.inglenook.ItemType
 import com.kf7mxe.inglenook.cache.ImageCache
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.playback.PlaybackState
 import com.kf7mxe.inglenook.book
+import com.kf7mxe.inglenook.pause
 import com.kf7mxe.inglenook.playArrow
 import com.kf7mxe.inglenook.screens.EbookReaderPage
 import com.lightningkite.kiteui.navigation.mainPageNavigator
@@ -20,13 +21,13 @@ import com.lightningkite.reactive.core.rememberSuspending
 import com.lightningkite.reactive.context.invoke
 
 fun ViewWriter.BookListItem(
-    audioBook: Reactive<AudioBook>,
-    onPlayClick: (suspend (AudioBook) -> Unit)? = null,
+    book: Reactive<Book>,
+    onPlayClick: (suspend (Book) -> Unit)? = null,
     onClick: suspend () -> Unit
 ) {
     val cachedCover = rememberSuspending {
         val client = jellyfinClient()
-        val bookData = audioBook()
+        val bookData = book()
         if (client != null && bookData.coverImageId != null) {
             ImageCache.get(client.getImageUrl(bookData.coverImageId, bookData.id))
         } else null
@@ -38,12 +39,14 @@ fun ViewWriter.BookListItem(
         centered.col {
             centered.button {
                 centered.icon {
-                    ::source { if (audioBook().itemType == ItemType.Ebook) Icon.book else Icon.playArrow }
-                    ::description { if (audioBook().itemType == ItemType.Ebook) "Ebook" else "Play" }
+                    ::source { if (book().itemType == ItemType.Ebook) Icon.book else {
+                        if( PlaybackState.currentBook() == book() && PlaybackState.isPlaying()) {
+                        Icon.pause } else Icon.playArrow } }
+                    ::description { if (book().itemType == ItemType.Ebook) "Ebook" else "Play" }
                 }
                 themeChoice += ImportantSemantic
                 onClick {
-                    val currentBook = audioBook.invoke()
+                    val currentBook = book.invoke()
                     // Only play audiobooks
                     if (currentBook.itemType == ItemType.AudioBook) {
                         if (onPlayClick != null) {
@@ -67,7 +70,7 @@ fun ViewWriter.BookListItem(
                 sizeConstraints(height = 7.rem, width=5.rem).frame {
                     image {
                         this.rView::shown {
-                            audioBook().coverImageId != null
+                            book().coverImageId != null
                         }
 
                         ::source { cachedCover() }
@@ -75,10 +78,10 @@ fun ViewWriter.BookListItem(
                     }
                     centered.icon {
                         ::shown {
-                            audioBook().coverImageId == null
+                            book().coverImageId == null
                         }
                         source = Icon.book
-                        ::description { audioBook().title }
+                        ::description { book().title }
                     }
                 }
 
@@ -86,22 +89,22 @@ fun ViewWriter.BookListItem(
                 expanding.col {
 
                     text {
-                        ::content { audioBook().title }
+                        ::content { book().title }
                         ellipsis = true
                     }
 
                     subtext {
-                        ::content { audioBook().authors.map{it.name}.joinToString(", ").ifEmpty { "Unknown Author" } }
+                        ::content { book().authors.map{it.name}.joinToString(", ").ifEmpty { "Unknown Author" } }
                         ellipsis = true
                     }
 
                     // Series info if available
                     subtext {
                         ::shown {
-                            audioBook().seriesName != null
+                            book().seriesName != null
                         }
                         ::content {
-                            val bookData = audioBook()
+                            val bookData = book()
                             if (bookData.indexNumber != null) {
                                 "${bookData.seriesName} #${bookData.indexNumber}"
                             } else {
@@ -113,7 +116,7 @@ fun ViewWriter.BookListItem(
                     // Duration
                     subtext {
                         ::content {
-                            val durationTicks = audioBook().duration
+                            val durationTicks = book().duration
                             val totalSeconds = durationTicks / 10_000_000
                             val hours = totalSeconds / 3600
                             val minutes = (totalSeconds % 3600) / 60

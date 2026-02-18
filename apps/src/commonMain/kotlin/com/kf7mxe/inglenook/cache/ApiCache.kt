@@ -74,10 +74,12 @@ object ApiCache {
 
     /**
      * Get or compute a value, using the cache if available.
+     * [onError] is called when compute fails, even if stale data is returned.
      */
     suspend fun <T : Any> getOrPut(
         key: String,
         ttl: Duration = DEFAULT_TTL,
+        onError: ((Exception) -> Unit)? = null,
         compute: suspend () -> T
     ): T {
         val cached = get<T>(key)
@@ -90,6 +92,7 @@ object ApiCache {
             put(key, computed, ttl)
             computed
         } catch (e: Exception) {
+            onError?.invoke(e)
             val stale = getStale<T>(key)
             if (stale != null) stale else throw e
         }
@@ -99,11 +102,13 @@ object ApiCache {
      * Get or compute a value, using the cache if available.
      * Force refresh will bypass the cache and recompute.
      * On failure, returns stale cached data if available rather than propagating the error.
+     * [onError] is called when compute fails, even if stale data is returned.
      */
     suspend fun <T : Any> getOrPut(
         key: String,
         ttl: Duration = DEFAULT_TTL,
         forceRefresh: Boolean = false,
+        onError: ((Exception) -> Unit)? = null,
         compute: suspend () -> T
     ): T {
         if (!forceRefresh) {
@@ -118,7 +123,7 @@ object ApiCache {
             put(key, computed, ttl)
             computed
         } catch (e: Exception) {
-            // On failure, return stale cache (even if expired) rather than crashing
+            onError?.invoke(e)
             val stale = getStale<T>(key)
             if (stale != null) stale else throw e
         }

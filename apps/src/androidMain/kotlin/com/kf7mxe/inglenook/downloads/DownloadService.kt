@@ -11,12 +11,11 @@ import android.content.Intent
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
-import com.kf7mxe.inglenook.AudioBook
+import com.kf7mxe.inglenook.Book
 import com.kf7mxe.inglenook.DownloadProgress
 import com.kf7mxe.inglenook.DownloadStatus
 import com.kf7mxe.inglenook.DownloadedBook
 import com.kf7mxe.inglenook.MainActivity
-import com.kf7mxe.inglenook.R
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -48,7 +47,7 @@ class DownloadService : Service() {
     }
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val downloadQueue = ConcurrentLinkedQueue<AudioBook>()
+    private val downloadQueue = ConcurrentLinkedQueue<Book>()
     private val activeDownloads = ConcurrentHashMap<String, Boolean>()
     private var currentDownloadJob: Job? = null
     private var currentBookId: String? = null
@@ -131,7 +130,7 @@ class DownloadService : Service() {
         notificationManager.notify(NOTIFICATION_ID, createNotification(title, progress))
     }
 
-    fun queueDownload(book: AudioBook) {
+    fun queueDownload(book: Book) {
         downloadQueue.add(book)
         processQueue()
     }
@@ -166,7 +165,7 @@ class DownloadService : Service() {
         }
     }
 
-    private suspend fun performDownload(book: AudioBook) {
+    private suspend fun performDownload(book: Book) {
         val client = jellyfinClient.value
             ?: throw IllegalStateException("Not connected to Jellyfin server")
 

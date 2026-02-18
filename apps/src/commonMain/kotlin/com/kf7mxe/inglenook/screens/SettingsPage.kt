@@ -14,6 +14,7 @@ import com.lightningkite.kiteui.views.expanding
 import com.lightningkite.kiteui.views.l2.icon
 import com.lightningkite.kiteui.views.dynamicTheme
 import com.kf7mxe.inglenook.*
+import com.kf7mxe.inglenook.connectivity.ConnectivityState
 import com.kf7mxe.inglenook.theming.createTheme
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.jellyfin.jellyfinServerConfig
@@ -176,6 +177,59 @@ class SettingsPage : Page {
                             icon(Icon.chevronRight, "More")
                         }
                         onClick{ mainPageNavigator.navigate(ThemeSettingsPage()) }
+                    }
+                }
+            }
+
+            // Connectivity section
+            col {
+                gap = 0.5.rem
+                h3 { content = "Connectivity" }
+
+                card.col {
+                    gap = 0.5.rem
+
+                    row {
+                        expanding.col {
+                            gap = 0.rem
+                            text("Offline Mode")
+                            subtext {
+                                ::content {
+                                    if (ConnectivityState.offlineMode()) "Currently offline"
+                                    else "Use only downloaded books and cached data"
+                                }
+                            }
+                        }
+                        button {
+                            text {
+                                ::content {
+                                    if (ConnectivityState.offlineMode()) "Go Online" else "Go Offline"
+                                }
+                            }
+                            onClick {
+                                if (ConnectivityState.offlineMode.value) {
+                                    ConnectivityState.exitOfflineMode()
+                                } else {
+                                    ConnectivityState.enterManualOfflineMode()
+                                }
+                            }
+                        }
+                    }
+
+                    // Banner: server is reachable while in manual offline mode
+                    shownWhen { ConnectivityState.offlineMode() && ConnectivityState.serverReachable() }.card.row {
+                        expanding.col {
+                            gap = 0.rem
+                            text("Server available")
+                            subtext("Your Jellyfin server is reachable again.")
+                        }
+                        button {
+                            text("Go Online")
+                            onClick {
+                                ConnectivityState.exitOfflineMode()
+                            }
+                            themeChoice += ImportantSemantic
+                        }
                     }
                 }
             }

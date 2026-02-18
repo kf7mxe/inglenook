@@ -8,14 +8,14 @@ import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.MoreExecutors
-import com.kf7mxe.inglenook.AudioBook
+import com.kf7mxe.inglenook.Book
 import com.lightningkite.kiteui.views.AndroidAppContext
 
 actual fun createAudioPlayer(): AudioPlayer = AndroidAudioPlayer()
 
 class AndroidAudioPlayer : AudioPlayer {
     private var currentBookId: String? = null
-    private var currentBook: AudioBook? = null
+    private var currentBook: Book? = null
     private var pendingStartPosition: Long = 0L
     private var pendingLocalFilePath: String? = null
     private var mediaControllerFuture: ListenableFuture<MediaController>? = null
@@ -56,7 +56,7 @@ class AndroidAudioPlayer : AudioPlayer {
         }, MoreExecutors.directExecutor())
     }
 
-    override fun play(book: AudioBook, startPositionTicks: Long, localFilePath: String?) {
+    override fun play(book: Book, startPositionTicks: Long, localFilePath: String?) {
         currentBookId = book.id
         currentBook = book
         pendingStartPosition = startPositionTicks

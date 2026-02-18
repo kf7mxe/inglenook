@@ -2,7 +2,6 @@ package com.kf7mxe.inglenook
 
 import com.lightningkite.services.data.*
 import com.lightningkite.services.database.HasId
-import kotlinx.datetime.*
 import kotlinx.serialization.Serializable
 import kotlin.time.Clock
 import kotlin.time.Instant
@@ -39,7 +38,7 @@ enum class ItemType {
 
 // Audio Book representation from Jellyfin (also used for Ebooks)
 @Serializable
-data class AudioBook(
+data class Book(
     val id: String,
     val title: String,
     val sortTitle: String? = null,

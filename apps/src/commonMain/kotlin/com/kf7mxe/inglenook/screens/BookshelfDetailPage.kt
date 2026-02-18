@@ -8,7 +8,7 @@ import com.lightningkite.kiteui.views.centered
 import com.lightningkite.kiteui.views.direct.*
 import com.lightningkite.kiteui.views.expanding
 import com.lightningkite.kiteui.views.l2.icon
-import com.kf7mxe.inglenook.AudioBook
+import com.kf7mxe.inglenook.Book
 import com.kf7mxe.inglenook.Bookshelf
 import com.kf7mxe.inglenook.ViewMode
 import com.kf7mxe.inglenook.book
@@ -40,7 +40,7 @@ class BookshelfDetailPage(val bookshelfId: String) : Page {
     override fun ViewWriter.render() {
         val isLoading = Signal(true)
         val bookshelf = Signal<Bookshelf?>(null)
-        val books = Signal<List<AudioBook>>(emptyList())
+        val books = Signal<List<Book>>(emptyList())
         val viewMode = Signal(ViewMode.Grid)
         val isEditing = Signal(false)
         val errorMessage = Signal<String?>(null)

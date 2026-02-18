@@ -1,6 +1,6 @@
 package com.kf7mxe.inglenook.playback
 
-import com.kf7mxe.inglenook.AudioBook
+import com.kf7mxe.inglenook.Book
 import com.kf7mxe.inglenook.downloads.PlatformDownloader
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import kotlinx.browser.window
@@ -16,7 +16,7 @@ class JsAudioPlayer : AudioPlayer {
     private var currentBookId: String? = null
     private var positionUpdateInterval: Int? = null
 
-    override fun play(book: AudioBook, startPositionTicks: Long, localFilePath: String?) {
+    override fun play(book: Book, startPositionTicks: Long, localFilePath: String?) {
         // Stop any existing playback
         stop()
 
@@ -44,7 +44,7 @@ class JsAudioPlayer : AudioPlayer {
         startPlayback(book, mediaUrl, startPositionTicks)
     }
 
-    private fun startPlayback(book: AudioBook, mediaUrl: String, startPositionTicks: Long) {
+    private fun startPlayback(book: Book, mediaUrl: String, startPositionTicks: Long) {
         currentBookId = book.id
 
         // Create audio element
@@ -113,7 +113,7 @@ class JsAudioPlayer : AudioPlayer {
         return (seconds * 10_000_000).toLong()
     }
 
-    private fun setupMediaSession(book: AudioBook) {
+    private fun setupMediaSession(book: Book) {
         // Use Media Session API for browser media controls
         try {
             val title = book.title

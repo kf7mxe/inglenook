@@ -1,6 +1,6 @@
 package com.kf7mxe.inglenook.playback
 
-import com.kf7mxe.inglenook.AudioBook
+import com.kf7mxe.inglenook.Book
 import com.kf7mxe.inglenook.Chapter
 import com.kf7mxe.inglenook.ItemType
 import com.kf7mxe.inglenook.connectivity.ConnectivityState
@@ -16,10 +16,11 @@ import kotlinx.coroutines.launch
 
 object PlaybackState {
     // Current book being played
-    val currentBook = Signal<AudioBook?>(null)
+    val currentBook = Signal<Book?>(null)
 
     // Playback state
     val isPlaying = Signal(false)
+    val isBuffering = Signal(false) // True while waiting for player to start
     val positionTicks = Signal(0L)
     val duration = Signal(0L)
     val playbackSpeed = Signal(1.0f)
@@ -43,7 +44,7 @@ object PlaybackState {
     private var audioPlayer: AudioPlayer? = null
 
     // Persisted last-played state (survives app restart)
-    private val persistedLastBook get() = serverScopedProperty<AudioBook?>("lastPlayedBook", null)
+    private val persistedLastBook get() = serverScopedProperty<Book?>("lastPlayedBook", null)
     private val persistedLastPosition get() = serverScopedProperty<Long>("lastPlayedPosition", 0L)
 
     // Per-book local position store (survives offline mode)
@@ -83,10 +84,11 @@ object PlaybackState {
         isPlaying.value = false
     }
 
-    suspend fun play(book: AudioBook, startPosition: Long = 0L) {
-        currentBook.value = book
+    suspend fun play(book: Book, startPosition: Long = 0L) {
+        currentBook.set(book)
         duration.value = book.duration
         positionTicks.value = startPosition
+        isBuffering.value = true
 
         // Persist for restore on next app launch
         saveLastPlayed()
@@ -131,13 +133,21 @@ object PlaybackState {
         }
     }
 
-    fun resume() {
+    suspend fun resume() {
+        if (audioPlayer == null) {
+            val book = currentBook.value
+            if (book != null) {
+                play(book, positionTicks.value)
+            }
+            return
+        }
+
         audioPlayer?.resume()
         isPlaying.value = true
         startProgressSync()
 
         // Report playback progress to Jellyfin
-        val book = currentBook.value
+        val book = currentBook()
         if (book != null && !ConnectivityState.offlineMode.value) {
             AppScope.launch {
                 jellyfinClient.value?.reportPlaybackProgress(book.id, positionTicks.value, false)
@@ -145,7 +155,7 @@ object PlaybackState {
         }
     }
 
-    fun togglePlayPause() {
+    suspend fun togglePlayPause() {
         if (isPlaying.value) {
             pause()
         } else {
@@ -159,6 +169,7 @@ object PlaybackState {
         audioPlayer?.stop()
         audioPlayer = null
         isPlaying.value = false
+        isBuffering.value = false
         stopProgressSync()
 
         // Clear persisted state (user explicitly stopped)
@@ -261,6 +272,26 @@ object PlaybackState {
     private fun startProgressSync() {
         progressSyncJob?.cancel()
         progressSyncJob = AppScope.launch {
+            // Fast initial sync to clear buffering state and show real position
+            for (i in 0 until 10) {
+                delay(500)
+                val book = currentBook.value
+                if (book != null && isPlaying.value) {
+                    audioPlayer?.let { player ->
+                        val pos = player.getCurrentPosition()
+                        if (pos > 0) {
+                            positionTicks.value = pos
+                            if (isBuffering.value) {
+                                isBuffering.value = false
+                            }
+                        }
+                    }
+                }
+                if (!isBuffering.value) break
+            }
+            isBuffering.value = false // Clear even if player didn't report position yet
+
+            // Normal sync loop
             while (true) {
                 delay(10_000) // Sync every 10 seconds
 
@@ -386,7 +417,7 @@ interface AudioPlayer {
      * @param startPositionTicks Starting position in ticks
      * @param localFilePath Optional local file path for offline playback. If null, stream from server.
      */
-    fun play(book: AudioBook, startPositionTicks: Long, localFilePath: String? = null)
+    fun play(book: Book, startPositionTicks: Long, localFilePath: String? = null)
     fun pause()
     fun resume()
     fun stop()

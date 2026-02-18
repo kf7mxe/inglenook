@@ -13,6 +13,8 @@ import com.kf7mxe.inglenook.ViewMode
 import com.kf7mxe.inglenook.cache.ImageCache
 import com.kf7mxe.inglenook.components.BookCard
 import com.kf7mxe.inglenook.components.BookListItem
+import com.kf7mxe.inglenook.components.connectionError
+import com.kf7mxe.inglenook.connectivity.ConnectivityState
 import com.kf7mxe.inglenook.dashboard
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.storage.ImageSemantic
@@ -92,9 +94,14 @@ class AuthorsPage(val searchQuery:Signal<String> = Signal("")) : Page {
 //                    }
 //                }
 
+            // Connection error state
+            shownWhen { authors.state().ready && authors().isEmpty() && ConnectivityState.lastNetworkError() != null }.connectionError {
+                mainPageNavigator.navigate(LibraryPage())
+            }
+
             // Content
             // Empty state
-            shownWhen { authors.state().ready && authors().isEmpty() }.centered.col {
+            shownWhen { authors.state().ready && authors().isEmpty() && ConnectivityState.lastNetworkError() == null }.centered.col {
                 icon(Icon.person.copy(width = 3.rem, height = 3.rem), "Authors")
                 text("No authors found")
                 subtext("Your audiobook library has no authors")
@@ -215,12 +222,14 @@ fun ViewWriter.AuthorListItem(author: Reactive<Author>, onClick: suspend () -> U
     button {
         row {
             // Thumbnail
-            sizedBox(SizeConstraints(width = 4.rem, height = 4.rem)).frame {
-                image {
+            frame {
+                sizeConstraints(width = 4.rem, height = 4.rem).image {
                     rView::shown {
                         author().imageId != null
                     }
-                    ::source { cachedAuthorImage() }
+                    ::source {
+                        println("DEBUG cachedAuthorImage ${cachedAuthorImage()}")
+                        cachedAuthorImage() }
                     scaleType = ImageScaleType.Crop
                 }
                 centered.icon {

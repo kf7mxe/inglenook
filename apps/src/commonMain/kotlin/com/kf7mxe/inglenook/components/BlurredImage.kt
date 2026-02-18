@@ -1,15 +1,13 @@
 package com.kf7mxe.inglenook.components
 
-import com.kf7mxe.inglenook.AudioBook
+import com.kf7mxe.inglenook.Book
 import com.kf7mxe.inglenook.appTheme
 import com.kf7mxe.inglenook.cache.blurServerImageAndCacheImage
 import com.kf7mxe.inglenook.cache.getBlurredCachedImage
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.persistedThemeSettings
-import com.kf7mxe.inglenook.screens.BookDetailPage
 import com.lightningkite.kiteui.models.ImageRemote
 import com.lightningkite.kiteui.models.ImageScaleType
-import com.lightningkite.kiteui.navigation.mainPageNavigator
 import com.lightningkite.kiteui.views.ViewWriter
 import com.lightningkite.kiteui.views.direct.image
 import com.lightningkite.kiteui.views.direct.unpadded
@@ -18,7 +16,7 @@ import com.lightningkite.reactive.core.Reactive
 import com.lightningkite.reactive.core.rememberSuspending
 
 
-fun ViewWriter.blurredImage(book: Reactive<AudioBook?>,shown:Reactive<Boolean>) {
+fun ViewWriter.blurredImage(book: Reactive<Book?>, shown:Reactive<Boolean>) {
     val blurSettings = persistedThemeSettings.value
 
     val blurredImage = rememberSuspending {
