@@ -144,6 +144,7 @@ data class DownloadedBook(
     val authors: List<Author> = emptyList(),
     val localFilePath: String,
     val coverImagePath: String? = null,
+    val coverImageId: String? = null,
     val downloadedAt: Instant = Clock.System.now(),
     val fileSize: Long = 0L,
     val duration: Long = 0L,

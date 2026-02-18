@@ -67,6 +67,7 @@ fun ViewWriter.PlaybackControls() {
     }
 
     col {
+
         // Seek bar with time
         col {
             // Show loading indicator while buffering, seek bar when ready
@@ -158,7 +159,13 @@ fun ViewWriter.PlaybackControls() {
                     ::source { if (PlaybackState.isPlaying()) Icon.pause else Icon.playArrow }
                     ::description { if (PlaybackState.isPlaying()) "Pause" else "Play" }
                 }
-                onClick { PlaybackState.togglePlayPause() }
+                onClick {
+                    if (PlaybackState.isPlaying.value) {
+                        PlaybackState.pause()
+                    } else {
+                        PlaybackState.resume()
+                    }
+                }
                 themeChoice += ImportantSemantic
             }
 

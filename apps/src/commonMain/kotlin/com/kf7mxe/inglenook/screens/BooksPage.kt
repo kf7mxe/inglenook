@@ -55,8 +55,8 @@ class BooksPage(
 
 
         val books = rememberSuspending {
-            val client = jellyfinClient.value
-            client?.getAllBooks() ?: emptyList()
+            ConnectivityState.offlineMode() // Reactive dependency — reloads when connectivity changes
+            jellyfinClient()?.getAllBooks() ?: emptyList()
         }
 
 

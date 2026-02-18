@@ -245,6 +245,7 @@ class DownloadService : Service() {
                     authors = book.authors,
                     localFilePath = outputFile.absolutePath,
                     coverImagePath = null,
+                    coverImageId = book.coverImageId,
                     fileSize = bytesDownloaded,
                     duration = book.duration,
                     chapters = book.chapters

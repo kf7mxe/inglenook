@@ -40,7 +40,7 @@ fun ViewWriter.BookListItem(
             centered.button {
                 centered.icon {
                     ::source { if (book().itemType == ItemType.Ebook) Icon.book else {
-                        if( PlaybackState.currentBook() == book() && PlaybackState.isPlaying()) {
+                        if( PlaybackState.currentBook()?.id == book().id && PlaybackState.isPlaying()) {
                         Icon.pause } else Icon.playArrow } }
                     ::description { if (book().itemType == ItemType.Ebook) "Ebook" else "Play" }
                 }

@@ -41,8 +41,8 @@ class AuthorsPage(val searchQuery:Signal<String> = Signal("")) : Page {
     override fun ViewWriter.render() {
         // Load authors
         val authors = rememberSuspending {
-            val client = jellyfinClient.value
-            client?.getAuthors() ?: emptyList()
+            ConnectivityState.offlineMode() // Reactive dependency — reloads when connectivity changes
+            jellyfinClient()?.getAuthors() ?: emptyList()
         }
 
         // Filter authors based on search query - use () for reactive access

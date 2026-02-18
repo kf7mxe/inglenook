@@ -35,8 +35,8 @@ class SeriesPage(val searchQuery:Signal<String> = Signal("")) : Page {
 
     override fun ViewWriter.render() {
         val allSeries = rememberSuspending {
-            val client = jellyfinClient.value
-            client?.getAllSeries() ?: emptyList()
+            ConnectivityState.offlineMode() // Reactive dependency — reloads when connectivity changes
+            jellyfinClient()?.getAllSeries() ?: emptyList()
         }
         val errorMessage = Signal<String?>(null)
 

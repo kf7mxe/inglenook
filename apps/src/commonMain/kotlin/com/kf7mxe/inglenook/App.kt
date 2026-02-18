@@ -338,7 +338,11 @@ fun ViewWriter.nowPlayingPreview() {
                 ::description { if (PlaybackState.isPlaying()) "Pause" else "Play" }
             }
             onClick {
-                PlaybackState.togglePlayPause()
+                if (PlaybackState.isPlaying.value) {
+                    PlaybackState.pause()
+                } else {
+                    PlaybackState.resume()
+                }
             }
         }
     }
@@ -348,13 +352,15 @@ fun ViewWriter.nowPlayingBottomSheet() {
     coordinatorFrame?.bottomSheet(
         partialRatio = 0.75f,
         startState = BottomSheetState.PARTIALLY_EXPANDED
-    ) {
-        unpadded.nowPlaying()
+    ) {control ->
+        unpadded.nowPlaying() {
+            control.close()
+        }
     }
 }
 
 
-fun ViewWriter.nowPlaying() {
+fun ViewWriter.nowPlaying(onClose: () -> Unit = {}) {
 
     val chapters = rememberSuspending {
         val client = jellyfinClient()
@@ -416,7 +422,7 @@ fun ViewWriter.nowPlaying() {
                         onClick {
                             PlaybackState.currentBook()?.let {
                                 mainPageNavigator.navigate(BookDetailPage(it.id))
-                                closePopovers()
+                                onClose()
                             }
                         }
                     }
@@ -430,6 +436,7 @@ fun ViewWriter.nowPlaying() {
                                 }
                                 onClick {
                                     mainPageNavigator.navigate(AuthorDetailPage(author.id))
+                                    onClose()
                                 }
                             }
                         }

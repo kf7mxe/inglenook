@@ -9,7 +9,9 @@ import com.lightningkite.kiteui.views.direct.*
 import com.lightningkite.kiteui.views.expanding
 import com.lightningkite.kiteui.views.l2.icon
 import com.kf7mxe.inglenook.*
+import com.kf7mxe.inglenook.cache.ImageCache
 import com.kf7mxe.inglenook.downloads.DownloadManager
+import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.playback.PlaybackState
 import com.lightningkite.kiteui.Routable
 import com.lightningkite.kiteui.views.forEach
@@ -17,6 +19,7 @@ import com.lightningkite.kiteui.reactive.Action
 import com.lightningkite.reactive.core.Signal
 import com.lightningkite.reactive.core.Constant
 import com.lightningkite.reactive.core.remember
+import com.lightningkite.reactive.core.rememberSuspending
 
 @Routable("/downloads")
 class DownloadsPage : Page {
@@ -127,9 +130,22 @@ class DownloadsPage : Page {
                                 padding = 0.75.rem
                                 gap = 1.rem
 
-                                // Thumbnail placeholder
+                                // Cover image (from cache) or fallback icon
                                 sizedBox(SizeConstraints(width = 3.rem, height = 4.5.rem)).frame {
-                                    centered.icon(Icon.book, "Book")
+                                    val coverUrl = download.coverImageId?.let { coverId ->
+                                        jellyfinClient.value?.getImageUrl(coverId, download._id)
+                                    }
+                                    if (coverUrl != null) {
+                                        val cachedCover = rememberSuspending {
+                                            ImageCache.get(coverUrl)
+                                        }
+                                        image {
+                                            ::source { cachedCover() }
+                                            scaleType = ImageScaleType.Crop
+                                        }
+                                    } else {
+                                        centered.icon(Icon.book, "Book")
+                                    }
                                 }
 
                                 // Book info

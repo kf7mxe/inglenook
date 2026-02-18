@@ -28,15 +28,17 @@ class DashboardPage : Page {
     override val title get() = Constant("Home")
 
     override fun ViewWriter.render() {
-        val client = jellyfinClient.value
         val inProgressBooks = rememberSuspending {
-            client?.getInProgressBooks() ?: emptyList()
+            ConnectivityState.offlineMode() // Reactive dependency — reloads when connectivity changes
+            jellyfinClient()?.getInProgressBooks() ?: emptyList()
         }
         val recommendedBooks = rememberSuspending {
-            client?.getSuggestedBooks() ?: emptyList()
+            ConnectivityState.offlineMode()
+            jellyfinClient()?.getSuggestedBooks() ?: emptyList()
         }
         val recentlyAddedBooks = rememberSuspending {
-            client?.getRecentlyAddedBooks() ?: emptyList()
+            ConnectivityState.offlineMode()
+            jellyfinClient()?.getRecentlyAddedBooks() ?: emptyList()
         }
 
         val downloadedBooks = remember {

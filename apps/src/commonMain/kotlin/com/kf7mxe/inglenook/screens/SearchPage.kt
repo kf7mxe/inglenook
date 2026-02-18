@@ -213,7 +213,7 @@ class SearchPage : Page {
                         ellipsis = true
                     }
                     subtext {
-                        content = book.authors.joinToString(", ").ifEmpty { "Unknown Author" }
+                        content = book.authors.joinToString(", ") { it.name }.ifEmpty { "Unknown Author" }
                         ellipsis = true
                     }
                     shownWhen { book.seriesName != null }.subtext {

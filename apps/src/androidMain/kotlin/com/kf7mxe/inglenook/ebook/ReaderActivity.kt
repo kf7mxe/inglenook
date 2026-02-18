@@ -300,13 +300,14 @@ class ReaderActivity : AppCompatActivity() {
     }
 
     private fun calculateInitialLocator(pub: Publication): Locator? {
-        if (bookDuration <= 0) return null
-
-        val client = jellyfinClient.value ?: return null
-        // We need the current position from Jellyfin - it was passed via the AudioBook model
-        // Use bookDuration to convert - for now, we'll try locateProgression
-        // The position should have been set when we loaded the book
-        return null // Will be refined in position tracking task
+        // Restore saved locator from SharedPreferences
+        val prefs = getSharedPreferences("reader_prefs", MODE_PRIVATE)
+        val locatorJson = prefs.getString("ebook_locator_$bookId", null) ?: return null
+        return try {
+            Locator.fromJSON(org.json.JSONObject(locatorJson))
+        } catch (_: Exception) {
+            null
+        }
     }
 
     private fun showReaderContent() {
@@ -472,6 +473,11 @@ class ReaderActivity : AppCompatActivity() {
 
     // --- Position Tracking ---
 
+    private fun saveLocator(locator: Locator) {
+        val prefs = getSharedPreferences("reader_prefs", MODE_PRIVATE)
+        prefs.edit().putString("ebook_locator_$bookId", locator.toJSON().toString()).apply()
+    }
+
     private fun startPositionTracking() {
         val nav = navigator ?: return
 
@@ -481,6 +487,8 @@ class ReaderActivity : AppCompatActivity() {
             nav.currentLocator
                 .onEach { locator ->
                     lastReportedLocator = locator
+                    // Save position for restore on next open
+                    saveLocator(locator)
                     // Update toolbar with current chapter title
                     val chapterTitle = locator.title
                     if (!chapterTitle.isNullOrBlank()) {

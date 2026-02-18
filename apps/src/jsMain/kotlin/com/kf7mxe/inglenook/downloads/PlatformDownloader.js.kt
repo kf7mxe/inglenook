@@ -173,6 +173,7 @@ actual object PlatformDownloader {
                 authors = book.authors,
                 localFilePath = "indexeddb://${book.id}", // Virtual path indicating IndexedDB storage
                 coverImagePath = null,
+                coverImageId = book.coverImageId,
                 fileSize = blob.size.toLong(),
                 duration = book.duration,
                 chapters = book.chapters

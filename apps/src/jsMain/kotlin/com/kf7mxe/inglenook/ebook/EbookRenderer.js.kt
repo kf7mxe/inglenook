@@ -154,6 +154,7 @@ actual fun ViewWriter.ebookReader(
         val config = js("{}")
         config.downloadUrl = downloadUrl
         config.authHeader = authHeader
+        config.bookId = bookId
 
         window.asDynamic()["__activeReaderId"] = readerId
         window.asDynamic()["__readerConfig_$readerId"] = config
@@ -208,7 +209,13 @@ actual fun ViewWriter.ebookReader(
                         allowScriptedContent: true
                     });
                     
-                    rendition.display();
+                    /* Restore saved position or start from beginning */
+                    var savedCfi = localStorage.getItem('ebook_pos_' + cfg.bookId);
+                    if (savedCfi) {
+                        rendition.display(savedCfi);
+                    } else {
+                        rendition.display();
+                    }
 
                     /* Set Default Theme */
                     rendition.themes.register('light', { 'body': { 'background': '#ffffff', 'color': '#333333' } });
@@ -224,6 +231,24 @@ actual fun ViewWriter.ebookReader(
                         book.loaded.metadata.then(function(meta) {
                             if(titleEl) titleEl.textContent = meta.title;
                         });
+                    });
+
+                    /* Save position on page change */
+                    var progressEl = document.getElementById(rid + '-progress');
+                    rendition.on('relocated', function(location) {
+                        if (location && location.start && location.start.cfi) {
+                            localStorage.setItem('ebook_pos_' + cfg.bookId, location.start.cfi);
+                        }
+                        /* Update progress display */
+                        if (progressEl && book.locations && book.locations.length()) {
+                            var pct = book.locations.percentageFromCfi(location.start.cfi);
+                            progressEl.textContent = Math.round(pct * 100) + '%';
+                        }
+                    });
+
+                    /* Generate locations for progress tracking */
+                    book.ready.then(function() {
+                        return book.locations.generate(1024);
                     });
 
                     /* --- EVENT LISTENERS --- */
@@ -270,13 +295,6 @@ actual fun ViewWriter.ebookReader(
             }, 100);
         """)
     }
-}
-
-private fun getReaderProgress(bookId: String): Double? {
-    return try {
-        val pos = window.asDynamic()["__readerPos_$bookId"]
-        if (pos != null) (pos.progress as? Double) ?: 0.0 else null
-    } catch (_: Exception) { null }
 }
 
 private fun createDiv(id: String): FutureElement {

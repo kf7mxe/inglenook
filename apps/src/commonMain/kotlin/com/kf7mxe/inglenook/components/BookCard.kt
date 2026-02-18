@@ -87,7 +87,7 @@ fun ViewWriter.BookCard(
                     centered.icon {
                         ::source {
                             if (book().itemType == ItemType.Ebook)  Icon.book else {
-                                if( PlaybackState.currentBook() == book() && PlaybackState.isPlaying()) {
+                                if( PlaybackState.currentBook()?.id == book().id && PlaybackState.isPlaying()) {
                                     Icon.pause
                                 } else {
                                     Icon.playArrow

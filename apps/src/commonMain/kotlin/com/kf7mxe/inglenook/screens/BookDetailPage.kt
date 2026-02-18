@@ -181,7 +181,7 @@ class BookDetailPage(val bookId: String) : Page {
                             row {
                                 centered.icon{
                                     ::source {
-                                        if(PlaybackState.currentBook() == book() && PlaybackState.isPlaying()) Icon.pause else
+                                        if(PlaybackState.currentBook()?.id == book()?.id && PlaybackState.isPlaying()) Icon.pause else
                                         Icon.playArrow
                                     }
                                 }
@@ -292,12 +292,12 @@ class BookDetailPage(val bookId: String) : Page {
                         button {
                             icon(Icon.collectionsBookmark, "Add to Bookshelf")
                             onClick {
-                                coordinatorFrame?.openBottomSheet(
-                                    halfScreenRatio = 0.7f,
-                                    dim = true
-                                ) {
-                                    BookshelfPickerDialog(bookId) {
-                                        closeThisPopover()
+                                coordinatorFrame?.bottomSheet(
+                                    partialRatio = 0.75f,
+                                    startState = BottomSheetState.PARTIALLY_EXPANDED
+                                ) {control ->
+                                    unpadded.BookshelfPickerDialog(bookId) {
+                                        control.close()
                                     }
                                 }
                             }
@@ -333,12 +333,12 @@ class BookDetailPage(val bookId: String) : Page {
                             button {
                                 icon(Icon.collectionsBookmark, "Add to Bookshelf")
                                 onClick {
-                                    coordinatorFrame?.openBottomSheet(
-                                        halfScreenRatio = 0.7f,
-                                        dim = true
-                                    ) {
+                                    coordinatorFrame?.bottomSheet(
+                                        partialRatio = 0.75f,
+                                        startState = BottomSheetState.PARTIALLY_EXPANDED
+                                    ) {control ->
                                         BookshelfPickerDialog(bookId) {
-                                            closeThisPopover()
+                                            control.close()
                                         }
                                     }
                                 }

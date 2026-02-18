@@ -52,7 +52,7 @@ fun ViewWriter.DownloadButton(book: Book) {
                                     "Downloading..."
                                 }
                             }
-                            DownloadStatus.Pending -> "Waiting..."
+                            DownloadStatus.Pending -> "Starting download..."
                             DownloadStatus.Failed -> "Failed - Retry"
                             DownloadStatus.Cancelled -> "Cancelled"
                             else -> "Download"
@@ -65,12 +65,14 @@ fun ViewWriter.DownloadButton(book: Book) {
 
         action = Action("Download") {
             val isDownloaded = DownloadManager.isDownloaded(book.id)
-            val hasActiveDownload = DownloadManager.activeDownloads.value.containsKey(book.id)
+            val activeProgress = DownloadManager.activeDownloads.value[book.id]
 
             when {
                 isDownloaded -> DownloadManager.deleteDownload(book.id)
-                hasActiveDownload -> DownloadManager.cancelDownload(book.id)
-                else -> DownloadManager.downloadBook(book)
+                activeProgress?.status == DownloadStatus.Downloading -> DownloadManager.cancelDownload(book.id)
+                activeProgress?.status == DownloadStatus.Pending -> { } // Already starting, ignore tap
+                activeProgress?.status == DownloadStatus.Failed -> DownloadManager.downloadBook(book)
+                activeProgress == null -> DownloadManager.downloadBook(book)
             }
         }
 

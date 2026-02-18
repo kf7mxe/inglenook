@@ -1,6 +1,8 @@
 package com.kf7mxe.inglenook.downloads
 
 import com.kf7mxe.inglenook.*
+import com.kf7mxe.inglenook.cache.ImageCache
+import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.jellyfin.serverScopedProperty
 import com.lightningkite.kiteui.reactive.PersistentProperty
 import com.lightningkite.reactive.core.Signal
@@ -40,6 +42,14 @@ object DownloadManager {
         ))
 
         try {
+            // Pre-cache cover image so it's available offline
+            val coverUrl = book.coverImageId?.let { coverId ->
+                jellyfinClient.value?.getImageUrl(coverId, book.id)
+            }
+            if (coverUrl != null) {
+                try { ImageCache.get(coverUrl) } catch (_: Exception) { }
+            }
+
             // Start download using platform-specific implementation.
             // Returns null if the download is handled asynchronously (e.g. Android service).
             val downloadedBook = PlatformDownloader.performDownload(book) { progress ->
@@ -149,6 +159,7 @@ fun DownloadedBook.toAudioBook(): Book = Book(
     id = _id,
     title = title,
     authors = authors,
+    coverImageId = coverImageId,
     duration = duration,
     chapters = chapters,
 )

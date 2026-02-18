@@ -1,5 +1,6 @@
 package com.kf7mxe.inglenook.connectivity
 
+import com.kf7mxe.inglenook.cache.ApiCache
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.lightningkite.kiteui.Connectivity
 import com.lightningkite.kiteui.reactive.PersistentProperty
@@ -57,6 +58,7 @@ object ConnectivityState {
         lastNetworkError.value = null
         showingConnectivityDialog.value = false
         stopReconnectChecks()
+        ApiCache.clear() // Invalidate stale cached data so pages reload fresh
         startConnectivityChecks()
     }
 
