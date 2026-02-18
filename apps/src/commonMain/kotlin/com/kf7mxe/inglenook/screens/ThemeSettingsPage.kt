@@ -216,9 +216,6 @@ class ThemeSettingsPage : Page {
                                 val path = wallpaperPath()?:savedSettings.wallpaperPath
                                 val parent = path?.split("/")?.first()
                                 val filename = path?.split("/")?.last()
-                                println("DEBUG path ${path}")
-                                println("DEBUG parent ${parent}")
-                                println("DEBUG file ${filename}")
                                 parent?.let {parent ->
                                     filename?.let {filename ->
                                         readImageFromStorage(parent,filename)

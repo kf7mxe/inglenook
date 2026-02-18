@@ -9,9 +9,8 @@ import com.lightningkite.kiteui.views.centered
 import com.lightningkite.kiteui.views.direct.*
 import com.lightningkite.kiteui.views.expanding
 import com.lightningkite.kiteui.views.l2.icon
+import com.lightningkite.kiteui.reactive.Action
 import com.lightningkite.reactive.context.invoke
-import com.lightningkite.reactive.core.AppScope
-import kotlinx.coroutines.launch
 
 fun ViewWriter.offlineBanner() {
     shownWhen { ConnectivityState.offlineMode() }.row {
@@ -32,12 +31,10 @@ fun ViewWriter.offlineBanner() {
         expanding.centered.text("Offline Mode")
         button {
             text("Reconnect")
-            onClick {
-                AppScope.launch {
-                    val success = jellyfinClient.value?.pingServer() ?: false
-                    if (success) {
-                        ConnectivityState.exitOfflineMode()
-                    }
+            action = Action("Reconnect") {
+                val success = jellyfinClient.value?.pingServer() ?: false
+                if (success) {
+                    ConnectivityState.exitOfflineMode()
                 }
             }
         }

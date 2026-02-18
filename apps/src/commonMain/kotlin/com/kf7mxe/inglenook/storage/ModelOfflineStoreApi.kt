@@ -101,7 +101,6 @@ class ModelOfflineStoreApi<T, ID, UID>(
         val jsonStringTable = Json.encodeToString(ListSerializer(serializer), items.value)
         val container = ModelTableVersionContainer(table = jsonStringTable)
         val jsonContainerString = Json.encodeToString(ModelTableVersionContainer.serializer(), container)
-        println("DEBUG jsonContainerString ${jsonContainerString}")
         saveFile(jsonContainerString.encodeToByteArray(), localStorageFileName)
     }
 

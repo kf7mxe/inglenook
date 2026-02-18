@@ -39,8 +39,6 @@ class AuthorsPage(val searchQuery:Signal<String> = Signal("")) : Page {
     override val title: Reactive<String> = Constant("Authors")
 
     override fun ViewWriter.render() {
-//        val errorMessage = Signal<String?>(null)
-
         // Load authors
         val authors = rememberSuspending {
             val client = jellyfinClient.value
@@ -83,16 +81,6 @@ class AuthorsPage(val searchQuery:Signal<String> = Signal("")) : Page {
 
             // Loading state
             shownWhen { !authors.state().ready }.centered.activityIndicator()
-
-            // Error state
-//                shownWhen { errorMessage() != null && !isLoading() }.centered.col {
-//                    gap = 0.5.rem
-//                    text { ::content { errorMessage() ?: "" } }
-//                    button {
-//                        text("Retry")
-//                        onClick { loadAuthors() }
-//                    }
-//                }
 
             // Connection error state
             shownWhen { authors.state().ready && authors().isEmpty() && ConnectivityState.lastNetworkError() != null }.connectionError {
@@ -159,15 +147,6 @@ class AuthorsPage(val searchQuery:Signal<String> = Signal("")) : Page {
 
 
 
-            // List view
-//                shownWhen { viewMode() == ViewMode.List }.col {
-//                    gap = 0.5.rem
-//                    forEach(filteredAuthors) { author ->
-//                        AuthorListItem(author) {
-//                            mainPageNavigator.navigate(AuthorDetailPage(author.id))
-//                        }
-//                    }
-//                }
         }
     }
 }
@@ -228,7 +207,6 @@ fun ViewWriter.AuthorListItem(author: Reactive<Author>, onClick: suspend () -> U
                         author().imageId != null
                     }
                     ::source {
-                        println("DEBUG cachedAuthorImage ${cachedAuthorImage()}")
                         cachedAuthorImage() }
                     scaleType = ImageScaleType.Crop
                 }

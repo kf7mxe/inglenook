@@ -13,11 +13,10 @@ import com.kf7mxe.inglenook.downloads.DownloadManager
 import com.kf7mxe.inglenook.playback.PlaybackState
 import com.lightningkite.kiteui.Routable
 import com.lightningkite.kiteui.views.forEach
+import com.lightningkite.kiteui.reactive.Action
 import com.lightningkite.reactive.core.Signal
-import com.lightningkite.reactive.core.AppScope
 import com.lightningkite.reactive.core.Constant
 import com.lightningkite.reactive.core.remember
-import kotlinx.coroutines.launch
 
 @Routable("/downloads")
 class DownloadsPage : Page {
@@ -96,11 +95,8 @@ class DownloadsPage : Page {
 
                             button {
                                 icon(Icon.close, "Cancel")
-                                onClick {
-                                    val bookId = progress.second.bookId
-                                    AppScope.launch {
-                                        DownloadManager.cancelDownload(bookId)
-                                    }
+                                action = Action("Cancel download") {
+                                    DownloadManager.cancelDownload(progress.second.bookId)
                                 }
                             }
                         }
@@ -155,12 +151,9 @@ class DownloadsPage : Page {
                                 // Delete button
                                 button {
                                     icon(Icon.delete, "Delete")
-                                    onClick {
-                                        val bookId = download._id
-                                        AppScope.launch {
-                                            DownloadManager.deleteDownload(bookId)
-                                            loadDownloads()
-                                        }
+                                    action = Action("Delete download") {
+                                        DownloadManager.deleteDownload(download._id)
+                                        loadDownloads()
                                     }
                                     themeChoice += ThemeDerivation { it.copy(id = "danger", foreground = Color.red).withoutBack }
                                 }

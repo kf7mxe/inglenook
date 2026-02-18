@@ -490,7 +490,7 @@ class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
                 emptyList()
             }
         } catch (e: Exception) {
-            println("Failed to fetch audiobook chapters from plugin: ${e.message}")
+            // Plugin endpoint may not be installed — fall back to empty chapters
             emptyList()
         }
     }
@@ -513,18 +513,13 @@ class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
                 parameter("Path", folderPath)
             }
 
-            println("DEBUG dirResponse ${dirResponse}")
-
             if (!dirResponse.status.isSuccess()) return emptyList()
 
             val entries: List<FileSystemEntry> = dirResponse.body()
-            println("DEBUG entries ${entries}")
 
             val cueEntry = entries.firstOrNull {
                 !it.IsDirectory && it.Name.lowercase().endsWith(".cue")
             } ?: return emptyList()
-
-            println("DEBUG Found cue file: ${cueEntry.Path}")
 
             val cueContent = client.get("$serverUrl/Environment/DownloadFile") {
                 header("X-Emby-Authorization", getAuthHeader())
@@ -534,7 +529,6 @@ class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
             CueParser.parse(cueContent)
 
         } catch (e: Exception) {
-            println("CUE parse error ${e.message}")
             emptyList()
         }
     }
@@ -554,11 +548,8 @@ class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
         val response = client.get("$serverUrl/Items/$id/Download") {
             header("X-Emby-Authorization", getAuthHeader())
         }
-        println("DEBUG downloadCueFile id=$id status=${response.status}")
         if (!response.status.isSuccess()) return null
-        val text = response.bodyAsText()
-        println("DEBUG downloadCueFile length=${text.length}")
-        return text
+        return response.bodyAsText()
     }
 
 
@@ -1127,6 +1118,8 @@ class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
     }
 
     companion object {
+        private const val TICKS_PER_MILLISECOND = 10_000L
+
         /** Convert "Last, First" format (common in EPUB metadata) to "First Last". */
         fun normalizeAuthorName(name: String): String {
             val parts = name.split(",")

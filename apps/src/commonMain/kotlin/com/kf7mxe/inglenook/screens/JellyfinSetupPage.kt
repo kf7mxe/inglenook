@@ -14,6 +14,7 @@ import com.kf7mxe.inglenook.jellyfin.JellyfinClient
 import com.kf7mxe.inglenook.jellyfin.addServer
 import com.kf7mxe.inglenook.jellyfin.jellyfinServers
 import com.lightningkite.kiteui.Routable
+import com.lightningkite.kiteui.reactive.Action
 import com.lightningkite.kiteui.views.dynamicTheme
 import com.lightningkite.reactive.core.Signal
 import com.lightningkite.reactive.core.AppScope
@@ -148,23 +149,13 @@ class JellyfinSetupPage : Page {
                         }
 
                         button {
-                            shownWhen { !isLoading() }.text("Connect")
-                            shownWhen { isLoading() }.activityIndicator()
-                            onClick {
-                                AppScope.launch {
-                                    isLoading.value = true
-                                    errorMessage.value = null
-                                    try {
-                                        val client = JellyfinClient(serverUrl.value)
-                                        val config = client.authenticate(username.value, password.value)
-                                        addServer(config)
-                                        mainPageNavigator.navigate(DashboardPage())
-                                    } catch (e: Exception) {
-                                        errorMessage.value = e.message ?: "Connection failed"
-                                    } finally {
-                                        isLoading.value = false
-                                    }
-                                }
+                            text("Connect")
+                            action = Action("Connect") {
+                                errorMessage.value = null
+                                val client = JellyfinClient(serverUrl.value)
+                                val config = client.authenticate(username.value, password.value)
+                                addServer(config)
+                                mainPageNavigator.navigate(DashboardPage())
                             }
                             themeChoice += ImportantSemantic
                         }
@@ -212,71 +203,60 @@ class JellyfinSetupPage : Page {
 
                         // Get Code button (shown when not polling)
                         shownWhen { quickConnectCode() == null || !isPolling() }.button {
-                            shownWhen { !isLoading() }.text("Get Code")
-                            shownWhen { isLoading() }.activityIndicator()
-                            onClick {
-                                AppScope.launch {
-                                    isLoading.value = true
-                                    errorMessage.value = null
-                                    try {
-                                        val client = JellyfinClient(serverUrl.value)
+                            text("Get Code")
+                            action = Action("Get Code") {
+                                errorMessage.value = null
+                                val client = JellyfinClient(serverUrl.value)
 
-                                        // Check if Quick Connect is enabled
-                                        val enabled = client.isQuickConnectEnabled()
-                                        if (!enabled) {
-                                            errorMessage.value = "Quick Connect is not enabled on this server"
-                                            return@launch
-                                        }
+                                // Check if Quick Connect is enabled
+                                val enabled = client.isQuickConnectEnabled()
+                                if (!enabled) {
+                                    errorMessage.value = "Quick Connect is not enabled on this server"
+                                    return@Action
+                                }
 
-                                        // Initiate Quick Connect
-                                        val result = client.initiateQuickConnect()
-                                        if (result.Code == null || result.Secret == null) {
-                                            errorMessage.value = "Failed to initiate Quick Connect"
-                                            return@launch
-                                        }
+                                // Initiate Quick Connect
+                                val result = client.initiateQuickConnect()
+                                if (result.Code == null || result.Secret == null) {
+                                    errorMessage.value = "Failed to initiate Quick Connect"
+                                    return@Action
+                                }
 
-                                        quickConnectCode.value = result.Code
-                                        quickConnectSecret.value = result.Secret
-                                        isPolling.value = true
+                                quickConnectCode.value = result.Code
+                                quickConnectSecret.value = result.Secret
+                                isPolling.value = true
 
-                                        // Start polling for authorization
-                                        pollingJob = AppScope.launch {
-                                            var attempts = 0
-                                            val maxAttempts = 60 // 5 minutes at 5 second intervals
+                                // Start polling for authorization in background
+                                pollingJob = AppScope.launch {
+                                    var attempts = 0
+                                    val maxAttempts = 60 // 5 minutes at 5 second intervals
 
-                                            while (isPolling.value && attempts < maxAttempts) {
-                                                delay(5000) // Poll every 5 seconds
-                                                attempts++
+                                    while (isPolling.value && attempts < maxAttempts) {
+                                        delay(5000) // Poll every 5 seconds
+                                        attempts++
 
-                                                try {
-                                                    val secret = quickConnectSecret.value ?: break
-                                                    val authorized = client.checkQuickConnectStatus(secret)
+                                        try {
+                                            val secret = quickConnectSecret.value ?: break
+                                            val authorized = client.checkQuickConnectStatus(secret)
 
-                                                    if (authorized) {
-                                                        // Authenticate with the secret
-                                                        val config = client.authenticateWithQuickConnect(secret)
-                                                        addServer(config)
-                                                        stopPolling()
-                                                        mainPageNavigator.navigate(DashboardPage())
-                                                        return@launch
-                                                    }
-                                                } catch (e: Exception) {
-                                                    // Continue polling on error
-                                                }
-                                            }
-
-                                            // Timeout
-                                            if (isPolling.value) {
-                                                errorMessage.value = "Quick Connect request timed out"
+                                            if (authorized) {
+                                                val config = client.authenticateWithQuickConnect(secret)
+                                                addServer(config)
                                                 stopPolling()
-                                                quickConnectCode.value = null
-                                                quickConnectSecret.value = null
+                                                mainPageNavigator.navigate(DashboardPage())
+                                                return@launch
                                             }
+                                        } catch (e: Exception) {
+                                            // Continue polling on error
                                         }
-                                    } catch (e: Exception) {
-                                        errorMessage.value = e.message ?: "Failed to connect"
-                                    } finally {
-                                        isLoading.value = false
+                                    }
+
+                                    // Timeout
+                                    if (isPolling.value) {
+                                        errorMessage.value = "Quick Connect request timed out"
+                                        stopPolling()
+                                        quickConnectCode.value = null
+                                        quickConnectSecret.value = null
                                     }
                                 }
                             }

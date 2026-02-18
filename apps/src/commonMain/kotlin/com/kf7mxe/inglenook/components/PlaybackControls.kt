@@ -24,6 +24,8 @@ import kotlinx.coroutines.launch
 import kotlinx.datetime.Clock
 import kotlin.time.ExperimentalTime
 
+private const val SEEK_SYNC_THRESHOLD_MS = 50L
+
 @OptIn(ExperimentalTime::class)
 fun ViewWriter.PlaybackControls() {
     // Create a signal for the seek bar that syncs with PlaybackState
@@ -56,8 +58,7 @@ fun ViewWriter.PlaybackControls() {
     // When seekRatio changes from user input, seek in PlaybackState
     seekRatio.addListener {
         val now = kotlin.time.Clock.System.now().toEpochMilliseconds()
-        // If the change happened more than 50ms after our last sync, it's user input
-        if (now - lastSyncTime > 50) {
+        if (now - lastSyncTime > SEEK_SYNC_THRESHOLD_MS) {
             val newPosition = (seekRatio.value * PlaybackState.duration.value).toLong()
             launch {
                 PlaybackState.seek(newPosition)

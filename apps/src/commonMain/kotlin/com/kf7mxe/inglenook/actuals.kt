@@ -25,6 +25,5 @@ expect class ColorPicker(context: RContext) : RView {
 
 
 fun Color.toHexString():String {
-    println("DEBUG test toHexString ${"#" + this.toInt().toUInt().toString(16).padStart(7, '0')}")
     return "#" + (this.toInt() and 0xFFFFFF).toString(16).padStart(6, '0')
 }

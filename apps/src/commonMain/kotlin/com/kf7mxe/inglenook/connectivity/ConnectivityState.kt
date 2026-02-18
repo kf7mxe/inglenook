@@ -20,6 +20,9 @@ object ConnectivityState {
     private var connectivityCheckJob: Job? = null
     private var consecutiveFailures = 0
     private const val FAILURES_BEFORE_DIALOG = 3
+    private const val INITIAL_DELAY_MS = 1_000L
+    private const val CONNECTIVITY_CHECK_INTERVAL_MS = 10_000L
+    private const val RECONNECT_CHECK_INTERVAL_MS = 10_000L
 
     fun onNetworkError(errorMessage: String) {
         lastNetworkError.value = errorMessage
@@ -94,8 +97,7 @@ object ConnectivityState {
         connectivityCheckJob?.cancel()
         consecutiveFailures = 0
         connectivityCheckJob = AppScope.launch {
-            // Short initial delay for UI to register listeners
-            delay(1_000)
+            delay(INITIAL_DELAY_MS)
             while (!offlineMode.value) {
                 val client = jellyfinClient.value
                 if (client != null) {
@@ -111,7 +113,7 @@ object ConnectivityState {
                         }
                     }
                 }
-                delay(10_000) // Check every 10 seconds
+                delay(CONNECTIVITY_CHECK_INTERVAL_MS)
             }
         }
     }
@@ -136,7 +138,7 @@ object ConnectivityState {
                         break
                     }
                 }
-                delay(10_000)
+                delay(RECONNECT_CHECK_INTERVAL_MS)
             }
         }
     }

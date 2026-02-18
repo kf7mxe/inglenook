@@ -34,14 +34,12 @@ import com.lightningkite.kiteui.current
 import com.lightningkite.kiteui.views.closeThisPopover
 import com.lightningkite.kiteui.views.forEach
 import com.lightningkite.reactive.context.invoke
+import com.lightningkite.kiteui.reactive.Action
 import com.lightningkite.reactive.core.Signal
-import com.lightningkite.reactive.core.AppScope
 import com.lightningkite.reactive.core.Constant
 import com.lightningkite.reactive.core.Reactive
 import com.lightningkite.reactive.core.remember
 import com.lightningkite.reactive.core.rememberSuspending
-import io.ktor.util.Platform
-import kotlinx.coroutines.launch
 import kotlin.uuid.ExperimentalUuidApi
 
 @OptIn(ExperimentalUuidApi::class)
@@ -277,41 +275,15 @@ class BookDetailPage(val bookId: String) : Page {
                                 }
                             }
 
-                            onClick {
-                                val currentBook = book()
-                                if (currentBook != null) {
-                                    val isDownloaded =
-                                        com.kf7mxe.inglenook.downloads.DownloadManager.isDownloaded(currentBook.id)
-                                    val hasActiveDownload =
-                                        com.kf7mxe.inglenook.downloads.DownloadManager.activeDownloads.value.containsKey(
-                                            currentBook.id
-                                        )
+                            action = Action("Download") {
+                                val currentBook = book() ?: return@Action
+                                val isDownloaded = com.kf7mxe.inglenook.downloads.DownloadManager.isDownloaded(currentBook.id)
+                                val hasActiveDownload = com.kf7mxe.inglenook.downloads.DownloadManager.activeDownloads.value.containsKey(currentBook.id)
 
-                                    when {
-                                        isDownloaded -> {
-                                            AppScope.launch {
-                                                com.kf7mxe.inglenook.downloads.DownloadManager.deleteDownload(
-                                                    currentBook.id
-                                                )
-                                            }
-                                        }
-
-                                        hasActiveDownload -> {
-                                            AppScope.launch {
-                                                com.kf7mxe.inglenook.downloads.DownloadManager.cancelDownload(
-                                                    currentBook.id
-                                                )
-                                            }
-                                        }
-
-                                        else -> {
-                                            AppScope.launch {
-                                                com.kf7mxe.inglenook.downloads.DownloadManager.downloadBook(
-                                                    currentBook
-                                                )
-                                            }
-                                        }
-                                    }
+                                when {
+                                    isDownloaded -> com.kf7mxe.inglenook.downloads.DownloadManager.deleteDownload(currentBook.id)
+                                    hasActiveDownload -> com.kf7mxe.inglenook.downloads.DownloadManager.cancelDownload(currentBook.id)
+                                    else -> com.kf7mxe.inglenook.downloads.DownloadManager.downloadBook(currentBook)
                                 }
                             }
                         }
@@ -325,8 +297,6 @@ class BookDetailPage(val bookId: String) : Page {
                                     dim = true
                                 ) {
                                     BookshelfPickerDialog(bookId) {
-                                        // Close bottom sheet on dismiss
-//                                        close()
                                         closeThisPopover()
                                     }
                                 }

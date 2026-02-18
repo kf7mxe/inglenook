@@ -58,13 +58,9 @@ class AuthorDetailPage(val authorId: String) : Page {
             val cachedAuthorImage = rememberSuspending {
                 val client = jellyfinClient()
                 val imageId = author()?.imageId
-                val test = if (client != null && imageId != null) {
-                    println("DEBUg imageId ${imageId}")
-                    println("DEBUG client.getImageUr(imageId ${client.getImageUrl(imageId)}")
-                    ImageCache.get(client.getImageUrl( imageId,authorId))
+                if (client != null && imageId != null) {
+                    ImageCache.get(client.getImageUrl(imageId, authorId))
                 } else null
-                println("DEBUg test ${test}")
-                test
             }
 
             row {

@@ -83,7 +83,6 @@ actual suspend fun blurServerImageAndCacheImage(
                     GlobalScope.launch {
                         database?.writeTransaction("blurredImageCache") {
                             val store = objectStore("blurredImageCache")
-                            println("DEBUG location ${location}")
                             store.add(blurredImageBlob, Key(getCacheFileName(location)))
                         }
                         continuation.resume(ImageRaw(blurredImageBlob))
@@ -110,7 +109,6 @@ actual suspend fun clearImageCaches() {
 
 actual suspend fun getBlurredCachedImage(localPath: String): ImageSource? {
     database = database ?: getDatabase()
-    println("DEBUG getBlurredCachedImage ${localPath}")
     val image = database?.transaction("blurredImageCache") {
         val result = objectStore("blurredImageCache").get(Key(getCacheFileName(localPath)))
         if(result != undefined) result as Blob
@@ -128,26 +126,20 @@ actual suspend fun blurAndCacheImage(
     overlayColor: Paint,
     quality: Float
 ): ImageSource? {
-    println("DEBUG blurAndCacheImage ${localPath}")
     database = database ?: getDatabase()
     val splitDirectoryAndFileName = localPath.split("/")
     val directoryName = splitDirectoryAndFileName[0]
     val fileName = splitDirectoryAndFileName[1]
-    println("in read image from storage blur and cache")
     val image = database?.transaction("images") {
-        println("${directoryName}/${fileName}")
         val result = objectStore("images").get(Key("${directoryName}/${fileName}"))
-        println("result ${result}")
         if (result != undefined) result as Blob
         else null
     }
-//    img.crossOrigin = "Anonymous"; // Avoid CORS issues
     if (image == null) return null
 
     return suspendCoroutine { continuation ->
         val imageElement = Image()
         val objectUrl = createObjectURL(image)
-        println("Object url ${objectUrl}")
         imageElement.src = objectUrl
         imageElement.crossOrigin = "Anonymous"
 
@@ -197,7 +189,6 @@ actual suspend fun blurAndCacheImage(
                     GlobalScope.launch {
                         database?.writeTransaction("blurredImageCache") {
                             val store = objectStore("blurredImageCache")
-                            println("Saving blurred image to cache")
                             store.add(blurredImageBlob, Key(cacheFileName))
                         }
                         continuation.resume(blurredImageBlob?.let {ImageRaw(it)}) // Resume coroutine with result
@@ -209,8 +200,7 @@ actual suspend fun blurAndCacheImage(
         }
 
         imageElement.onerror = { _: Event, _: String, _: Int, _: Int, _: Any? ->
-            println("Failed to load image.")
-            continuation.resume(null) // Resume with null if the image fails to load
+            continuation.resume(null)
         }
     }
     return null

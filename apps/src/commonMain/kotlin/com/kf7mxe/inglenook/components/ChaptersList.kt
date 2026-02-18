@@ -31,15 +31,10 @@ fun ViewWriter.chaptersList(
                 chapters().indexOf(chapter())
             }
             val currentIndex = remember {
-                println("DEBUG index() ${index()}")
-                println("DEBUG PlaybackState.currentChapter() ${PlaybackState.currentChapter() != null}")
                 if (chapters().indexOf(PlaybackState.currentChapter()) == index()) index() else -1
             }
 
-
             val isCurrent = remember {
-                println("DEBUG index ${index()}")
-                println("DEBUG currentIndex() ${currentIndex()}")
                 index() == currentIndex()
             }
             val isPast = remember {

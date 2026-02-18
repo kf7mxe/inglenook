@@ -36,9 +36,7 @@ class SeriesPage(val searchQuery:Signal<String> = Signal("")) : Page {
     override fun ViewWriter.render() {
         val allSeries = rememberSuspending {
             val client = jellyfinClient.value
-            val test = client?.getAllSeries()?:emptyList()
-            println("DEBUG test ${test.size}")
-            test
+            client?.getAllSeries() ?: emptyList()
         }
         val errorMessage = Signal<String?>(null)
 

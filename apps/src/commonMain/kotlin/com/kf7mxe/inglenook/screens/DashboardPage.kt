@@ -33,15 +33,10 @@ class DashboardPage : Page {
             client?.getInProgressBooks() ?: emptyList()
         }
         val recommendedBooks = rememberSuspending {
-           val recommended =  client?.getSuggestedBooks() ?: emptyList()
-            println("DEBUg recommended ${recommended}")
-            recommended
+            client?.getSuggestedBooks() ?: emptyList()
         }
         val recentlyAddedBooks = rememberSuspending {
-
-            val recentlyAdded = client?.getRecentlyAddedBooks() ?: emptyList()
-            println("DEBUG recentlyAdded ${recentlyAdded}")
-            recentlyAdded
+            client?.getRecentlyAddedBooks() ?: emptyList()
         }
 
         val downloadedBooks = remember {

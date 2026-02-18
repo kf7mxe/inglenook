@@ -38,9 +38,6 @@ fun createTheme(preset: ThemePreset, settings: ThemeSettings = ThemeSettings()):
 
 // Cozy theme - Forest green, warm background
 fun Theme.Companion.cozy(accent: Color? = null): Theme {
-//    val primary = accent ?: Color.fromHexString("#4a2b00")
-//    val baseHue = primary.toHSP().hue
-
     return Theme(
         id = "cozy",
         font = FontAndStyle(),
@@ -77,9 +74,7 @@ fun Theme.Companion.cozy(accent: Color? = null): Theme {
             },
             SelectedSemantic.override {
                 it.withBack(
-//                    background = primary.applyAlpha(0.3f),
                     outlineWidth = 2.dp,
-//                    outline = primary
                 )
             },
             FieldSemantic.override {
@@ -115,8 +110,6 @@ fun Theme.Companion.cozy(accent: Color? = null): Theme {
 }
 
 fun Theme.Companion.autumnCabin(accent: Color? = null): Theme {
-//    val primary = accent ?: Color.fromHexString("#2c5f7c")
-
     return Theme(
         id = "Autumn-cabin",
         font = FontAndStyle(),
@@ -139,15 +132,12 @@ fun Theme.Companion.autumnCabin(accent: Color? = null): Theme {
             MainContentSemantic.override { it.withBack },
             ImportantSemantic.override {
                 it.withBack(
-//                    background = primary,
                     foreground = Color.white
                 )
             },
             SelectedSemantic.override {
                 it.withBack(
-//                    background = primary.applyAlpha(0.3f),
                     outlineWidth = 2.dp,
-//                    outline = primary
                 )
             },
             FieldSemantic.override {
@@ -494,16 +484,12 @@ fun Theme.Companion.custom(settings: ThemeSettings): Theme {
             ImageSemantic.override {
                 it.withBack(
                     cornerRadii = CornerRadii(settings.imageSemanticSettings?.cornerRadius?.toDouble()?.rem?: cornerRadius),
-//                    cornerRadii = Fixed(999.dp),
                     padding = Edges.ZERO,
                 )
             }
         )
     )
 }
-
-
-
 
 
 
@@ -560,26 +546,6 @@ fun Theme.Companion.flat(
                 }.toRGB()
             )
         },
-//        UnselectedSemantic.override {
-//            val existing = it.background.closestColor().toHSP()
-//            if(abs(existing.brightness - 0.5f) > brightnessStep * 3) {
-//                it.withoutBack
-//            } else {
-//                it.copy(
-//                    id = "uns",
-//                    background = it.background.closestColor().copy(alpha = 0f),
-//                    foreground = it.outline.closestColor(),
-//                    outlineWidth = 1.dp
-//                ).withBack
-//            }
-//        },
-//        SelectedSemantic.override {
-//            it.copy(id = "sel", background = it.background.closestColor().toHSP().let {
-//                it.copy(brightness = it.brightness + brightnessStep * 2)
-//            }.toRGB(), outline = it.outline.closestColor().toHSP().let {
-//                it.copy(brightness = it.brightness + brightnessStep * 2)
-//            }.toRGB(), outlineWidth = it.outlineWidth * 2).withBack
-//        },
         HoverSemantic.override {
             it.withBack(background = it.background.closestColor().toHSP().let {
                 it.copy(brightness = it.brightness + brightnessStep)
@@ -614,7 +580,6 @@ fun Theme.Companion.flat(
                 outlineWidth = 1.px,
                 background = it.background.closestColor(),
                 cascading = false,
-//                gap = it.gap / 2,
                 cornerRadii = when(val base = it.cornerRadii) {
                     is CornerRadii.AdaptiveToSpacing -> CornerRadii.Fixed(base.value)
                     is CornerRadii.Fixed -> base

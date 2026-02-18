@@ -109,7 +109,6 @@ actual suspend fun blurServerImageAndCacheImage(
         )
         byteArrayOutputStream.close()
     } catch (e: Exception) {
-        println("error reading image from storage ${e.message}")
     }
 
     // Cleanup
@@ -375,10 +374,6 @@ actual suspend fun clearImageCaches() {
 }
 
 actual suspend fun getBlurredCachedImage(localPath: String): ImageSource? {
-    println("DEBUG localPath ${localPath}")
-//    val directory = splitDirectoryAndFileName[0]
-//    val fileName = splitDirectoryAndFileName[1]
-    println("DEBUG fileName $localPath")
     val blurredCachedImagsDirectory = File(AndroidAppContext.applicationCtx.cacheDir, "blurredImages")
     val blurredImage = File(blurredCachedImagsDirectory, localPath)
     if(blurredImage.exists()) {
@@ -391,7 +386,6 @@ actual suspend fun getBlurredCachedImage(localPath: String): ImageSource? {
             val blob = Blob(byteArray, "image/jpeg")
             return blob.let { ImageRaw(it) }
         } catch (e: Exception) {
-            println("error reading image from storage")
             e.printStackTrace()
         }
     }
@@ -406,8 +400,6 @@ actual suspend fun blurAndCacheImage(
     overlayColor: Paint,
     quality: Float
 ): ImageSource? {
-    println("DEBUG blurAndCacheImage Android localPath: $localPath cacheFileName: $cacheFileName")
-
     return withContext(Dispatchers.IO) {
         try {
             // 1. Handle File Names
@@ -418,14 +410,8 @@ actual suspend fun blurAndCacheImage(
                 "" to localPath
             }
 
-            println("Processing: Directory='$directoryName', FileName='$fileName'")
-
             // 2. Decode Image Data
-            val imageRaw = image as? ImageRaw
-            if (imageRaw == null) {
-                println("Error: ImageSource is not ImageRaw")
-                return@withContext null
-            }
+            val imageRaw = image as? ImageRaw ?: return@withContext null
 
             val imageData = imageRaw.data
 
@@ -439,10 +425,7 @@ actual suspend fun blurAndCacheImage(
                 0,
                 imageData.data.size,
                 options
-            ) ?: run {
-                println("Error: Failed to decode bitmap. Input size: ${imageData.data.size}")
-                return@withContext null
-            }
+            ) ?: return@withContext null
 
             // 3. Resize
             val originalWidth = bitmap.width
@@ -474,8 +457,6 @@ actual suspend fun blurAndCacheImage(
             val blurredBitmap = fastBlur(resizedBitmap, blurRadius.toInt())
 
             if (blurredBitmap == null) {
-                println("Error: fastBlur returned null")
-                // Clean up previous bitmaps before returning
                 if (bitmap != resizedBitmap) resizedBitmap.recycle()
                 bitmap.recycle()
                 return@withContext null
@@ -510,7 +491,6 @@ actual suspend fun blurAndCacheImage(
 
                 canvas.drawRect(0f, 0f, w, h, paint)
             } catch (e: Exception) {
-                println("Error applying gradient overlay: ${e.message}")
                 e.printStackTrace()
                 // Proceeding without overlay is usually better than crashing
             }
@@ -538,15 +518,10 @@ actual suspend fun blurAndCacheImage(
                             fos.write(byteArray)
                             fos.flush()
                         }
-                        println("Saved blurred image to cache: ${savedImageFile.absolutePath}")
 
                         val blob = Blob(byteArray, type = "image/jpeg")
                         resultImageSource = ImageRaw(blob)
-                    } else {
-                        println("Error: Compressed byte array is empty")
                     }
-                } else {
-                    println("Error: Bitmap.compress returned false. Bitmap config: ${blurredBitmap.config}, w: ${blurredBitmap.width}, h: ${blurredBitmap.height}")
                 }
             }
 
@@ -567,7 +542,6 @@ actual suspend fun blurAndCacheImage(
             return@withContext resultImageSource
 
         } catch (e: Exception) {
-            println("CRITICAL ERROR in blurAndCacheImage: ${e.message}")
             e.printStackTrace()
             return@withContext null
         }

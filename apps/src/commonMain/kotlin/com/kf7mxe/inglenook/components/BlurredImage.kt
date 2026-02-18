@@ -20,38 +20,27 @@ fun ViewWriter.blurredImage(book: Reactive<Book?>, shown:Reactive<Boolean>) {
     val blurSettings = persistedThemeSettings.value
 
     val blurredImage = rememberSuspending {
-        println("DEBUg blurred image")
         val imageToBlur = book()?.let { b ->
-            println("DEBUG in cover image url")
             b.coverImageId?.let { coverImageId ->
-                println("DEBUG coverageImageId")
                 jellyfinClient.value?.getImageUrl(coverImageId, b.id)
             }
         }?.let {
             ImageRemote(it)
         }
-        println("DEBUG got imageToBlur")
 
         val imageUrl: String? = book()?.let { b ->
-            println("DEBUG in cover image url")
             b.coverImageId?.let { coverImageId ->
-                println("DEBUG coverageImageId")
                 jellyfinClient.value?.getImageUrl(coverImageId, b.id)
             }
         }
 
-
-
         val cachedImageFileName = imageUrl?.let {
-            println("DEBUG cached image url ${it}")
-            println("DEBUG  it.split(\"Items/\").last() ${it.split("Items/").last().replace("/", "-")}")
             "${blurSettings.blurRadius}-${it.split("Items/").last().replace("/", "-")}"
         }
         var cachedImage = cachedImageFileName?.let {
             getBlurredCachedImage(cachedImageFileName)
         }
 
-        println("DEBUG cached image ${cachedImage == null}")
         if (cachedImage == null) {
             cachedImage = imageUrl?.let { imageUrl ->
                 imageToBlur?.let { recipeImage ->
@@ -64,7 +53,6 @@ fun ViewWriter.blurredImage(book: Reactive<Book?>, shown:Reactive<Boolean>) {
                 }
             }
         }
-        println("DBBUG cachedImage")
         cachedImage
     }
 

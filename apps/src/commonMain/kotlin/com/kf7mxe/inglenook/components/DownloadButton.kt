@@ -6,8 +6,7 @@ import com.lightningkite.kiteui.views.centered
 import com.lightningkite.kiteui.views.direct.*
 import com.kf7mxe.inglenook.*
 import com.kf7mxe.inglenook.downloads.DownloadManager
-import com.lightningkite.reactive.core.AppScope
-import kotlinx.coroutines.launch
+import com.lightningkite.kiteui.reactive.Action
 
 /**
  * A button that shows download status and allows downloading books for offline playback.
@@ -64,29 +63,14 @@ fun ViewWriter.DownloadButton(book: Book) {
             }
         }
 
-        onClick {
+        action = Action("Download") {
             val isDownloaded = DownloadManager.isDownloaded(book.id)
             val hasActiveDownload = DownloadManager.activeDownloads.value.containsKey(book.id)
 
             when {
-                isDownloaded -> {
-                    // Already downloaded - delete it
-                    AppScope.launch {
-                        DownloadManager.deleteDownload(book.id)
-                    }
-                }
-                hasActiveDownload -> {
-                    // Cancel active download
-                    AppScope.launch {
-                        DownloadManager.cancelDownload(book.id)
-                    }
-                }
-                else -> {
-                    // Start download
-                    AppScope.launch {
-                        DownloadManager.downloadBook(book)
-                    }
-                }
+                isDownloaded -> DownloadManager.deleteDownload(book.id)
+                hasActiveDownload -> DownloadManager.cancelDownload(book.id)
+                else -> DownloadManager.downloadBook(book)
             }
         }
 

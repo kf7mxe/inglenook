@@ -9,9 +9,8 @@ import com.lightningkite.kiteui.views.card
 import com.lightningkite.kiteui.views.centered
 import com.lightningkite.kiteui.views.direct.*
 import com.lightningkite.kiteui.views.l2.icon
+import com.lightningkite.kiteui.reactive.Action
 import com.lightningkite.reactive.context.invoke
-import com.lightningkite.reactive.core.AppScope
-import kotlinx.coroutines.launch
 
 fun ViewWriter.connectivityDialog(dismiss: () -> Unit) {
     centered.col {
@@ -46,13 +45,11 @@ fun ViewWriter.connectivityDialog(dismiss: () -> Unit) {
 
         button {
             centered.text("Retry Connection")
-            onClick {
-                AppScope.launch {
-                    val success = jellyfinClient.value?.pingServer() ?: false
-                    if (success) {
-                        ConnectivityState.exitOfflineMode()
-                        dismiss()
-                    }
+            action = Action("Retry Connection") {
+                val success = jellyfinClient.value?.pingServer() ?: false
+                if (success) {
+                    ConnectivityState.exitOfflineMode()
+                    dismiss()
                 }
             }
         }

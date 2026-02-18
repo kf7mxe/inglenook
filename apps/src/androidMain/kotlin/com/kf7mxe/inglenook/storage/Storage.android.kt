@@ -26,7 +26,6 @@ import java.io.FileOutputStream
 
 
 actual suspend fun getFileByteArray(fileName: String): ByteArray? {
-    println("DEBUG getFileByteArray")
     val file = File(AndroidAppContext.applicationCtx.filesDir, fileName)
     if(!file.exists()) return null
     return file.readBytes()
@@ -46,7 +45,6 @@ actual suspend fun saveImageToStorage(
     image: ImageSource,
     fileExtension: String
 ) {
-    println("DEBUG remoteSync saveImageToStorage image ${image}")
     when (image) {
         null -> return
         is ImageRemote -> {
@@ -56,9 +54,7 @@ actual suspend fun saveImageToStorage(
             if (!directory.exists()) {
                 directory.mkdirs()
             }
-            println("After make directory")
             val savedImageFile = File(directory, "$fileName.$fileExtension")
-            println("After create image file")
             try {
                 client.prepareGet(image.url).execute { response ->
                     if (response.status.isSuccess()) {
@@ -71,7 +67,6 @@ actual suspend fun saveImageToStorage(
                                     outputStream.write(buffer, 0, bytesRead)
                                 }
                             }
-                            println("DEBUG saveImageToStorage done")
                             outputStream.close()
                         }
 
@@ -83,27 +78,7 @@ actual suspend fun saveImageToStorage(
             } catch (e: Exception) {
                 e.printStackTrace()
                 false
-            } finally {
-//                client.close()
             }
-
-
-
-//            val imageToSave = fetch(image.url)
-
-
-
-//            withContext(Dispatchers.IO) {
-//                savedImageFile.createNewFile()
-//                try {
-//                    val oStream = FileOutputStream(savedImageFile)
-//                    oStream.wrt
-//                    oStream.flush()
-//                } catch (e: Exception) {
-//                    e.printStackTrace()
-//                }
-//                return@withContext true
-//            }
         }
 
         is ImageRaw -> {
@@ -115,9 +90,6 @@ actual suspend fun saveImageToStorage(
         }
 
         is ImageLocal -> {
-            println("DEBUG remoteSync saveImageToStorage ${fileExtension}")
-//            images
-            println("file extension is $fileExtension")
             val directory = File(AndroidAppContext.applicationCtx.filesDir, directoryName)
             if (!directory.exists()) {
                 directory.mkdirs()
@@ -161,18 +133,14 @@ actual suspend fun readImageFromStorage(directoryName: String, fileName: String)
     if (file.exists()) {
         val fileType = MimeTypeMap.getSingleton().getMimeTypeFromExtension(file.extension)
         try {
-            println("start of try")
             val byteArray = withContext(Dispatchers.IO) {
                 FileInputStream(file).use {
                     it.readBytes()
                 }
             }
-            println("Load byteArray")
             val blob = fileType?.let { Blob(byteArray, it) }
-            println("create Blob")
             return blob?.let { ImageRaw(it) }
         } catch (e: Exception) {
-            println("error reading image from storage")
             e.printStackTrace()
         }
     }

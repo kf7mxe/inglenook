@@ -130,7 +130,6 @@ fun ViewWriter.app(navigator: PageNavigator, dialog: PageNavigator) {
 
             val wallpaper = rememberSuspending {
                 persistedThemeSettings().wallpaperPath?.let { wallpaperPath ->
-                    println("DEBUG wfirst let ${wallpaperPath}")
                     val parentDir = wallpaperPath.split("/").first()
                     val fileName = wallpaperPath.split("/").last()
 
@@ -140,7 +139,6 @@ fun ViewWriter.app(navigator: PageNavigator, dialog: PageNavigator) {
                         parentDir,
                         fileName
                     )?.let { unblurredImage ->
-                        println("DEBUG unblurredImage ${unblurredImage}")
                         blurAndCacheImage(
                             cachedFileName,
                             wallpaperPath,
@@ -157,7 +155,6 @@ fun ViewWriter.app(navigator: PageNavigator, dialog: PageNavigator) {
                 scaleType = ImageScaleType.Crop
                 ::source { wallpaper() }
                 rView::shown {
-                    println("DEBUG wallpaper() != null ${wallpaper() != null}")
                     wallpaper() != null
                 }
             }
@@ -257,10 +254,6 @@ fun ViewWriter.bottomBar(navItems: List<NavLink>) {
                 expanding.link {
 
                     dynamicTheme {
-                        val test = mainPageNavigator.currentPage()
-                            ?.let { mainPageNavigator.routes.render(it) }?.urlLikePath?.segments
-
-
                         val matchingScreen = mainPageNavigator.currentPage()
                             ?.let { mainPageNavigator.routes.render(it) }?.urlLikePath?.segments == mainPageNavigator.routes.render(
                             navLink.destination.invoke()
@@ -327,7 +320,6 @@ fun ViewWriter.nowPlayingPreview() {
                 }
             }
             onClick {
-//                           openNowPlaying.set(true)
                 if (com.lightningkite.kiteui.Platform.current == com.lightningkite.kiteui.Platform.Web) {
                     dialog {
                         nowPlaying()
@@ -346,7 +338,6 @@ fun ViewWriter.nowPlayingPreview() {
                 ::description { if (PlaybackState.isPlaying()) "Pause" else "Play" }
             }
             onClick {
-                println("DEBUG ")
                 PlaybackState.togglePlayPause()
             }
         }
@@ -354,7 +345,6 @@ fun ViewWriter.nowPlayingPreview() {
 }
 
 fun ViewWriter.nowPlayingBottomSheet() {
-    println("DEBUG coordinatorFram ${coordinatorFrame}")
     coordinatorFrame?.bottomSheet(
         partialRatio = 0.75f,
         startState = BottomSheetState.PARTIALLY_EXPANDED
@@ -389,7 +379,6 @@ fun ViewWriter.nowPlaying() {
 
         // Content layer
         scrolling.padded.col {
-//                applySafeInsets(top = false, bottom = true)
 
             col {
                 // Large cover image
@@ -551,8 +540,6 @@ fun ViewWriter.nowPlaying() {
                 themeChoice += ThemeDerivation { it.copy(id = "danger", foreground = Color.red).withoutBack }
             }
 
-            // Spacer at bottom
-//                space(2.0)
         }
 
         onRemove {

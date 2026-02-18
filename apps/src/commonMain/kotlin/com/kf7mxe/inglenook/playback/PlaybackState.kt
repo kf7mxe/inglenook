@@ -36,6 +36,10 @@ object PlaybackState {
     // Skip amounts in ticks (10,000 ticks = 1ms)
     private const val SKIP_FORWARD_TICKS = 30 * 10_000_000L // 30 seconds
     private const val SKIP_BACKWARD_TICKS = 15 * 10_000_000L // 15 seconds
+    private const val CHAPTER_RESTART_THRESHOLD_TICKS = 3 * 10_000_000L // 3 seconds
+    private const val BUFFERING_CHECK_INTERVAL_MS = 500L
+    private const val PROGRESS_SYNC_INTERVAL_MS = 10_000L
+    private const val SLEEP_TIMER_COUNTDOWN_INTERVAL_MS = 60_000L
 
     // Progress sync job
     private var progressSyncJob: Job? = null
@@ -228,9 +232,7 @@ object PlaybackState {
         // Otherwise, go to the previous chapter
         val chapterStartTicks = current?.startPositionTicks ?: 0L
         val ticksIntoChapter = positionTicks.value - chapterStartTicks
-        val threeSeconds = 3 * 10_000_000L
-
-        if (ticksIntoChapter > threeSeconds || currentIndex <= 0) {
+        if (ticksIntoChapter > CHAPTER_RESTART_THRESHOLD_TICKS || currentIndex <= 0) {
             // Restart current chapter
             seek(chapterStartTicks)
         } else {
@@ -274,7 +276,7 @@ object PlaybackState {
         progressSyncJob = AppScope.launch {
             // Fast initial sync to clear buffering state and show real position
             for (i in 0 until 10) {
-                delay(500)
+                delay(BUFFERING_CHECK_INTERVAL_MS)
                 val book = currentBook.value
                 if (book != null && isPlaying.value) {
                     audioPlayer?.let { player ->
@@ -293,7 +295,7 @@ object PlaybackState {
 
             // Normal sync loop
             while (true) {
-                delay(10_000) // Sync every 10 seconds
+                delay(PROGRESS_SYNC_INTERVAL_MS)
 
                 val book = currentBook.value
                 if (book != null && isPlaying.value) {
@@ -369,7 +371,7 @@ object PlaybackState {
         sleepTimerJob?.cancel()
         sleepTimerJob = AppScope.launch {
             while (true) {
-                delay(60_000) // Wait 1 minute
+                delay(SLEEP_TIMER_COUNTDOWN_INTERVAL_MS)
 
                 val remaining = sleepTimerMinutesRemaining.value
                 if (remaining == null || remaining <= 0) {

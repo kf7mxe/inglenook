@@ -29,6 +29,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+private const val SEARCH_DEBOUNCE_MS = 300L
+
 @Routable("/search")
 class SearchPage : Page {
     override val title get() = Constant("Search")
@@ -59,8 +61,7 @@ class SearchPage : Page {
             }
 
             searchJob = AppScope.launch {
-                // Debounce - wait before searching
-                delay(300)
+                delay(SEARCH_DEBOUNCE_MS)
 
                 isLoading.value = true
                 try {
