@@ -12,8 +12,10 @@ import com.kf7mxe.inglenook.*
 import com.kf7mxe.inglenook.cache.ImageCache
 import com.kf7mxe.inglenook.downloads.DownloadManager
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
+import com.kf7mxe.inglenook.downloads.toAudioBook
 import com.kf7mxe.inglenook.playback.PlaybackState
 import com.lightningkite.kiteui.Routable
+import com.lightningkite.kiteui.navigation.mainPageNavigator
 import com.lightningkite.kiteui.views.forEach
 import com.lightningkite.kiteui.reactive.Action
 import com.lightningkite.reactive.core.Signal
@@ -175,15 +177,14 @@ class DownloadsPage : Page {
                                 }
                             }
                             onClick {
-                                // Play the downloaded book
-                                val book = Book(
-                                    id = download._id,
-                                    title = download.title,
-                                    authors = download.authors,
-                                    duration = download.duration,
-                                    chapters = download.chapters
-                                )
-                                PlaybackState.play(book, 0L)
+                                if (download.itemType == ItemType.Ebook) {
+                                    // Navigate to book detail page to open reader
+                                    mainPageNavigator.navigate(BookDetailPage(download._id))
+                                } else {
+                                    // Play the downloaded audiobook
+                                    val book = download.toAudioBook()
+                                    PlaybackState.play(book, 0L)
+                                }
                             }
                         }
                         separator()

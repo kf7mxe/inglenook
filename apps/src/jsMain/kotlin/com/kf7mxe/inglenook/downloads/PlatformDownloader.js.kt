@@ -90,7 +90,7 @@ actual object PlatformDownloader {
         val client = jellyfinClient.value
             ?: throw IllegalStateException("Not connected to Jellyfin server")
 
-        val streamUrl = client.getAudioStreamUrl(book.id)
+        val streamUrl = client.getDownloadUrl(book)
 
         // Report starting
         onProgress(DownloadProgress(
@@ -176,7 +176,8 @@ actual object PlatformDownloader {
                 coverImageId = book.coverImageId,
                 fileSize = blob.size.toLong(),
                 duration = book.duration,
-                chapters = book.chapters
+                chapters = book.chapters,
+                itemType = book.itemType
             )
         } catch (e: Exception) {
             onProgress(DownloadProgress(

@@ -69,7 +69,7 @@ fun Theme.Companion.cozy(accent: Color? = null): Theme {
             ImportantSemantic.override {
                 it.withBack(
                     background = it.outline,
-                    foreground = if (it.outline.closestColor().perceivedBrightness > 0.5f) Color.black else Color.white
+                    foreground =Color.white
                 )
             },
             SelectedSemantic.override {

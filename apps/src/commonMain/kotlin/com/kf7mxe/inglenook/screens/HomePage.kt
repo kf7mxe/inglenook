@@ -24,7 +24,7 @@ import com.lightningkite.reactive.core.remember
 import com.lightningkite.reactive.core.rememberSuspending
 
 @Routable("/")
-class DashboardPage : Page {
+class HomePage : Page {
     override val title get() = Constant("Home")
 
     override fun ViewWriter.render() {
@@ -73,7 +73,7 @@ class DashboardPage : Page {
 
             // Downloaded Books section (shown when offline or has downloads)
             shownWhen { ConnectivityState.offlineMode() && downloadedBooks().isNotEmpty() }.col {
-                col {
+                padded.col {
                     row {
                         expanding.h3 { content = "Downloaded Books" }
                         link {
@@ -184,7 +184,7 @@ class DashboardPage : Page {
 
                 // Connection error state (show when everything is empty and we have a network error)
                 shownWhen { allFinishedLoading() && inProgressBooks().isEmpty() && recommendedBooks().isEmpty() && recentlyAddedBooks().isEmpty() && ConnectivityState.lastNetworkError() != null }.connectionError {
-                    mainPageNavigator.navigate(DashboardPage())
+                    mainPageNavigator.navigate(HomePage())
                 }
 
                 // Empty state when no books and no network error (library is genuinely empty)

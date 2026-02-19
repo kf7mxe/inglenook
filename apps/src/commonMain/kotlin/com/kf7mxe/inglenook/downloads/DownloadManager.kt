@@ -33,12 +33,12 @@ object DownloadManager {
     }
 
     suspend fun downloadBook(book: Book) {
-        // Add to active downloads
+        // Add to active downloads — set Downloading immediately so UI shows progress
         activeDownloads.value = activeDownloads.value + (book.id to DownloadProgress(
             bookId = book.id,
             bytesDownloaded = 0L,
             totalBytes = 0L,
-            status = DownloadStatus.Pending
+            status = DownloadStatus.Downloading
         ))
 
         try {
@@ -162,4 +162,5 @@ fun DownloadedBook.toAudioBook(): Book = Book(
     coverImageId = coverImageId,
     duration = duration,
     chapters = chapters,
+    itemType = itemType,
 )

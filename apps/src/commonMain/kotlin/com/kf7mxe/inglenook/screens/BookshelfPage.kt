@@ -3,6 +3,7 @@ package com.kf7mxe.inglenook.screens
 import com.kf7mxe.inglenook.collectionsBookmark
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.storage.BookshelfRepository
+import com.lightningkite.kiteui.Routable
 import com.lightningkite.kiteui.models.Icon
 import com.lightningkite.kiteui.models.ImportantSemantic
 import com.lightningkite.kiteui.models.SizeConstraints
@@ -38,7 +39,7 @@ import com.lightningkite.reactive.core.rememberSuspending
 import com.lightningkite.reactive.extensions.value
 import kotlin.uuid.ExperimentalUuidApi
 
-
+@Routable("bookshelf")
 class BookshelfPage : Page {
     override val title get() = Constant("Bookshelf")
 

@@ -70,7 +70,6 @@ fun ViewWriter.DownloadButton(book: Book) {
             when {
                 isDownloaded -> DownloadManager.deleteDownload(book.id)
                 activeProgress?.status == DownloadStatus.Downloading -> DownloadManager.cancelDownload(book.id)
-                activeProgress?.status == DownloadStatus.Pending -> { } // Already starting, ignore tap
                 activeProgress?.status == DownloadStatus.Failed -> DownloadManager.downloadBook(book)
                 activeProgress == null -> DownloadManager.downloadBook(book)
             }

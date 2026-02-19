@@ -56,3 +56,21 @@ data object NowPlayingSemantic : Semantic("nowPlayingSemantic") {
 
     ).withBack
 }
+
+data object SelectedTab : Semantic("selectedTab") {
+    override fun default(theme: Theme) = ImportantSemantic.invoke(theme).theme .copy(id="selectedTab",
+        cornerRadii = CornerRadii.Fixed(1.rem),
+        padding = Edges(1.rem,0.25.rem),
+        outline =  theme.outline,
+        background = theme.outline,
+    ).withBack
+}
+
+data object UnSelectedTab : Semantic("unselectedTab") {
+    override fun default(theme: Theme) =theme.copy(id="unselectedTab",
+//        cornerRadii = CornerRadii.Fixed(1.rem),
+        padding = Edges(1.rem,0.25.rem),
+        outline =  theme.background,
+//        background = theme.outline,
+    ).withBack
+}

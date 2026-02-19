@@ -29,7 +29,7 @@ private const val SEEK_SYNC_THRESHOLD_MS = 50L
 @OptIn(ExperimentalTime::class)
 fun ViewWriter.PlaybackControls() {
     // Create a signal for the seek bar that syncs with PlaybackState
-    val seekRatio = Signal(0f)
+    val seekRatio = Signal(if (PlaybackState.duration.value > 0)  PlaybackState.positionTicks.value.toFloat() / PlaybackState.duration.value else 0f)
 
     // Track if we're currently seeking (to avoid feedback loops)
     var isUserDragging = false
@@ -39,10 +39,14 @@ fun ViewWriter.PlaybackControls() {
 
     // Sync seekRatio from PlaybackState when not user dragging
     PlaybackState.positionTicks.addListener {
+        println("DEBUG position ticks listeners")
         if (!isUserDragging) {
             val position = PlaybackState.positionTicks.value
             val duration = PlaybackState.duration.value
             lastSyncTime = kotlin.time.Clock.System.now().toEpochMilliseconds()
+            println("DEBUG duration = $duration")
+            println("DEBUG positionTicks = $position")
+            println("DEBUG value = ${ if (duration > 0) position.toFloat() / duration else 0f}")
             seekRatio.value = if (duration > 0) position.toFloat() / duration else 0f
         }
     }
@@ -57,10 +61,10 @@ fun ViewWriter.PlaybackControls() {
 
     // When seekRatio changes from user input, seek in PlaybackState
     seekRatio.addListener {
-        val now = kotlin.time.Clock.System.now().toEpochMilliseconds()
-        if (now - lastSyncTime > SEEK_SYNC_THRESHOLD_MS) {
-            val newPosition = (seekRatio.value * PlaybackState.duration.value).toLong()
             launch {
+                val now = kotlin.time.Clock.System.now().toEpochMilliseconds()
+                if (now - lastSyncTime > SEEK_SYNC_THRESHOLD_MS) {
+                    val newPosition = (seekRatio.value * PlaybackState.duration.value).toLong()
                 PlaybackState.seek(newPosition)
             }
         }
@@ -182,23 +186,94 @@ fun ViewWriter.PlaybackControls() {
             }
         }
 
-        // Bookmark button (only show when not compact and a book is playing)
-        shownWhen { PlaybackState.currentBook() != null }.centered.button {
-            row {
-                gap = 0.5.rem
-                icon(Icon.bookmark, "Add bookmark")
-                text("Add Bookmark")
+        // Bookmark buttons (only show when a book is playing)
+        shownWhen { PlaybackState.currentBook() != null }.centered.row {
+            // Add Bookmark button - opens note dialog
+            centered.expanding.button {
+                row {
+                    icon(Icon.addBookmark, "Add bookmark")
+                    text("Add Bookmark")
+                }
+                onClick {
+                    val book = PlaybackState.currentBook.value
+                    val position = PlaybackState.positionTicks.value
+                    val chapter = PlaybackState.currentChapter.value
+                    if (book != null) {
+                        val noteInput = Signal("")
+                        coordinatorFrame?.bottomSheet(
+                            partialRatio = 0.5f,
+                            startState = BottomSheetState.PARTIALLY_EXPANDED
+                        ) { control ->
+                            card.col {
+                                h3 { content = "Add Bookmark" }
+                                subtext {
+                                    val totalSeconds = position / 10_000_000
+                                    val hours = totalSeconds / 3600
+                                    val minutes = (totalSeconds % 3600) / 60
+                                    val seconds = totalSeconds % 60
+                                    content = "Position: " + if (hours > 0) {
+                                        "$hours:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}"
+                                    } else {
+                                        "$minutes:${seconds.toString().padStart(2, '0')}"
+                                    }
+                                }
+                                fieldTheme.textInput {
+                                    hint = "Add a note (optional)..."
+                                    keyboardHints = KeyboardHints(KeyboardCase.Sentences, KeyboardType.Text)
+                                    content bind noteInput
+                                }
+                                row {
+                                    expanding.button {
+                                        centered.text("Cancel")
+                                        onClick { control.close() }
+                                    }
+                                    expanding.button {
+                                        centered.text("Save")
+                                        onClick {
+                                            BookmarkRepository.createBookmark(
+                                                bookId = book.id,
+                                                positionTicks = position,
+                                                note = noteInput.value.takeIf { it.isNotBlank() },
+                                                chapterName = chapter?.name
+                                            )
+                                            control.close()
+                                        }
+                                        themeChoice += ImportantSemantic
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
-            onClick {
-                val book = PlaybackState.currentBook.value
-                val position = PlaybackState.positionTicks.value
-                val chapter = PlaybackState.currentChapter.value
-                if (book != null) {
-                    BookmarkRepository.createBookmark(
-                        bookId = book.id,
-                        positionTicks = position,
-                        chapterName = chapter?.name
-                    )
+            centered.separator()
+
+            // View Bookmarks button - opens bookmarks list
+            centered.expanding.button {
+                row {
+                    icon(Icon.bookmark, "View bookmarks")
+                    text("Bookmarks")
+                }
+                onClick {
+                    val book = PlaybackState.currentBook.value
+                    if (book != null) {
+                        val bookmarkSignal = Signal(BookmarkRepository.getBookmarksForBook(book.id))
+                        coordinatorFrame?.bottomSheet(
+                            partialRatio = 0.75f,
+                            startState = BottomSheetState.PARTIALLY_EXPANDED
+                        ) { control ->
+                            card.col {
+                                row {
+                                    expanding.h3 { content = "Bookmarks" }
+                                    button {
+                                        icon(Icon.close, "Close")
+                                        onClick { control.close() }
+                                    }
+                                }
+                                bookmarksList(book.id, bookmarkSignal)
+                            }
+                        }
+                    }
                 }
             }
         }

@@ -32,8 +32,8 @@ fun ViewWriter.BookshelfPickerDialog(
         bookshelvesContainingBook.value = BookshelfRepository.getBookshelvesContainingBook(bookId).map { it._id }.toSet()
     }
 
-    NowPlayingSemantic.onNext.frame {
-     col {
+    card.frame {
+     padded.col {
             // Header
             row {
                 expanding.h3 { content = "Add to Bookshelf" }

@@ -425,3 +425,13 @@ val Icon.Companion.bookmark get() = Icon(
     viewBoxHeight = 960,
     listOf("M200-120v-640q0-33 23.5-56.5T280-840h400q33 0 56.5 23.5T760-760v640L480-240 200-120Zm80-122 200-86 200 86v-518H280v518Zm0-518h400-400Z")
 )
+
+val Icon.Companion.addBookmark get() = Icon(
+    width = 1.5.rem,
+    height = 1.5.rem,
+    viewBoxMinX = 0,
+    viewBoxMinY = -960,
+    viewBoxWidth = 960,
+    viewBoxHeight = 960,
+    listOf("M200-120v-640q0-33 23.5-56.5T280-840h240v80H280v518l200-86 200 86v-278h80v400L480-240 200-120Zm80-640h240-240Zm400 160v-80h-80v-80h80v-80h80v80h80v80h-80v80h-80Z")
+)

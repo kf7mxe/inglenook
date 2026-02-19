@@ -56,7 +56,8 @@ data class Book(
     val indexNumber: Int? = null, // Book number in series
     val year: Int? = null,
     val libraryId: String? = null,
-    val itemType: ItemType = ItemType.AudioBook // Distinguishes audiobooks from ebooks
+    val itemType: ItemType = ItemType.AudioBook, // Distinguishes audiobooks from ebooks
+    val fileExtension: String? = null // Original file extension from Jellyfin Path (e.g. ".m4b", ".epub")
 )
 
 // Chapter information
@@ -148,7 +149,8 @@ data class DownloadedBook(
     val downloadedAt: Instant = Clock.System.now(),
     val fileSize: Long = 0L,
     val duration: Long = 0L,
-    val chapters: List<Chapter> = emptyList()
+    val chapters: List<Chapter> = emptyList(),
+    val itemType: ItemType = ItemType.AudioBook
 ) : HasId<String>
 
 // Download progress tracking

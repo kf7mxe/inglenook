@@ -15,6 +15,7 @@ import com.kf7mxe.inglenook.Book
 import com.kf7mxe.inglenook.DownloadProgress
 import com.kf7mxe.inglenook.DownloadStatus
 import com.kf7mxe.inglenook.DownloadedBook
+import com.kf7mxe.inglenook.ItemType
 import com.kf7mxe.inglenook.MainActivity
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import kotlinx.coroutines.CoroutineScope
@@ -170,9 +171,10 @@ class DownloadService : Service() {
         val client = jellyfinClient.value
             ?: throw IllegalStateException("Not connected to Jellyfin server")
 
-        val streamUrl = client.getAudioStreamUrl(book.id)
+        val streamUrl = client.getDownloadUrl(book)
         val downloadsDir = PlatformDownloader.getDownloadsDirectory()
-        val fileName = "${book.id}.m4a"
+        val ext = book.fileExtension ?: if (book.itemType == ItemType.Ebook) ".epub" else ".m4a"
+        val fileName = "${book.id}$ext"
         val outputFile = File(downloadsDir, fileName)
 
         // Create downloads directory if it doesn't exist
@@ -248,7 +250,8 @@ class DownloadService : Service() {
                     coverImageId = book.coverImageId,
                     fileSize = bytesDownloaded,
                     duration = book.duration,
-                    chapters = book.chapters
+                    chapters = book.chapters,
+                    itemType = book.itemType
                 )
 
                 DownloadManager.notifyDownloadComplete(downloadedBook)

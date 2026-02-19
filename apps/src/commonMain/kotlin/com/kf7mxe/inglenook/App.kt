@@ -30,6 +30,8 @@ import com.kf7mxe.inglenook.playback.PlaybackState
 import com.kf7mxe.inglenook.playback.SleepTimerMode
 import com.kf7mxe.inglenook.screens.*
 import com.kf7mxe.inglenook.storage.NowPlayingSemantic
+import com.kf7mxe.inglenook.storage.SelectedTab
+import com.kf7mxe.inglenook.storage.UnSelectedTab
 import com.kf7mxe.inglenook.storage.readImageFromStorage
 import com.kf7mxe.inglenook.theming.createTheme
 import com.lightningkite.kiteui.current
@@ -44,7 +46,6 @@ import com.lightningkite.reactive.core.Signal
 import com.lightningkite.kiteui.reactive.PersistentProperty
 import com.lightningkite.kiteui.views.RView
 import com.lightningkite.kiteui.views.atBottom
-import com.lightningkite.kiteui.views.closePopovers
 import com.lightningkite.kiteui.views.forEach
 import com.lightningkite.kiteui.views.l2.dialog
 import com.lightningkite.kiteui.views.l2.overlayFrame
@@ -69,7 +70,7 @@ val bookToShowBlurredBackgroundCoverOf = Signal<Book?>(null)
 // Current theme preset setting (reactive, synced with persisted)
 val currentThemePreset get() = persistedThemePreset
 
-val viewMode = PersistentProperty("viewMode",ViewMode.Grid)
+val viewMode = PersistentProperty("viewMode", ViewMode.Grid)
 
 
 // View mode for book lists
@@ -95,7 +96,7 @@ var ViewWriter.coordinatorFrame by rContextAddon<CoordinatorFrame?>(null)
 
 fun ViewWriter.app(navigator: PageNavigator, dialog: PageNavigator) {
     val mainNavPages = listOf(
-        NavLink("Home", Icon.home) { DashboardPage() },
+        NavLink("Home", Icon.home) { HomePage() },
         NavLink("Library", Icon.collectionsBookmark) { LibraryPage() },
         NavLink("Bookshelf", Icon.book) { BookshelfPage() },
         NavLink("Settings", Icon.settings) { SettingsPage() },
@@ -110,7 +111,7 @@ fun ViewWriter.app(navigator: PageNavigator, dialog: PageNavigator) {
         if (config == null) {
             navigator.navigate(JellyfinSetupPage())
         } else {
-            navigator.navigate(DashboardPage())
+            navigator.navigate(HomePage())
         }
     }
 
@@ -252,19 +253,50 @@ fun ViewWriter.bottomBar(navItems: List<NavLink>) {
             gap = 0.dp
             for (navLink in navItems) {
                 expanding.link {
-
-                    dynamicTheme {
-                        val matchingScreen = mainPageNavigator.currentPage()
-                            ?.let { mainPageNavigator.routes.render(it) }?.urlLikePath?.segments == mainPageNavigator.routes.render(
-                            navLink.destination.invoke()
-                        )?.urlLikePath?.segments
-                        if (matchingScreen) SelectedSemantic else null
-                    }
-
                     resetsStack = true
                     col {
                         gap = 0.0.rem
                         centered.icon {
+                            dynamicTheme {
+                                val destination = mainPageNavigator.routes.render(navLink.destination.invoke())?.urlLikePath?.segments?.toList() ?: emptyList()
+                                val currentPath = mainPageNavigator.currentPage()?.let { mainPageNavigator.routes.render(it) }?.urlLikePath?.segments?.toList() ?: emptyList()
+
+                                // Helper: Fixes the bug where `any { }` returns false for empty destinations like `[]`
+                                fun isMatch(path: List<String>, dest: List<String>): Boolean {
+                                    return if (dest.isEmpty()) path.isEmpty() else dest.any { path.contains(it) }
+                                }
+
+                                // 1. Does the current screen match this specific tab directly?
+                                var matchingScreen = isMatch(currentPath, destination)
+
+                                // 2. If not, verify if the current screen matches ANY tab
+                                if (!matchingScreen) {
+                                    val allTabDests = navItems.map {
+                                        mainPageNavigator.routes.render(it.destination.invoke())?.urlLikePath?.segments?.toList() ?: emptyList()
+                                    }
+
+                                    val isAnyTabActive = allTabDests.any { isMatch(currentPath, it) }
+
+                                    // 3. If NO tab matches the current path (we are on a detail screen), check history
+                                    if (!isAnyTabActive) {
+                                        val historyPaths = mainPageNavigator.stack().mapNotNull {
+                                            mainPageNavigator.routes.render(it)?.urlLikePath?.segments?.toList()
+                                        }
+
+                                        // Find the most recent history item that corresponds to a valid tab
+                                        val lastActiveTab = historyPaths.reversed().firstNotNullOfOrNull { histPath ->
+                                            allTabDests.firstOrNull { dest -> isMatch(histPath, dest) }
+                                        }
+
+                                        // If the last valid tab from history matches THIS link's destination, highlight it!
+                                        if (lastActiveTab == destination) {
+                                            matchingScreen = true
+                                        }
+                                    }
+                                }
+
+                                if (matchingScreen) SelectedTab else UnSelectedTab
+                            }
                             source = navLink.icon.copy(width = 1.5.rem, height = 1.5.rem)
                             description = navLink.title
                         }
@@ -352,7 +384,7 @@ fun ViewWriter.nowPlayingBottomSheet() {
     coordinatorFrame?.bottomSheet(
         partialRatio = 0.75f,
         startState = BottomSheetState.PARTIALLY_EXPANDED
-    ) {control ->
+    ) { control ->
         unpadded.nowPlaying() {
             control.close()
         }
@@ -443,7 +475,7 @@ fun ViewWriter.nowPlaying(onClose: () -> Unit = {}) {
                     }
                 }
 
-               unpadded. button {
+                unpadded.button {
                     ::shown {
                         chapters().isNotEmpty()
                     }
@@ -454,15 +486,20 @@ fun ViewWriter.nowPlaying(onClose: () -> Unit = {}) {
                         }
                     }
                     onClick {
-                        dialog { dismiss ->
-                            sizeConstraints(width = 30.rem).chaptersList(chapters) { chapter ->
-                                PlaybackState.seek(chapter.startPositionTicks)
-                            }
-                            atBottom.card.button {
-                                centered.text("Cancel")
-                                onClick {
-                                    dismiss()
+                        coordinatorFrame?.bottomSheet { control ->
+                            card.col {
+                                sizeConstraints(width = 30.rem).chaptersList(chapters) { chapter ->
+                                    PlaybackState.seek(chapter.startPositionTicks)
+                                    control.close()
                                 }
+                                atBottom.card.button {
+                                    centered.text("Cancel")
+                                    onClick {
+                                        control.close()
+
+                                    }
+                                }
+
                             }
                         }
                     }
@@ -493,8 +530,8 @@ fun ViewWriter.nowPlaying(onClose: () -> Unit = {}) {
 
                 // Show current timer status if active
                 shownWhen { PlaybackState.sleepTimerMode() != null }.centered.row {
-                    icon(Icon.timer, "Sleep timer active")
-                    text {
+                    centered.icon(Icon.timer, "Sleep timer active")
+                    centered.text {
                         ::content {
                             when (PlaybackState.sleepTimerMode()) {
                                 is SleepTimerMode.Minutes -> {

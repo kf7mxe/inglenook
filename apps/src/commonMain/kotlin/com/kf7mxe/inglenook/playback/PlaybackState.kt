@@ -39,7 +39,7 @@ object PlaybackState {
     private const val SKIP_BACKWARD_TICKS = 15 * 10_000_000L // 15 seconds
     private const val CHAPTER_RESTART_THRESHOLD_TICKS = 3 * 10_000_000L // 3 seconds
     private const val BUFFERING_CHECK_INTERVAL_MS = 500L
-    private const val PROGRESS_SYNC_INTERVAL_MS = 10_000L
+    private const val PROGRESS_SYNC_INTERVAL_MS = 2_000L
     private const val SLEEP_TIMER_COUNTDOWN_INTERVAL_MS = 60_000L
 
     // Progress sync job
@@ -84,6 +84,7 @@ object PlaybackState {
         if (currentBook.value != null) return // Already have an active book
         val book = persistedLastBook.value ?: return
         currentBook.value = book
+        println("DEBUG persistedLastPosition ${persistedLastPosition.value}")
         positionTicks.value = persistedLastPosition.value
         duration.value = book.duration
         isPlaying.value = false

@@ -8,8 +8,6 @@ import com.lightningkite.kiteui.views.centered
 import com.lightningkite.kiteui.views.card
 import com.lightningkite.kiteui.views.direct.*
 import com.lightningkite.kiteui.views.expanding
-import com.lightningkite.kiteui.views.l2.icon
-import com.kf7mxe.inglenook.*
 import com.kf7mxe.inglenook.jellyfin.JellyfinClient
 import com.kf7mxe.inglenook.jellyfin.addServer
 import com.kf7mxe.inglenook.jellyfin.jellyfinServers
@@ -155,7 +153,7 @@ class JellyfinSetupPage : Page {
                                 val client = JellyfinClient(serverUrl.value)
                                 val config = client.authenticate(username.value, password.value)
                                 addServer(config)
-                                mainPageNavigator.navigate(DashboardPage())
+                                mainPageNavigator.navigate(HomePage())
                             }
                             themeChoice += ImportantSemantic
                         }
@@ -243,7 +241,7 @@ class JellyfinSetupPage : Page {
                                                 val config = client.authenticateWithQuickConnect(secret)
                                                 addServer(config)
                                                 stopPolling()
-                                                mainPageNavigator.navigate(DashboardPage())
+                                                mainPageNavigator.navigate(HomePage())
                                                 return@launch
                                             }
                                         } catch (e: Exception) {

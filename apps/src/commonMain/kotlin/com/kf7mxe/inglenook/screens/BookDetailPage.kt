@@ -21,12 +21,14 @@ import com.lightningkite.reactive.context.invoke
 import com.kf7mxe.inglenook.components.PlaybackControls
 import com.kf7mxe.inglenook.components.BookshelfPickerDialog
 import com.kf7mxe.inglenook.components.blurredImage
+import com.kf7mxe.inglenook.components.bookmarksList
 import com.kf7mxe.inglenook.components.chaptersList
 import com.kf7mxe.inglenook.ebook.ebookReader
 import com.lightningkite.kiteui.views.l2.coordinatorFrame
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.playback.PlaybackState
 import com.kf7mxe.inglenook.storage.BookmarkRepository
+import com.kf7mxe.inglenook.storage.BookshelfRepository
 import com.kf7mxe.inglenook.storage.ImageSemantic
 import com.kf7mxe.inglenook.util.truncateDisplay
 import com.lightningkite.kiteui.Routable
@@ -35,6 +37,7 @@ import com.lightningkite.kiteui.views.closeThisPopover
 import com.lightningkite.kiteui.views.forEach
 import com.lightningkite.reactive.context.invoke
 import com.lightningkite.kiteui.reactive.Action
+import com.lightningkite.kiteui.views.card
 import com.lightningkite.reactive.core.Signal
 import com.lightningkite.reactive.core.Constant
 import com.lightningkite.reactive.core.Reactive
@@ -57,7 +60,7 @@ class BookDetailPage(val bookId: String) : Page {
 
     override fun ViewWriter.render() {
         val showChapters = Signal(true)
-        col {
+        padded.col {
             // Loading state
             shownWhen { !book.state().ready }.expanding.centered.col {
                 activityIndicator { }
@@ -143,6 +146,9 @@ class BookDetailPage(val bookId: String) : Page {
 
                             // Duration
                             subtext {
+                                ::shown{
+                                    book()?.itemType == ItemType.AudioBook
+                                }
                                 ::content {
                                     val durationTicks = book()?.duration ?: 0L
                                     val totalSeconds = durationTicks / 10_000_000
@@ -159,7 +165,7 @@ class BookDetailPage(val bookId: String) : Page {
                                         val b = book()
                                         val position = b?.userData?.playbackPositionTicks ?: 0L
                                         val dur = b?.duration ?: 1L
-                                        if (dur > 0) (position.toFloat() / dur) else 0f
+                                        if (dur > 0) (position.toFloat() / dur).coerceAtMost(1f) else 0f
                                     }
                                 }
                                 subtext {
@@ -167,7 +173,8 @@ class BookDetailPage(val bookId: String) : Page {
                                         val b = book()
                                         val position = b?.userData?.playbackPositionTicks ?: 0L
                                         val dur = b?.duration ?: 1L
-                                        val percent = if (dur > 0) ((position.toFloat() / dur) * 100).toInt() else 0
+                                        val percent = if (dur > 0) ((position.toFloat() / dur) * 100).toInt()
+                                            .coerceAtMost(100) else 0
                                         "$percent% complete"
                                     }
                                 }
@@ -179,10 +186,10 @@ class BookDetailPage(val bookId: String) : Page {
                     shownWhen { book()?.itemType == ItemType.AudioBook }.row {
                         expanding.button {
                             row {
-                                centered.icon{
+                                centered.icon {
                                     ::source {
-                                        if(PlaybackState.currentBook()?.id == book()?.id && PlaybackState.isPlaying()) Icon.pause else
-                                        Icon.playArrow
+                                        if (PlaybackState.currentBook()?.id == book()?.id && PlaybackState.isPlaying()) Icon.pause else
+                                            Icon.playArrow
                                     }
                                 }
                                 centered.text {
@@ -195,8 +202,12 @@ class BookDetailPage(val bookId: String) : Page {
                             onClick {
                                 val currentBook = book()
                                 if (currentBook != null) {
-                                    val startPosition = currentBook.userData?.playbackPositionTicks ?: 0L
-                                    PlaybackState.play(currentBook, startPosition)
+                                    if (PlaybackState.currentBook.value?.id == currentBook.id && PlaybackState.isPlaying.value) {
+                                        PlaybackState.pause()
+                                    } else {
+                                        val startPosition = currentBook.userData?.playbackPositionTicks ?: 0L
+                                        PlaybackState.play(currentBook, startPosition)
+                                    }
                                 }
                             }
                             themeChoice += ImportantSemantic
@@ -277,31 +288,28 @@ class BookDetailPage(val bookId: String) : Page {
 
                             action = Action("Download") {
                                 val currentBook = book() ?: return@Action
-                                val isDownloaded = com.kf7mxe.inglenook.downloads.DownloadManager.isDownloaded(currentBook.id)
-                                val hasActiveDownload = com.kf7mxe.inglenook.downloads.DownloadManager.activeDownloads.value.containsKey(currentBook.id)
+                                val isDownloaded =
+                                    com.kf7mxe.inglenook.downloads.DownloadManager.isDownloaded(currentBook.id)
+                                val hasActiveDownload =
+                                    com.kf7mxe.inglenook.downloads.DownloadManager.activeDownloads.value.containsKey(
+                                        currentBook.id
+                                    )
 
                                 when {
-                                    isDownloaded -> com.kf7mxe.inglenook.downloads.DownloadManager.deleteDownload(currentBook.id)
-                                    hasActiveDownload -> com.kf7mxe.inglenook.downloads.DownloadManager.cancelDownload(currentBook.id)
+                                    isDownloaded -> com.kf7mxe.inglenook.downloads.DownloadManager.deleteDownload(
+                                        currentBook.id
+                                    )
+
+                                    hasActiveDownload -> com.kf7mxe.inglenook.downloads.DownloadManager.cancelDownload(
+                                        currentBook.id
+                                    )
+
                                     else -> com.kf7mxe.inglenook.downloads.DownloadManager.downloadBook(currentBook)
                                 }
                             }
                         }
 
-                        // Bookshelf button
-                        button {
-                            icon(Icon.collectionsBookmark, "Add to Bookshelf")
-                            onClick {
-                                coordinatorFrame?.bottomSheet(
-                                    partialRatio = 0.75f,
-                                    startState = BottomSheetState.PARTIALLY_EXPANDED
-                                ) {control ->
-                                    unpadded.BookshelfPickerDialog(bookId) {
-                                        control.close()
-                                    }
-                                }
-                            }
-                        }
+                        bookshelfButton(bookId)
                     }
 
                     // Action buttons for ebooks
@@ -328,24 +336,81 @@ class BookDetailPage(val bookId: String) : Page {
                                 }
                                 themeChoice += ImportantSemantic
                             }
-
-                            // Bookshelf button for ebooks
+                            // Download button for ebook
                             button {
-                                icon(Icon.collectionsBookmark, "Add to Bookshelf")
-                                onClick {
-                                    coordinatorFrame?.bottomSheet(
-                                        partialRatio = 0.75f,
-                                        startState = BottomSheetState.PARTIALLY_EXPANDED
-                                    ) {control ->
-                                        BookshelfPickerDialog(bookId) {
-                                            control.close()
+                                centered.row {
+                                    gap = 0.5.rem
+                                    icon {
+                                        ::source {
+                                            val currentBook = book()
+                                            if (currentBook == null) Icon.download else {
+                                                val activeProgress =
+                                                    com.kf7mxe.inglenook.downloads.DownloadManager.activeDownloads()[currentBook.id]
+                                                when {
+                                                    com.kf7mxe.inglenook.downloads.DownloadManager.isDownloaded(currentBook.id) -> Icon.checkCircle
+                                                    activeProgress?.status == DownloadStatus.Downloading -> Icon.cloudDownload
+                                                    activeProgress?.status == DownloadStatus.Failed -> Icon.errorIcon
+                                                    else -> Icon.download
+                                                }
+                                            }
+                                        }
+                                        description = "Download status"
+                                    }
+                                    text {
+                                        ::content {
+                                            val currentBook = book()
+                                            if (currentBook == null) "Download" else {
+                                                val activeProgress =
+                                                    com.kf7mxe.inglenook.downloads.DownloadManager.activeDownloads()[currentBook.id]
+                                                when {
+                                                    com.kf7mxe.inglenook.downloads.DownloadManager.isDownloaded(currentBook.id) -> "Downloaded"
+                                                    activeProgress?.status == DownloadStatus.Downloading -> {
+                                                        if (activeProgress.totalBytes > 0) {
+                                                            val percent =
+                                                                (activeProgress.bytesDownloaded * 100 / activeProgress.totalBytes).toInt()
+                                                            "Downloading $percent%"
+                                                        } else "Downloading..."
+                                                    }
+
+                                                    activeProgress?.status == DownloadStatus.Failed -> "Failed - Retry"
+                                                    else -> "Download"
+                                                }
+                                            }
                                         }
                                     }
                                 }
+                                action = Action("Download Ebook") {
+                                    val currentBook = book() ?: return@Action
+                                    val isDownloaded =
+                                        com.kf7mxe.inglenook.downloads.DownloadManager.isDownloaded(currentBook.id)
+                                    val activeProgress =
+                                        com.kf7mxe.inglenook.downloads.DownloadManager.activeDownloads.value[currentBook.id]
+                                    when {
+                                        isDownloaded -> com.kf7mxe.inglenook.downloads.DownloadManager.deleteDownload(
+                                            currentBook.id
+                                        )
+
+                                        activeProgress?.status == DownloadStatus.Downloading -> com.kf7mxe.inglenook.downloads.DownloadManager.cancelDownload(
+                                            currentBook.id
+                                        )
+
+                                        activeProgress?.status == DownloadStatus.Failed -> com.kf7mxe.inglenook.downloads.DownloadManager.downloadBook(
+                                            currentBook
+                                        )
+
+                                        activeProgress == null -> com.kf7mxe.inglenook.downloads.DownloadManager.downloadBook(
+                                            currentBook
+                                        )
+                                    }
+                                }
                             }
+
+                            bookshelfButton(bookId)
                         }
 
-                        // Open in browser as secondary option
+
+
+                        // Open in browser
                         button {
                             row {
                                 centered.icon(Icon.chevronRight, "Open in Browser")
@@ -365,6 +430,27 @@ class BookDetailPage(val bookId: String) : Page {
                         }
                     }
 
+                    // Bookshelf membership
+                    val memberBookshelves = remember {
+                        BookshelfRepository.getBookshelvesContainingBook(bookId)
+                    }
+                    shownWhen { memberBookshelves().isNotEmpty() }.col {
+                        h3 { content = "Bookshelves" }
+                        scrollingHorizontally.row {
+                            forEach(memberBookshelves) { shelf ->
+                                card.button {
+                                    row {
+                                        icon(Icon.collectionsBookmark.copy(width = 1.rem, height = 1.rem), "Bookshelf")
+                                        text { content = shelf.name }
+                                    }
+                                    onClick {
+                                        mainPageNavigator.navigate(BookshelfDetailPage(shelf._id.toString()))
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     // Description section
                     shownWhen { book()?.description != null }.col {
                         h3 { content = "Description" }
@@ -376,7 +462,8 @@ class BookDetailPage(val bookId: String) : Page {
                         val b = book()
                         b?.itemType == ItemType.AudioBook && (b.chapters.size) > 0
                     }.col {
-                        button {
+                        unpadded. button {
+                            paddingByEdge = Edges(0.rem,0.rem,1.rem,1.rem)
                             row {
                                 expanding.h3 {
                                     ::content { "Chapters (${book()?.chapters?.size ?: 0})" }
@@ -389,7 +476,7 @@ class BookDetailPage(val bookId: String) : Page {
                             onClick { showChapters.value = !showChapters.value }
                         }
 
-                        shownWhen { showChapters() }.col {
+                        shownWhen { showChapters() }.unpadded.col {
                             // Render chapters with reactive updates using forEachUpdating
                             val chapters = remember {
                                 book()?.chapters ?: emptyList()
@@ -409,7 +496,7 @@ class BookDetailPage(val bookId: String) : Page {
                     val bookmarks = Signal(BookmarkRepository.getBookmarksForBook(bookId))
 
                     shownWhen { bookmarks().isNotEmpty() }.col {
-                        button {
+                        unpadded.button {
                             row {
                                 expanding.h3 {
                                     ::content { "Bookmarks (${bookmarks().size})" }
@@ -423,56 +510,10 @@ class BookDetailPage(val bookId: String) : Page {
                         }
 
                         shownWhen { showBookmarks() }.col {
-                            forEach(bookmarks) { bookmark ->
-                                row {
-                                    expanding.button {
-                                        col {
-                                            text {
-                                                val totalSeconds = bookmark.positionTicks / 10_000_000
-                                                val hours = totalSeconds / 3600
-                                                val minutes = (totalSeconds % 3600) / 60
-                                                val seconds = totalSeconds % 60
-                                                content = if (hours > 0) {
-                                                    "$hours:${minutes.toString().padStart(2, '0')}:${
-                                                        seconds.toString().padStart(2, '0')
-                                                    }"
-                                                } else {
-                                                    "$minutes:${seconds.toString().padStart(2, '0')}"
-                                                }
-                                            }
-
-                                            bookmark.chapterName?.let { chapterName ->
-                                                subtext {
-                                                    content = chapterName
-                                                    ellipsis = true
-                                                }
-                                            }
-
-                                            bookmark.note?.let { noteText ->
-                                                subtext {
-                                                    content = noteText
-                                                    ellipsis = true
-                                                }
-                                            }
-                                        }
-
-                                        onClick {
-                                            book()?.let { currentBook ->
-                                                PlaybackState.play(currentBook, bookmark.positionTicks)
-                                            }
-                                        }
-                                    }
-
-                                    button {
-                                        icon(Icon.delete, "Delete bookmark")
-                                        onClick {
-                                            BookmarkRepository.deleteBookmark(bookmark._id)
-                                            bookmarks.value = BookmarkRepository.getBookmarksForBook(bookId)
-                                        }
-                                    }
+                            bookmarksList(bookId, bookmarks) { positionTicks ->
+                                book()?.let { currentBook ->
+                                    PlaybackState.play(currentBook, positionTicks)
                                 }
-
-                                separator()
                             }
                         }
                     }
@@ -483,3 +524,18 @@ class BookDetailPage(val bookId: String) : Page {
     }
 }
 
+private fun ViewWriter.bookshelfButton(bookId: String) {
+    button {
+        icon(Icon.collectionsBookmark, "Add to Bookshelf")
+        onClick {
+            coordinatorFrame?.bottomSheet(
+                partialRatio = 0.75f,
+                startState = BottomSheetState.PARTIALLY_EXPANDED
+            ) { control ->
+                unpadded.BookshelfPickerDialog(bookId) {
+                    control.close()
+                }
+            }
+        }
+    }
+}

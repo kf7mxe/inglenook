@@ -17,7 +17,6 @@ import com.kf7mxe.inglenook.*
 import com.kf7mxe.inglenook.connectivity.ConnectivityState
 import com.kf7mxe.inglenook.theming.createTheme
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
-import com.kf7mxe.inglenook.jellyfin.jellyfinServerConfig
 import com.kf7mxe.inglenook.jellyfin.jellyfinServers
 import com.kf7mxe.inglenook.jellyfin.activeServerId
 import com.kf7mxe.inglenook.jellyfin.switchToServer
@@ -27,11 +26,9 @@ import com.lightningkite.kiteui.Routable
 import com.lightningkite.kiteui.views.forEach
 import com.lightningkite.reactive.context.invoke
 import com.lightningkite.reactive.core.Signal
-import com.lightningkite.reactive.core.AppScope
 import com.lightningkite.reactive.core.Constant
 import com.lightningkite.reactive.core.remember
 import com.lightningkite.reactive.core.rememberSuspending
-import kotlinx.coroutines.launch
 
 
 @Routable("/settings")
@@ -46,24 +43,16 @@ class SettingsPage : Page {
             Signal<List<JellyfinLibrary>>(emptyList())
 
         scrolling.col {
-            padding = 1.rem
-            gap = 1.5.rem
-
             // Jellyfin Servers section
             col {
-                gap = 0.5.rem
                 h3 { content = "Jellyfin Servers" }
-
                 card.col {
-                    gap = 0.rem
-
                     forEach(remember { jellyfinServers.value }) { server ->
                         val isActive = activeServerId.value == server._id.toString()
 
                         button {
                             row {
                                 expanding.col {
-                                    gap = 0.rem
                                     text { content = server.displayName }
                                     subtext { content = server.serverUrl }
                                     subtext { content = "Logged in as ${server.username}" }
@@ -75,7 +64,7 @@ class SettingsPage : Page {
                             onClick {
                                 if (!isActive) {
                                     switchToServer(server._id.toString())
-                                    mainPageNavigator.navigate(DashboardPage())
+                                    mainPageNavigator.navigate(HomePage())
                                 }
                             }
                             if (isActive) {
@@ -85,11 +74,9 @@ class SettingsPage : Page {
 
                         // Remove button for each server
                         row {
-                            padding = 0.5.rem
                             expanding.space(1.0)
                             button {
                                 row {
-                                    gap = 0.25.rem
                                     icon(Icon.close, "Remove")
                                     text("Remove")
                                 }
@@ -109,7 +96,6 @@ class SettingsPage : Page {
                     // Add server button
                     button {
                         row {
-                            gap = 0.5.rem
                             icon(Icon.add, "Add")
                             expanding.text("Add Server")
                         }
@@ -125,8 +111,6 @@ class SettingsPage : Page {
 
             // Theme section
             col {
-                gap = 0.5.rem
-
                 row {
                     expanding.h3 { content = "Theme" }
                     link {
@@ -135,14 +119,10 @@ class SettingsPage : Page {
                     }
                 }
                 card.col {
-                    gap = 0.rem
-
                     // Show first 4 presets as quick options[
                     for (preset in ThemePreset.entries) {
                         button {
                             row {
-                                padding = 0.5.rem
-
                                 // Color preview
                                 sizedBox(SizeConstraints(width = 2.rem, height = 2.rem)).frame {
                                     val presetTheme = createTheme(preset)
@@ -172,7 +152,6 @@ class SettingsPage : Page {
                     // Link to full theme settings
                     button {
                         row {
-                            padding = 0.5.rem
                             expanding.text { content = "Customization..." }
                             icon(Icon.chevronRight, "More")
                         }
@@ -183,15 +162,12 @@ class SettingsPage : Page {
 
             // Connectivity section
             col {
-                gap = 0.5.rem
                 h3 { content = "Connectivity" }
 
                 card.col {
-                    gap = 0.5.rem
 
                     row {
                         expanding.col {
-                            gap = 0.rem
                             text("Offline Mode")
                             subtext {
                                 ::content {
@@ -219,7 +195,6 @@ class SettingsPage : Page {
                     // Banner: server is reachable while in manual offline mode
                     shownWhen { ConnectivityState.offlineMode() && ConnectivityState.serverReachable() }.card.row {
                         expanding.col {
-                            gap = 0.rem
                             text("Server available")
                             subtext("Your Jellyfin server is reachable again.")
                         }
@@ -236,12 +211,9 @@ class SettingsPage : Page {
 
             // Downloads section
             col {
-                gap = 0.5.rem
                 h3 { content = "Downloads" }
 
                 card.col {
-                    gap = 0.5.rem
-
                     button {
                         row {
                             expanding.col {
@@ -260,8 +232,6 @@ class SettingsPage : Page {
 
             // Library Selection section
             col {
-                gap = 0.5.rem
-
                 row {
                     expanding.h3 { content = "Libraries" }
                     subtext {
@@ -273,22 +243,14 @@ class SettingsPage : Page {
                 }
 
                 card.col {
-                    gap = 0.rem
-
                     shownWhen { !libraries.state().ready }.centered.row {
-                        padding = 1.rem
                         activityIndicator()
                         text("Loading libraries...")
                     }
 
                     shownWhen { libraries.state().ready }.col {
-                        gap = 0.rem
-
                         // Select All / Clear buttons
                         row {
-                            padding = 0.5.rem
-                            gap = 0.5.rem
-
                             button {
                                 text("Select All")
                                 onClick {
@@ -317,8 +279,6 @@ class SettingsPage : Page {
                             forEach(libraries) { library ->
                                 button {
                                     row {
-                                        padding = 0.5.rem
-
                                         checkbox {
                                             checked bind selectedLibraryIds.lens(
                                                 get = { it.contains(library.id) },
@@ -333,7 +293,6 @@ class SettingsPage : Page {
                                         }
 
                                         expanding.col {
-                                            gap = 0.rem
                                             text(library.name)
                                             shownWhen { library.collectionType != null }.subtext {
                                                 content = library.collectionType ?: ""
@@ -363,12 +322,8 @@ class SettingsPage : Page {
 
             // About section
             col {
-                gap = 0.5.rem
                 h3 { content = "About" }
-
                 card.col {
-                    gap = 0.5.rem
-
                     row {
                         expanding.text("Version")
                         text("1.0.0")

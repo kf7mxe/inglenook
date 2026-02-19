@@ -846,6 +846,17 @@ class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
         }
     }
 
+    /**
+     * Get the download URL for a book. Uses audio stream for audiobooks, direct download for ebooks.
+     */
+    fun getDownloadUrl(book: com.kf7mxe.inglenook.Book): String {
+        return if (book.itemType == com.kf7mxe.inglenook.ItemType.Ebook) {
+            "$serverUrl/Items/${book.id}/Download?api_key=$accessToken"
+        } else {
+            getAudioStreamUrl(book.id)
+        }
+    }
+
     suspend fun search(query: String, limit: Int = 20): SearchResults {
         if (ConnectivityState.offlineMode.value) return SearchResults()
         val uid = userId ?: return SearchResults()
@@ -1113,7 +1124,8 @@ class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
             indexNumber = IndexNumber,
             year = ProductionYear,
             libraryId = ParentId,
-            itemType = itemType
+            itemType = itemType,
+            fileExtension = Path?.substringAfterLast('.', "")?.takeIf { it.isNotEmpty() }?.let { ".$it" }
         )
     }
 

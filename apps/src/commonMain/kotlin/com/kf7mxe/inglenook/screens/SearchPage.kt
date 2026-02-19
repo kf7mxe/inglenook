@@ -19,6 +19,7 @@ import com.kf7mxe.inglenook.downloads.toAudioBook
 import com.kf7mxe.inglenook.jellyfin.SearchResults
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.lightningkite.kiteui.Routable
+import com.lightningkite.kiteui.views.fieldTheme
 import com.lightningkite.kiteui.views.forEach
 import com.lightningkite.reactive.core.Signal
 import com.lightningkite.reactive.core.AppScope
@@ -92,7 +93,7 @@ class SearchPage : Page {
 
                 centered.icon(Icon.search, "Search")
 
-                expanding.textInput {
+                expanding.fieldTheme.textInput {
                     hint = "Search books, authors..."
                     content bind searchQuery
                 }
