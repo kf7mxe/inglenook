@@ -88,7 +88,7 @@ class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
         )
     }
 
-    private suspend fun getServerInfo(): ServerInfoResponse? {
+    suspend fun getServerInfo(): ServerInfoResponse? {
         return try {
             val response = client.get("$serverUrl/System/Info/Public")
             if (response.status.isSuccess()) response.body() else null
@@ -179,7 +179,7 @@ class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
                     append("$serverUrl/Users/$uid/Items")
                     append("?IncludeItemTypes=AudioBook,Book")
                     append("&Recursive=true")
-                    append("&Fields=Chapters,Overview,People")
+                    append("&Fields=Overview,People")
                     append("&SortBy=SortName")
                     append("&SortOrder=Ascending")
                     append("&ParentId=$libId")
@@ -208,7 +208,7 @@ class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
             append("$serverUrl/Users/$uid/Items")
             append("?IncludeItemTypes=AudioBook,Book")
             append("&Recursive=true")
-            append("&Fields=Chapters,Overview,People")
+            append("&Fields=Overview,People")
             append("&SortBy=SortName")
             append("&SortOrder=Ascending")
         }

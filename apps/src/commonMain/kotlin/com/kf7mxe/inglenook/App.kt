@@ -111,7 +111,7 @@ fun ViewWriter.app(navigator: PageNavigator, dialog: PageNavigator) {
         if (config == null) {
             navigator.navigate(JellyfinSetupPage())
         } else {
-            navigator.navigate(HomePage())
+            navigator.navigate(SplashPage())
         }
     }
 

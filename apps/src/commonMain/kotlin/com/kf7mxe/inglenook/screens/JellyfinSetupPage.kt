@@ -8,12 +8,16 @@ import com.lightningkite.kiteui.views.centered
 import com.lightningkite.kiteui.views.card
 import com.lightningkite.kiteui.views.direct.*
 import com.lightningkite.kiteui.views.expanding
+import com.lightningkite.kiteui.views.l2.icon
 import com.kf7mxe.inglenook.jellyfin.JellyfinClient
 import com.kf7mxe.inglenook.jellyfin.addServer
 import com.kf7mxe.inglenook.jellyfin.jellyfinServers
+import com.kf7mxe.inglenook.visibility
+import com.kf7mxe.inglenook.visibilityOff
 import com.lightningkite.kiteui.Routable
 import com.lightningkite.kiteui.reactive.Action
 import com.lightningkite.kiteui.views.dynamicTheme
+import com.lightningkite.kiteui.views.fieldTheme
 import com.lightningkite.reactive.core.Signal
 import com.lightningkite.reactive.core.AppScope
 import com.lightningkite.reactive.core.Constant
@@ -28,15 +32,17 @@ class JellyfinSetupPage : Page {
     override val title get() = Constant("Connect to Jellyfin")
 
     override fun ViewWriter.render() {
-        // Shared state
+        // Step tracking: 1 = server URL, 2 = authentication
+        val step = Signal(1)
         val serverUrl = Signal("")
-        val isLoading = Signal(false)
+        val serverName = Signal<String?>(null)
         val errorMessage = Signal<String?>(null)
         val loginMethod = Signal(LoginMethod.UsernamePassword)
 
         // Username/Password state
         val username = Signal("")
         val password = Signal("")
+        val showPassword = Signal(false)
 
         // Quick Connect state
         val quickConnectCode = Signal<String?>(null)
@@ -44,7 +50,6 @@ class JellyfinSetupPage : Page {
         val isPolling = Signal(false)
         var pollingJob: Job? = null
 
-        // Helper function to stop polling
         fun stopPolling() {
             pollingJob?.cancel()
             pollingJob = null
@@ -61,10 +66,15 @@ class JellyfinSetupPage : Page {
                 centered.col {
                     gap = 0.5.rem
                     h1 { content = "Inglenook" }
-                    subtext { content = "Connect to your Jellyfin server" }
+                    subtext {
+                        ::content {
+                            if (step() == 1) "Connect to your Jellyfin server"
+                            else "Sign in to ${serverName() ?: serverUrl()}"
+                        }
+                    }
                 }
 
-                // Show cancel button if user already has servers configured
+                // Cancel button (if user already has servers)
                 shownWhen { jellyfinServers.value.isNotEmpty() }.button {
                     centered.text("Cancel")
                     onClick {
@@ -72,17 +82,61 @@ class JellyfinSetupPage : Page {
                     }
                 }
 
-                card.col {
+                // ===== STEP 1: Server URL =====
+                shownWhen { step() == 1 }.card.col {
                     gap = 1.rem
 
-                    // Server URL (shared between both methods)
                     col {
                         gap = 0.25.rem
                         text("Server URL")
-                        textInput {
+                        fieldTheme.textInput {
                             hint = "https://your-server.com"
                             keyboardHints = KeyboardHints(KeyboardCase.None, KeyboardType.Text)
                             content bind serverUrl
+                        }
+                    }
+
+                    button {
+                        text("Connect")
+                        action = Action("Connect") {
+                            errorMessage.value = null
+                            val url = serverUrl.value.trim().trimEnd('/')
+                            if (url.isBlank()) {
+                                errorMessage.value = "Please enter a server URL"
+                                return@Action
+                            }
+                            serverUrl.value = url
+
+                            val client = JellyfinClient(url)
+                            val info = client.getServerInfo()
+                            if (info != null) {
+                                serverName.value = info.ServerName
+                                step.value = 2
+                            } else {
+                                errorMessage.value = "Could not connect to server. Check the URL and try again."
+                            }
+                        }
+                        themeChoice += ImportantSemantic
+                    }
+                }
+
+                // ===== STEP 2: Authentication =====
+                shownWhen { step() == 2 }.card.col {
+                    gap = 1.rem
+
+                    // Back button
+                    button {
+                        row {
+                            gap = 0.25.rem
+                            icon(Icon.arrowBack, "Back")
+                            text("Change Server")
+                        }
+                        onClick {
+                            stopPolling()
+                            quickConnectCode.value = null
+                            quickConnectSecret.value = null
+                            errorMessage.value = null
+                            step.value = 1
                         }
                     }
 
@@ -129,7 +183,7 @@ class JellyfinSetupPage : Page {
                         col {
                             gap = 0.25.rem
                             text("Username")
-                            textInput {
+                            fieldTheme.textInput {
                                 hint = "Username"
                                 keyboardHints = KeyboardHints(KeyboardCase.None, KeyboardType.Text)
                                 content bind username
@@ -139,16 +193,30 @@ class JellyfinSetupPage : Page {
                         col {
                             gap = 0.25.rem
                             text("Password")
-                            textInput {
-                                hint = "Password"
-                                keyboardHints = KeyboardHints(KeyboardCase.None, KeyboardType.Text)
-                                content bind password
+                            row {
+                                gap = 0.5.rem
+                                // Hidden password input
+                                shownWhen { !showPassword() }.expanding.fieldTheme.textInput {
+                                    hint = "Password"
+                                    ::keyboardHints{
+                                        if(showPassword()) KeyboardHints(KeyboardCase.None, KeyboardType.Text) else KeyboardHints.password
+                                    }
+                                    keyboardHints = KeyboardHints.password
+                                    content bind password
+                                }
+                                button {
+                                    icon {
+                                        ::source { if (showPassword()) Icon.visibility else Icon.visibilityOff }
+                                        ::description { if (showPassword()) "Hide password" else "Show password" }
+                                    }
+                                    onClick { showPassword.value = !showPassword.value }
+                                }
                             }
                         }
 
                         button {
-                            text("Connect")
-                            action = Action("Connect") {
+                            text("Sign In")
+                            action = Action("Sign In") {
                                 errorMessage.value = null
                                 val client = JellyfinClient(serverUrl.value)
                                 val config = client.authenticate(username.value, password.value)
@@ -163,7 +231,6 @@ class JellyfinSetupPage : Page {
                     shownWhen { loginMethod() == LoginMethod.QuickConnect }.col {
                         gap = 1.rem
 
-                        // Instructions
                         subtext {
                             content = "Quick Connect lets you sign in by authorizing from another device that's already logged into your Jellyfin server."
                         }
@@ -175,7 +242,6 @@ class JellyfinSetupPage : Page {
 
                             text { content = "Enter this code on your Jellyfin server:" }
 
-                            // Large code display
                             h1 {
                                 ::content { quickConnectCode() ?: "" }
                                 themeChoice += ThemeDerivation {
@@ -199,21 +265,19 @@ class JellyfinSetupPage : Page {
                             }
                         }
 
-                        // Get Code button (shown when not polling)
+                        // Get Code button
                         shownWhen { quickConnectCode() == null || !isPolling() }.button {
                             text("Get Code")
                             action = Action("Get Code") {
                                 errorMessage.value = null
                                 val client = JellyfinClient(serverUrl.value)
 
-                                // Check if Quick Connect is enabled
                                 val enabled = client.isQuickConnectEnabled()
                                 if (!enabled) {
                                     errorMessage.value = "Quick Connect is not enabled on this server"
                                     return@Action
                                 }
 
-                                // Initiate Quick Connect
                                 val result = client.initiateQuickConnect()
                                 if (result.Code == null || result.Secret == null) {
                                     errorMessage.value = "Failed to initiate Quick Connect"
@@ -224,13 +288,12 @@ class JellyfinSetupPage : Page {
                                 quickConnectSecret.value = result.Secret
                                 isPolling.value = true
 
-                                // Start polling for authorization in background
                                 pollingJob = AppScope.launch {
                                     var attempts = 0
-                                    val maxAttempts = 60 // 5 minutes at 5 second intervals
+                                    val maxAttempts = 60
 
                                     while (isPolling.value && attempts < maxAttempts) {
-                                        delay(5000) // Poll every 5 seconds
+                                        delay(5000)
                                         attempts++
 
                                         try {
@@ -249,7 +312,6 @@ class JellyfinSetupPage : Page {
                                         }
                                     }
 
-                                    // Timeout
                                     if (isPolling.value) {
                                         errorMessage.value = "Quick Connect request timed out"
                                         stopPolling()
@@ -261,12 +323,12 @@ class JellyfinSetupPage : Page {
                             themeChoice += ImportantSemantic
                         }
                     }
+                }
 
-                    // Error message (shared)
-                    shownWhen { errorMessage() != null }.text {
-                        ::content { errorMessage() ?: "" }
-                        themeChoice += ThemeDerivation { it.copy("error", foreground = Color.red).withoutBack }
-                    }
+                // Error message (shared between both steps)
+                shownWhen { errorMessage() != null }.text {
+                    ::content { errorMessage() ?: "" }
+                    themeChoice += ThemeDerivation { it.copy("error", foreground = Color.red).withoutBack }
                 }
             }
         }

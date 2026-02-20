@@ -23,7 +23,7 @@ import com.lightningkite.reactive.core.Constant
 import com.lightningkite.reactive.core.remember
 import com.lightningkite.reactive.core.rememberSuspending
 
-@Routable("/")
+@Routable("/home")
 class HomePage : Page {
     override val title get() = Constant("Home")
 

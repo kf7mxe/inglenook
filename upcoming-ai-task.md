@@ -62,3 +62,6 @@ The pages of the app be the following
   - Have option to download as an audio book
 - Ask AI assistant to help you decide what to read and recommend books
 - If the book does not have any chapters in the metadata or isn't multiple files. Run voice to text and look for chapter 1 or other chapter indicators from the audio and create generated chapters ie chapter with timestamps. Indicate that the chapters were extracted by AI using a chip or badge
+
+
+
