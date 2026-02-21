@@ -23,6 +23,8 @@ import com.kf7mxe.inglenook.jellyfin.switchToServer
 import com.kf7mxe.inglenook.jellyfin.removeServer
 import com.kf7mxe.inglenook.jellyfin.selectedLibraryIds
 import com.lightningkite.kiteui.Routable
+import com.lightningkite.kiteui.reactive.AppState
+import com.lightningkite.kiteui.utils.getAppVersion
 import com.lightningkite.kiteui.views.forEach
 import com.lightningkite.reactive.context.invoke
 import com.lightningkite.reactive.core.Signal
@@ -326,7 +328,11 @@ class SettingsPage : Page {
                 card.col {
                     row {
                         expanding.text("Version")
-                        text("1.0.0")
+                        text{
+                            ::content {
+                                getAppVersion()
+                            }
+                        }
                     }
 
                     separator()
