@@ -88,6 +88,7 @@ class BookshelfPage : Page {
                                         bookshelves.value = BookshelfRepository.getAllBookshelves()
                                         newBookshelfName.value = ""
                                     }
+                                    dismiss()
                                 }
                                 themeChoice += ImportantSemantic
                             }
@@ -146,19 +147,19 @@ class BookshelfPage : Page {
 
                 forEach(bookshelves) { bookshelf ->
                     button {
-                        col {
+                        row {
                             gap = 0.5.rem
 
                             // Bookshelf icon
-                            sizedBox(SizeConstraints(width = 8.rem, height = 8.rem)).centered.frame {
+                            sizedBox(SizeConstraints(width = 4.rem, height = 4.rem)).centered.frame {
                                 icon(
-                                    Icon.collectionsBookmark.copy(width = 4.rem, height = 4.rem),
+                                    Icon.collectionsBookmark.copy(width = 2.rem, height = 2.rem),
                                     bookshelf.name
                                 )
                             }
 
                             // Name and count
-                            col {
+                            expanding.col {
                                 gap = 0.rem
                                 text {
                                     content = bookshelf.name
@@ -168,6 +169,7 @@ class BookshelfPage : Page {
                                     content = "${bookshelf.bookIds.size} books"
                                 }
                             }
+                            centered.icon(Icon.chevronRight, "View")
                         }
                         onClick {
                             mainPageNavigator.navigate(BookshelfDetailPage(bookshelf._id.toString()))

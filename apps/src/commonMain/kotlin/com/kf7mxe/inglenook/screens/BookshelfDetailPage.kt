@@ -19,6 +19,7 @@ import com.kf7mxe.inglenook.dashboard
 import com.kf7mxe.inglenook.edit
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.storage.BookshelfRepository
+import com.kf7mxe.inglenook.viewMode
 import com.lightningkite.kiteui.Routable
 import com.lightningkite.kiteui.views.danger
 import com.lightningkite.kiteui.views.l2.RecyclerViewPlacerVerticalGrid
@@ -28,6 +29,7 @@ import com.lightningkite.reactive.core.Signal
 import com.lightningkite.reactive.core.AppScope
 import com.lightningkite.reactive.core.Constant
 import com.lightningkite.reactive.core.Reactive
+import com.lightningkite.reactive.core.rememberSuspending
 import kotlinx.coroutines.launch
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
@@ -38,46 +40,21 @@ class BookshelfDetailPage(val bookshelfId: String) : Page {
 
     @OptIn(ExperimentalUuidApi::class)
     override fun ViewWriter.render() {
-        val isLoading = Signal(true)
-        val bookshelf = Signal<Bookshelf?>(null)
-        val books = Signal<List<Book>>(emptyList())
-        val viewMode = Signal(ViewMode.Grid)
-        val isEditing = Signal(false)
-        val errorMessage = Signal<String?>(null)
-
-        // Load bookshelf and its books
-        fun loadData() {
-            isLoading.value = true
-            errorMessage.value = null
-            AppScope.launch {
-                try {
-                    val uuid = Uuid.parse(bookshelfId)
-                    val shelf = BookshelfRepository.getBookshelf(uuid)
-                    bookshelf.value = shelf
-
-                    if (shelf != null && shelf.bookIds.isNotEmpty()) {
-                        // Fetch book details from Jellyfin
-                        val client = jellyfinClient.value
-                        if (client != null) {
-                            val loadedBooks = shelf.bookIds.mapNotNull { bookId ->
-                                try {
-                                    client.getBook(bookId)
-                                } catch (e: Exception) {
-                                    null
-                                }
-                            }
-                            books.value = loadedBooks
-                        }
-                    } else {
-                        books.value = emptyList()
-                    }
-                } catch (e: Exception) {
-                    errorMessage.value = "Failed to load bookshelf: ${e.message}"
-                } finally {
-                    isLoading.value = false
-                }
-            }
+        val bookshelf = rememberSuspending {
+            val uuid = Uuid.parse(bookshelfId)
+            BookshelfRepository.getBookshelf(uuid)
         }
+        val books = rememberSuspending {
+            val client = jellyfinClient.value
+            bookshelf()?.bookIds?.mapNotNull { bookId ->
+                try {
+                    client?.getBook(bookId)
+                } catch (e: Exception) {
+                    null
+                }
+            } ?: emptyList()
+        }
+        val isEditing = Signal(false)
 
         // Remove book from bookshelf
         fun removeBook(bookId: String) {
@@ -85,15 +62,11 @@ class BookshelfDetailPage(val bookshelfId: String) : Page {
                 try {
                     val uuid = Uuid.parse(bookshelfId)
                     BookshelfRepository.removeBookFromBookshelf(uuid, bookId)
-                    books.value = books.value.filter { it.id != bookId }
                 } catch (e: Exception) {
                     // Ignore error
                 }
             }
         }
-
-        // Initial load
-        loadData()
 
         col {
             gap = 0.rem
@@ -121,7 +94,7 @@ class BookshelfDetailPage(val bookshelfId: String) : Page {
                         description = "Toggle view"
                     }
                     onClick {
-                        viewMode.value = if (viewMode.value == ViewMode.Grid) ViewMode.List else ViewMode.Grid
+                        viewMode.set( if (viewMode.value == ViewMode.Grid) ViewMode.List else ViewMode.Grid)
                     }
                 }
             }
@@ -130,22 +103,22 @@ class BookshelfDetailPage(val bookshelfId: String) : Page {
 
             expanding.frame {
                 // Loading state
-                shownWhen { isLoading() }.centered.activityIndicator()
+                shownWhen { !books.state().ready }.centered.activityIndicator()
 
                 // Error state
-                shownWhen { errorMessage() != null && !isLoading() }.centered.col {
-                    gap = 0.5.rem
-                    text { ::content { errorMessage() ?: "" } }
-                    button {
-                        text("Retry")
-                        onClick { loadData() }
-                    }
-                }
+//                shownWhen { !books.state().ready && !isLoading() }.centered.col {
+//                    gap = 0.5.rem
+//                    text { ::content { errorMessage() ?: "" } }
+//                    button {
+//                        text("Retry")
+//                        onClick { loadData() }
+//                    }
+//                }
 
                 // Content
-                shownWhen { !isLoading() && errorMessage() == null }.frame {
+                shownWhen { books.state().ready }.frame {
                     // Empty state
-                    shownWhen { books().isEmpty() }.centered.col {
+                    shownWhen { books()?.isEmpty() == true }.centered.col {
                         gap = 1.rem
                         icon(Icon.book.copy(width = 3.rem, height = 3.rem), "Books")
                         text("No books in this bookshelf")
@@ -155,36 +128,59 @@ class BookshelfDetailPage(val bookshelfId: String) : Page {
 
                     col {
                         gap = 1.rem
-                        shownWhen { books().isNotEmpty() }.recyclerView {
 
-                            ::placer{ RecyclerViewPlacerVerticalGrid(if (viewMode() == ViewMode.Grid) 3 else 1) }
-                            children(books, { it.id }) { book ->
-                                unpadded.row {
-                                    unpadded.col {
-                                        ::shown {
-                                            viewMode() == ViewMode.Grid
+
+                        expanding.swapView {
+                            swapping(
+                                current = {
+                                    com.kf7mxe.inglenook.viewMode()
+                                },
+                                views = { viewMode ->
+                                    when (viewMode) {
+                                        ViewMode.Grid -> {
+                                            recyclerView {
+
+                                                ::placer{ RecyclerViewPlacerVerticalGrid(3) }
+                                                children(books, { it.id }) { book ->
+                                                    col {
+                                                        BookCard(book) {
+                                                            mainPageNavigator.navigate(BookDetailPage(book.invoke().id))
+                                                        }
+                                                            shownWhen { isEditing() }.centered.button {
+                                                                danger.icon(Icon.remove, "Remove")
+                                                                onClick {
+                                                                    removeBook(book().id)
+                                                                }
+                                                            }
+                                                    }
+
+                                                }
+                                            }
                                         }
-                                        BookCard(book) {
-                                            mainPageNavigator.navigate(BookDetailPage(book.invoke().id))
-                                        }
-                                    }
-                                    unpadded.col {
-                                        ::shown {
-                                            viewMode() == ViewMode.List
-                                        }
-                                        BookListItem(book) {
-                                            mainPageNavigator.navigate(BookDetailPage(book.invoke().id))
-                                        }
-                                    }
-                                    shownWhen { isEditing() }.danger.button {
-                                        icon(Icon.remove, "Remove")
-                                        onClick {
-                                            removeBook(book().id)
+
+                                        ViewMode.List -> {
+                                            recyclerView {
+                                                children(books, { it.id }) { book ->
+                                                    expanding.row {
+                                                        shownWhen { isEditing() }.centered.col {
+                                                            centered.button {
+                                                                danger.icon(Icon.remove, "Remove")
+                                                                onClick {
+                                                                    removeBook(book().id)
+                                                                }
+                                                            }
+                                                        }
+                                                        BookListItem(book) {
+                                                            mainPageNavigator.navigate(BookDetailPage(book.invoke().id))
+                                                        }
+                                                    }
+
+                                                }
+                                            }
                                         }
                                     }
                                 }
-
-                            }
+                            )
                         }
                     }
                 }

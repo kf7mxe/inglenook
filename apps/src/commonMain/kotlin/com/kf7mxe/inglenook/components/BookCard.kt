@@ -100,7 +100,7 @@ fun ViewWriter.BookCard(
                     }
                     onClick {
                         val currentBook = book.invoke()
-                        openEbook(currentBook.id,this@BookCard)
+                        openEbook(currentBook.id,this@button)
                     }
                 }
             }

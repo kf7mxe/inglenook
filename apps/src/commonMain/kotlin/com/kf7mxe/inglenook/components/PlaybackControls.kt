@@ -270,7 +270,10 @@ fun ViewWriter.PlaybackControls() {
                                         onClick { control.close() }
                                     }
                                 }
-                                bookmarksList(book.id, bookmarkSignal)
+                                bookmarksList(book.id, bookmarkSignal,{bookmark ->
+                                    PlaybackState.seek(bookmark)
+                                    control.close()
+                                })
                             }
                         }
                     }

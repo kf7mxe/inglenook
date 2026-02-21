@@ -39,6 +39,7 @@ import com.lightningkite.kiteui.views.forEach
 import com.lightningkite.reactive.context.invoke
 import com.lightningkite.kiteui.reactive.Action
 import com.lightningkite.kiteui.views.card
+import com.lightningkite.kiteui.views.l2.appBase
 import com.lightningkite.reactive.core.Signal
 import com.lightningkite.reactive.core.Constant
 import com.lightningkite.reactive.core.Reactive
@@ -323,7 +324,7 @@ class BookDetailPage(val bookId: String) : Page {
                                     centered.text { content = "Read" }
                                 }
                                 onClick {
-                                    openEbook(bookId,this@render)
+                                    openEbook(bookId,this@button)
                                 }
                                 themeChoice += ImportantSemantic
                             }
@@ -522,7 +523,10 @@ suspend fun openEbook(bookId: String,vw: ViewWriter) {
     if (com.lightningkite.kiteui.Platform.current == com.lightningkite.kiteui.Platform.Android) {
         val client = jellyfinClient.value
         if (client != null) {
-            vw.mainPageNavigator.navigate(EbookReaderPage(bookId))
+            val downloadUrl = "${client.serverUrl}/Items/$bookId/Download"
+            val authHeader = client.getAuthHeader()
+            vw.ebookReader(bookId,downloadUrl,authHeader)
+//            vw.mainPageNavigator.navigate(EbookReaderPage(bookId))
         }
     }
 }
