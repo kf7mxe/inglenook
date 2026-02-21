@@ -1,5 +1,6 @@
 package com.kf7mxe.inglenook.screens
 
+import com.kf7mxe.inglenook.Resources
 import com.lightningkite.kiteui.models.*
 import com.lightningkite.kiteui.navigation.Page
 import com.lightningkite.kiteui.navigation.mainPageNavigator
@@ -65,12 +66,15 @@ class JellyfinSetupPage : Page {
 
                 centered.col {
                     gap = 0.5.rem
-                    h1 { content = "Inglenook" }
-                    subtext {
+                    centered.h1 { content = "Inglenook" }
+                    centered.subtext {
                         ::content {
                             if (step() == 1) "Connect to your Jellyfin server"
                             else "Sign in to ${serverName() ?: serverUrl()}"
                         }
+                    }
+                    sizeConstraints(width = 7.rem).image {
+                        source = Resources.jellyfinIcon
                     }
                 }
 
@@ -97,7 +101,7 @@ class JellyfinSetupPage : Page {
                     }
 
                     button {
-                        text("Connect")
+                        centered.text("Connect")
                         action = Action("Connect") {
                             errorMessage.value = null
                             val url = serverUrl.value.trim().trimEnd('/')
@@ -155,7 +159,7 @@ class JellyfinSetupPage : Page {
                                 loginMethod.value = LoginMethod.UsernamePassword
                             }
                             dynamicTheme {
-                                if (loginMethod.value == LoginMethod.UsernamePassword) {
+                                if (loginMethod() == LoginMethod.UsernamePassword) {
                                     ImportantSemantic
                                 } else null
                             }
@@ -167,7 +171,7 @@ class JellyfinSetupPage : Page {
                                 loginMethod.value = LoginMethod.QuickConnect
                             }
                             dynamicTheme {
-                                if (loginMethod.value == LoginMethod.QuickConnect) {
+                                if (loginMethod() == LoginMethod.QuickConnect) {
                                     ImportantSemantic
                                 } else null
                             }
@@ -196,7 +200,7 @@ class JellyfinSetupPage : Page {
                             row {
                                 gap = 0.5.rem
                                 // Hidden password input
-                                shownWhen { !showPassword() }.expanding.fieldTheme.textInput {
+                                expanding.fieldTheme.textInput {
                                     hint = "Password"
                                     ::keyboardHints{
                                         if(showPassword()) KeyboardHints(KeyboardCase.None, KeyboardType.Text) else KeyboardHints.password
@@ -215,7 +219,7 @@ class JellyfinSetupPage : Page {
                         }
 
                         button {
-                            text("Sign In")
+                            centered.text("Sign In")
                             action = Action("Sign In") {
                                 errorMessage.value = null
                                 val client = JellyfinClient(serverUrl.value)
@@ -267,7 +271,7 @@ class JellyfinSetupPage : Page {
 
                         // Get Code button
                         shownWhen { quickConnectCode() == null || !isPolling() }.button {
-                            text("Get Code")
+                            centered.text("Get Code")
                             action = Action("Get Code") {
                                 errorMessage.value = null
                                 val client = JellyfinClient(serverUrl.value)
