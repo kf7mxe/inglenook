@@ -15,6 +15,7 @@ import com.kf7mxe.inglenook.book
 import com.kf7mxe.inglenook.pause
 import com.kf7mxe.inglenook.playArrow
 import com.kf7mxe.inglenook.screens.EbookReaderPage
+import com.kf7mxe.inglenook.screens.openEbook
 import com.kf7mxe.inglenook.storage.ImageSemantic
 import com.lightningkite.kiteui.navigation.mainPageNavigator
 import com.lightningkite.reactive.core.Reactive
@@ -99,19 +100,7 @@ fun ViewWriter.BookCard(
                     }
                     onClick {
                         val currentBook = book.invoke()
-                        // Only play audiobooks
-                        if (currentBook.itemType == ItemType.AudioBook) {
-                            if (onPlayClick != null) {
-                                onPlayClick(currentBook)
-                            } else {
-                                val startPosition = currentBook.userData?.playbackPositionTicks ?: 0L
-                                PlaybackState.play(currentBook, startPosition)
-                            }
-                        }
-                        if(currentBook.itemType == ItemType.Ebook) {
-                            mainPageNavigator.navigate(EbookReaderPage(currentBook.id))
-                        }
-                        // For ebooks, clicking will just go to detail page (handled by onClick on card)
+                        openEbook(currentBook.id,this@BookCard)
                     }
                 }
             }

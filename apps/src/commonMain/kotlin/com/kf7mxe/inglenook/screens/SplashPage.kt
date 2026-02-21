@@ -1,6 +1,7 @@
 package com.kf7mxe.inglenook.screens
 
 import com.kf7mxe.inglenook.FullScreen
+import com.kf7mxe.inglenook.Resources
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.lightningkite.kiteui.Routable
 import com.lightningkite.kiteui.navigation.Page
@@ -9,7 +10,11 @@ import com.lightningkite.kiteui.views.ViewWriter
 import com.lightningkite.kiteui.views.centered
 import com.lightningkite.kiteui.views.direct.*
 import com.lightningkite.reactive.core.AppScope
+import com.kf7mxe.inglenook.cache.CacheRefresher
+import com.lightningkite.kiteui.models.ImageRaw
+import com.lightningkite.kiteui.models.rem
 import com.lightningkite.reactive.core.Constant
+import com.lightningkite.reactive.core.rememberSuspending
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
@@ -19,9 +24,7 @@ class SplashPage : Page, FullScreen {
     override val title get() = Constant("Loading")
 
     override fun ViewWriter.render() {
-        centered.col {
-            activityIndicator { }
-        }
+
 
         AppScope.launch {
             val client = jellyfinClient.value
@@ -53,9 +56,23 @@ class SplashPage : Page, FullScreen {
             }
 
 
+            CacheRefresher.start()
             mainPageNavigator.navigate(HomePage())
             AppScope.launch {
                 try { client.getAuthors() } catch (_: Exception) { /* best effort */ }
+            }
+        }
+        centered.frame {
+            val animation = rememberSuspending {
+                ImageRaw(Resources.inglenookFlameAnimation())
+            }
+            centered.col {
+                sizeConstraints(width = 10.rem, height = 10.rem).image {
+                    ::source {
+                        animation()
+                    }
+                }
+                sizeConstraints(width = 2.rem, height = 2.rem).activityIndicator { }
             }
         }
     }

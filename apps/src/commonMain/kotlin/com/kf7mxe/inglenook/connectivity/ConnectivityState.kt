@@ -1,6 +1,7 @@
 package com.kf7mxe.inglenook.connectivity
 
 import com.kf7mxe.inglenook.cache.ApiCache
+import com.kf7mxe.inglenook.cache.CacheRefresher
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.lightningkite.kiteui.Connectivity
 import com.lightningkite.kiteui.reactive.PersistentProperty
@@ -37,6 +38,7 @@ object ConnectivityState {
     fun enterOfflineMode() {
         offlineMode.value = true
         showingConnectivityDialog.value = false
+        CacheRefresher.stop()
         stopConnectivityChecks()
         startReconnectChecks()
     }
@@ -47,6 +49,7 @@ object ConnectivityState {
         offlineMode.value = true
         serverReachable.value = false
         showingConnectivityDialog.value = false
+        CacheRefresher.stop()
         stopConnectivityChecks()
         startReconnectChecks() // Will set serverReachable but NOT auto-exit
     }
@@ -59,6 +62,7 @@ object ConnectivityState {
         showingConnectivityDialog.value = false
         stopReconnectChecks()
         ApiCache.clear() // Invalidate stale cached data so pages reload fresh
+        CacheRefresher.start()
         startConnectivityChecks()
     }
 

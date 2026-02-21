@@ -33,6 +33,7 @@ import com.kf7mxe.inglenook.storage.ImageSemantic
 import com.kf7mxe.inglenook.util.truncateDisplay
 import com.lightningkite.kiteui.Routable
 import com.lightningkite.kiteui.current
+import com.lightningkite.kiteui.navigation.mainPageNavigator
 import com.lightningkite.kiteui.views.closeThisPopover
 import com.lightningkite.kiteui.views.forEach
 import com.lightningkite.reactive.context.invoke
@@ -322,17 +323,7 @@ class BookDetailPage(val bookId: String) : Page {
                                     centered.text { content = "Read" }
                                 }
                                 onClick {
-                                    if (com.lightningkite.kiteui.Platform.current == com.lightningkite.kiteui.Platform.Web) mainPageNavigator.navigate(
-                                        EbookReaderPage(bookId)
-                                    )
-                                    if (com.lightningkite.kiteui.Platform.current == com.lightningkite.kiteui.Platform.Android) {
-                                        val client = jellyfinClient.value
-                                        if (client != null) {
-                                            val downloadUrl = "${client.serverUrl}/Items/$bookId/Download"
-                                            val authHeader = client.getAuthHeader()
-                                            ebookReader(bookId, downloadUrl, authHeader)
-                                        }
-                                    }
+                                    openEbook(bookId,this@render)
                                 }
                                 themeChoice += ImportantSemantic
                             }
@@ -521,6 +512,18 @@ class BookDetailPage(val bookId: String) : Page {
             }
         }
 
+    }
+}
+
+suspend fun openEbook(bookId: String,vw: ViewWriter) {
+    if (com.lightningkite.kiteui.Platform.current == com.lightningkite.kiteui.Platform.Web) vw.mainPageNavigator.navigate(
+        EbookReaderPage(bookId)
+    )
+    if (com.lightningkite.kiteui.Platform.current == com.lightningkite.kiteui.Platform.Android) {
+        val client = jellyfinClient.value
+        if (client != null) {
+            vw.mainPageNavigator.navigate(EbookReaderPage(bookId))
+        }
     }
 }
 
