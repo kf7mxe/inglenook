@@ -44,10 +44,6 @@ actual suspend fun saveFile(byteArray: ByteArray, fileName: String) {
 }
 
 
-fun getCacheFileName(localPath: String): String {
-    return localPath
-}
-
 actual suspend fun saveImageToStorage(
     directoryName: String,
     fileName: String,

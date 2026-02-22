@@ -14,6 +14,7 @@ import com.lightningkite.kiteui.views.expanding
 import com.lightningkite.kiteui.views.l2.icon
 import com.lightningkite.kiteui.views.dynamicTheme
 import com.kf7mxe.inglenook.*
+import com.kf7mxe.inglenook.storage.DangerSemantic
 import com.kf7mxe.inglenook.connectivity.ConnectivityState
 import com.kf7mxe.inglenook.theming.createTheme
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
@@ -88,7 +89,7 @@ class SettingsPage : Page {
                                         mainPageNavigator.navigate(JellyfinSetupPage())
                                     }
                                 }
-                                themeChoice += ThemeDerivation { it.copy(id = "danger", foreground = Color.red).withoutBack }
+                                themeChoice += DangerSemantic
                             }
                         }
 

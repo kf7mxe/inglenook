@@ -4,7 +4,7 @@ import com.lightningkite.kiteui.models.ImageRemote
 import com.lightningkite.kiteui.models.ImageSource
 import com.lightningkite.kiteui.models.Paint
 
-expect suspend fun blurServerImageAndCacheImage(location:String, image: ImageRemote,blurRadius: Float,overlayColor: Paint): ImageSource?
+expect suspend fun blurRemoteImageAndCache(location:String, image: ImageRemote,blurRadius: Float,overlayColor: Paint): ImageSource?
 expect suspend fun getBlurredCachedImage(localPath:String):ImageSource?
 expect suspend fun blurAndCacheImage(
     cacheFileName: String,

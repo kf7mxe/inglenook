@@ -269,7 +269,7 @@ class ReaderActivity : AppCompatActivity() {
         navigatorFactory = factory
 
         // Calculate initial locator from Jellyfin position
-        val initialLocator = calculateInitialLocator(pub)
+        val initialLocator = restoreSavedLocator(pub)
 
         withContext(Dispatchers.Main) {
             // Set fragment factory on the activity's fragment manager
@@ -299,7 +299,7 @@ class ReaderActivity : AppCompatActivity() {
         }
     }
 
-    private fun calculateInitialLocator(pub: Publication): Locator? {
+    private fun restoreSavedLocator(pub: Publication): Locator? {
         // Restore saved locator from SharedPreferences
         val prefs = getSharedPreferences("reader_prefs", MODE_PRIVATE)
         val locatorJson = prefs.getString("ebook_locator_$bookId", null) ?: return null

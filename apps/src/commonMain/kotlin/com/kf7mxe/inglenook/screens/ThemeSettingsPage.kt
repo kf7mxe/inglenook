@@ -110,75 +110,71 @@ class ThemeSettingsPage : Page {
             appTheme.value = createTheme(selectedPreset.value, settings)
         }
 
-        scrolling.col {
-            // Theme Presets Section
-            col {
+        val uploadWallpaper = Action("Upload wallpaper", frequencyCap = 1.seconds) {
+            val file = context.requestFile(listOf("image/png", "image/jpeg")) ?: return@Action
+            file.mimeType()
+            val fileExtension = getFileExtensionFromMimeType(file.mimeType())
+            val fileName = "${Uuid.random()}"
+            saveImageToStorage("images",fileName, ImageLocal(file),fileExtension)
+            wallpaperPath.set("images/$fileName.$fileExtension")
+        }
 
-                h3 { content = "Theme Preset" }
-                subtext { content = "Choose a base theme style" }
-
-                fun ViewWriter.themePresetCard(
-                    preset: ThemePreset,
-                    selectedPreset: Signal<ThemePreset>,
-                    onSelect: () -> Unit
-                ) {
-                    button {
-                        expanding.card.row {
-                            // Theme color preview
-                            sizedBox(SizeConstraints(width = 3.rem, height = 3.rem)).frame {
-                                val previewTheme = createTheme(preset)
-                                themeChoice += ThemeDerivation {
-                                    previewTheme.copy(
-                                        id = "preview-${preset.name}",
-                                        cornerRadii = CornerRadii.Fixed(0.5.rem)
-                                    ).withBack
-                                }
-                            }
-
-                            // Theme name and description
-                            expanding.col {
-                                text { content = preset.displayName }
-                                subtext {
-                                    content = when (preset) {
-                                        ThemePreset.Cozy -> "Light and cozy"
-                                        ThemePreset.AutumnCabin -> "Orange warm vibes"
-                                        ThemePreset.Midnight -> "Dark and minimal"
-                                        ThemePreset.Sunrise -> "Warm light tones"
-                                        ThemePreset.Material -> "Clean and modern"
-                                        ThemePreset.Hackerman -> "Terminal vibes"
-                                        ThemePreset.Clouds -> "Soft and rounded"
-                                        ThemePreset.Obsidian -> "Dark with accent"
-                                        ThemePreset.Custom -> "Your own style"
-                                    }
-                                }
-                            }
-
-                            // Selection indicator
-                            shownWhen { selectedPreset() == preset }.centered.icon(Icon.check, "Selected")
-                        }
-
-                        onClick { onSelect() }
-
-                        dynamicTheme {
-                            if (selectedPreset() == preset) SelectedSemantic else null
+        fun ViewWriter.themePresetCard(
+            preset: ThemePreset,
+            onSelect: () -> Unit
+        ) {
+            button {
+                expanding.card.row {
+                    sizedBox(SizeConstraints(width = 3.rem, height = 3.rem)).frame {
+                        val previewTheme = createTheme(preset)
+                        themeChoice += ThemeDerivation {
+                            previewTheme.copy(
+                                id = "preview-${preset.name}",
+                                cornerRadii = CornerRadii.Fixed(0.5.rem)
+                            ).withBack
                         }
                     }
+                    expanding.col {
+                        text { content = preset.displayName }
+                        subtext {
+                            content = when (preset) {
+                                ThemePreset.Cozy -> "Light and cozy"
+                                ThemePreset.AutumnCabin -> "Orange warm vibes"
+                                ThemePreset.Midnight -> "Dark and minimal"
+                                ThemePreset.Sunrise -> "Warm light tones"
+                                ThemePreset.Material -> "Clean and modern"
+                                ThemePreset.Hackerman -> "Terminal vibes"
+                                ThemePreset.Clouds -> "Soft and rounded"
+                                ThemePreset.Obsidian -> "Dark with accent"
+                                ThemePreset.Custom -> "Your own style"
+                            }
+                        }
+                    }
+                    shownWhen { selectedPreset() == preset }.centered.icon(Icon.check, "Selected")
                 }
+                onClick { onSelect() }
+                dynamicTheme {
+                    if (selectedPreset() == preset) SelectedSemantic else null
+                }
+            }
+        }
 
-                // Theme preset grid (2 columns)
+        fun ViewWriter.themePresetsSection() {
+            col {
+                h3 { content = "Theme Preset" }
+                subtext { content = "Choose a base theme style" }
                 row {
                     col {
                         for (preset in ThemePreset.entries.filterIndexed { i, _ -> i % 2 == 0 }) {
-                            themePresetCard(preset, selectedPreset) {
+                            themePresetCard(preset) {
                                 selectedPreset.value = preset
                                 applyTheme()
                             }
                         }
                     }
-
                     col {
                         for (preset in ThemePreset.entries.filterIndexed { i, _ -> i % 2 == 1 }) {
-                            themePresetCard(preset, selectedPreset) {
+                            themePresetCard(preset) {
                                 selectedPreset.value = preset
                                 applyTheme()
                             }
@@ -186,89 +182,69 @@ class ThemeSettingsPage : Page {
                     }
                 }
             }
+        }
 
-            separator()
-
-            val uploadWallpaper = Action("Upload wallpaper", frequencyCap = 1.seconds) {
-                val file = context.requestFile(listOf("image/png", "image/jpeg")) ?: return@Action
-                file.mimeType()
-                val fileExtension = getFileExtensionFromMimeType(file.mimeType())
-                val fileName = "${Uuid.random()}"
-                saveImageToStorage("images",fileName, ImageLocal(file),fileExtension)
-                wallpaperPath.set("images/$fileName.$fileExtension")
-            }
-
-            // Background Effects Section
+        fun ViewWriter.backgroundEffectsSection() {
             col {
-
                 h3 { content = "Background Effects" }
                 subtext { content = "Apply visual effects to Now Playing, detail screens and app background" }
 
                 card.col {
                     bold.text("Wallpaper")
-                        subtext { content = "Show a wallpaper behind the app" }
-                        val uploadError = Signal(false)
+                    subtext { content = "Show a wallpaper behind the app" }
+                    val uploadError = Signal(false)
 
-
-                        frame {
-
-                            val wallpaper = rememberSuspending {
-                                val path = wallpaperPath()?:savedSettings.wallpaperPath
-                                val parent = path?.split("/")?.first()
-                                val filename = path?.split("/")?.last()
-                                parent?.let {parent ->
-                                    filename?.let {filename ->
-                                        readImageFromStorage(parent,filename)
-                                    }
+                    frame {
+                        val wallpaper = rememberSuspending {
+                            val path = wallpaperPath()?:savedSettings.wallpaperPath
+                            val parent = path?.split("/")?.first()
+                            val filename = path?.split("/")?.last()
+                            parent?.let {parent ->
+                                filename?.let {filename ->
+                                    readImageFromStorage(parent,filename)
                                 }
                             }
+                        }
 
-//                            centered.sizeConstraints(
-//                                height = 12.rem,
-//                                aspectRatio = Pair(16, 9)
-//                            ).card.unpadded.
-                            button {
-                                image {
-                                    scaleType = ImageScaleType.Crop
-                                    rView::shown { wallpaper() != null }
-                                    ::source { wallpaper() }
-                                }
-
-                                centered.icon {
-                                    ::shown { wallpaper() == null && !uploadError() }
-                                    source = Icon.Companion.add.copy(2.5.rem, height = 2.5.rem)
-                                    description = "Upload new wallpaper"
-                                }
-
-                                centered.text {
-                                    ::shown { uploadError() }
-                                    content = "There was issue with uploading your file. Please try again."
-                                    align = Align.Center
-                                }
-
+                        button {
+                            image {
+                                scaleType = ImageScaleType.Crop
+                                rView::shown { wallpaper() != null }
+                                ::source { wallpaper() }
+                            }
+                            centered.icon {
+                                ::shown { wallpaper() == null && !uploadError() }
+                                source = Icon.Companion.add.copy(2.5.rem, height = 2.5.rem)
+                                description = "Upload new wallpaper"
+                            }
+                            centered.text {
+                                ::shown { uploadError() }
+                                content = "There was issue with uploading your file. Please try again."
+                                align = Align.Center
+                            }
+                            action = uploadWallpaper
+                        }
+                        atBottomEnd.row {
+                            ::shown { wallpaper() != null }
+                            card.button {
+                                icon(Icon.Companion.edit, "Change wallpaper")
                                 action = uploadWallpaper
                             }
-                            atBottomEnd.row {
-                                ::shown { wallpaper() != null }
-                                card.button {
-                                    icon(Icon.Companion.edit, "Change wallpaper")
-                                    action = uploadWallpaper
-                                }
-                                card.button {
-                                    icon(Icon.Companion.delete, "Delete")
-                                    onClick("Delete Wallpaper") {
-                                        confirmDanger(
-                                            "Delete Wallpaper",
-                                            "Are you sure you want to delete your wallpaper? This cannot be undone.",
-                                            "Delete"
-                                        ) {
-                                            deleteImageFromStorage(wallpaperPath.invoke()?:"")
-                                            wallpaperPath.set(null)
-                                        }
+                            card.button {
+                                icon(Icon.Companion.delete, "Delete")
+                                onClick("Delete Wallpaper") {
+                                    confirmDanger(
+                                        "Delete Wallpaper",
+                                        "Are you sure you want to delete your wallpaper? This cannot be undone.",
+                                        "Delete"
+                                    ) {
+                                        deleteImageFromStorage(wallpaperPath.invoke()?:"")
+                                        wallpaperPath.set(null)
                                     }
                                 }
                             }
                         }
+                    }
 
                     col {
                         row {
@@ -282,7 +258,6 @@ class ThemeSettingsPage : Page {
                         }
                     }
 
-
                     row {
                         checkbox {
                             checked.bind(showPlayingBookCoverAsWallpaper)
@@ -293,8 +268,6 @@ class ThemeSettingsPage : Page {
                         }
                     }
 
-
-                    // Blurred background toggle
                     row {
                         checkbox {
                             checked bind showPlayingBookCoverOnNowPlayingAndBookDetail
@@ -304,7 +277,7 @@ class ThemeSettingsPage : Page {
                             subtext { content = "Show cover image behind content on now playing bottom and sheet and book detail" }
                         }
                     }
-                    // Blur radius slider (only shown when blur is enabled)
+
                     col {
                         row {
                             expanding.text { content = "Blur Intensity" }
@@ -317,8 +290,6 @@ class ThemeSettingsPage : Page {
                         }
                     }
 
-
-                    // Apply button for blur settings
                     button {
                         row {
                             centered.icon(Icon.check, "Apply")
@@ -332,17 +303,15 @@ class ThemeSettingsPage : Page {
                     }
                 }
             }
+        }
 
-            separator()
-
-            // Accent Color Section (shown for presets that allow customization)
+        fun ViewWriter.accentColorSection() {
             shownWhen { selectedPreset().allowsCustomization && selectedPreset() != ThemePreset.Custom }.col {
                 h3 { content = "Accent Color" }
                 subtext { content = "Customize the primary accent color" }
 
-                // Color palette
                 row {
-                    for ((colorHex, colorName) in presetColors) {
+                    for ((colorHex, _) in presetColors) {
                         button {
                             sizedBox(SizeConstraints(width = 2.5.rem, height = 2.5.rem)).frame {
                                 themeChoice += ThemeDerivation {
@@ -364,15 +333,9 @@ class ThemeSettingsPage : Page {
                     }
                 }
 
-                // Hex input
                 col {
-
                     row {
                         text { content = "Hex:" }
-//                        expanding.textInput {
-//                            hint = "#364a3b"
-//                            content bind customPrimaryColor
-//                        }
                         button {
                             text("Apply")
                             onClick { applyTheme() }
@@ -381,28 +344,68 @@ class ThemeSettingsPage : Page {
                     }
                 }
 
-                // Reset button
                 button {
                     row {
                         icon(Icon.close, "Reset")
                         text("Reset to Default")
                     }
-                    onClick {
-//                        customPrimaryColor.value = ""
-                        applyTheme()
-                    }
+                    onClick { applyTheme() }
                 }
             }
+        }
 
-            // Custom Theme Section (only shown for Custom preset)
+        fun ViewWriter.themePreviewSection() {
+            col {
+                h3 { content = "Preview" }
+                subtext { content = "See how the theme looks" }
+
+                card.col {
+                    h3 { content = "Sample Header" }
+                    text { content = "This is regular text content showing how the theme displays text." }
+                    subtext { content = "This is subtext or secondary content." }
+
+                    row {
+                        button {
+                            text("Primary")
+                            themeChoice += ImportantSemantic
+                        }
+                        button {
+                            text("Secondary")
+                        }
+                        button {
+                            text("Selected")
+                            themeChoice += SelectedSemantic
+                        }
+                    }
+
+                    card.col {
+                        text { content = "Nested card content" }
+                        subtext { content = "Cards can contain other elements" }
+                    }
+
+                    row {
+                        expanding.textInput {
+                            hint = "Sample input field"
+                        }
+                        button {
+                            icon(Icon.search, "Search")
+                        }
+                    }
+                }
+
+                themed(ImageSemantic).sizeConstraints(width = 10.rem, height=5.rem).image{
+                    source = Resources.example
+                    scaleType = ImageScaleType.Crop
+                }
+            }
+        }
+
+        fun ViewWriter.customThemeSection() {
             shownWhen { selectedPreset() == ThemePreset.Custom }.col {
-
                 h3 { content = "Custom Theme Settings" }
                 subtext { content = "Fine-tune your theme appearance" }
 
                 card.col {
-
-
                     // Primary Color
                     col {
                         text { content = "Primary Color (accents, buttons)" }
@@ -413,21 +416,10 @@ class ThemeSettingsPage : Page {
                                     Color.fromHexString(updated)
                                 })
                             }
-
                             sizedBox(SizeConstraints(width = 2.rem, height = 2.rem)).frame {
                                 expanding.colorPicker {
                                     color.bind(customPrimaryColor)
                                 }
-//                                themeChoice += ThemeDerivation {
-//                                    val color = customPrimaryColor.value
-//                                        ?.let { runCatching { it }.getOrNull() }
-//                                        ?: Color.fromHexString("#6366f1")
-//                                    it.copy(
-//                                        id = "primary-preview",
-//                                        background = color,
-//                                        cornerRadii = CornerRadii.Fixed(0.25.rem)
-//                                    ).withBack
-//                                }
                             }
                         }
                     }
@@ -458,7 +450,8 @@ class ThemeSettingsPage : Page {
                                 hint = "#3b3b4d"
                                 content bind customAccentColor.lens(get = {it.toHexString()}, modify = {color,updated ->
                                     Color.fromHexString(updated)
-                                })                            }
+                                })
+                            }
                             sizedBox(SizeConstraints(width = 2.rem, height = 2.rem)).frame {
                                 expanding.colorPicker {
                                     color.bind(customAccentColor)
@@ -481,7 +474,6 @@ class ThemeSettingsPage : Page {
                             value bind baseOpacity
                         }
                     }
-
                     col {
                         row {
                             expanding.text { content = "Layer Opacity Step" }
@@ -493,7 +485,6 @@ class ThemeSettingsPage : Page {
                             value bind opacityStep
                         }
                     }
-
                     col {
                         row {
                             expanding.text { content = "Outline Opacity" }
@@ -510,22 +501,16 @@ class ThemeSettingsPage : Page {
 
                     // Layout Settings
                     h4 { content = "Layout Settings" }
-
                     col {
                         row {
                             expanding.text { content = "Corner Radius" }
-                            text {
-                                ::content {
-                                    "${((cornerRadiusValue() * 100).roundToInt() / 100.0)}.rem"
-                                }
-                            }
+                            text { ::content { "${((cornerRadiusValue() * 100).roundToInt() / 100.0)}.rem" } }
                         }
                         slider {
                             min = 0.0f
                             max = 10.0f
                             value bind cornerRadiusValue
                         }
-
                         row {
                             expanding.text { content = "Padding" }
                             text { ::content { "${((paddingValue() * 100).roundToInt() / 100.0)}.rem" } }
@@ -563,7 +548,6 @@ class ThemeSettingsPage : Page {
                             value bind outlineWidthValue
                         }
 
-                        // Apply button
                         button {
                             row {
                                 gap = 0.5.rem
@@ -578,58 +562,21 @@ class ThemeSettingsPage : Page {
 
                 separator()
 
-                // Theme Preview Section
-                col {
-
-                    h3 { content = "Preview" }
-                    subtext { content = "See how the theme looks" }
-
-                    card.col {
-
-                        h3 { content = "Sample Header" }
-                        text { content = "This is regular text content showing how the theme displays text." }
-                        subtext { content = "This is subtext or secondary content." }
-
-                        row {
-                            button {
-                                text("Primary")
-                                themeChoice += ImportantSemantic
-                            }
-                            button {
-                                text("Secondary")
-                            }
-                            button {
-                                text("Selected")
-                                themeChoice += SelectedSemantic
-                            }
-                        }
-
-                        card.col {
-                            text { content = "Nested card content" }
-                            subtext { content = "Cards can contain other elements" }
-                        }
-
-
-                        row {
-                            expanding.textInput {
-                                hint = "Sample input field"
-                            }
-                            button {
-                                icon(Icon.search, "Search")
-                            }
-                        }
-                    }
-                }
-
-                themed(ImageSemantic).sizeConstraints(width = 10.rem, height=5.rem).image{
-                    source = Resources.example
-                    scaleType = ImageScaleType.Crop
-                }
-
+                // Theme Preview
+                themePreviewSection()
 
                 // Spacer at bottom
                 space(2.0)
             }
+        }
+
+        scrolling.col {
+            themePresetsSection()
+            separator()
+            backgroundEffectsSection()
+            separator()
+            accentColorSection()
+            customThemeSection()
         }
     }
 

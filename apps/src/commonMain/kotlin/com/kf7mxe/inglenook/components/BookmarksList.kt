@@ -10,6 +10,7 @@ import com.lightningkite.kiteui.views.l2.icon
 import com.lightningkite.kiteui.views.fieldTheme
 import com.lightningkite.kiteui.views.forEach
 import com.kf7mxe.inglenook.Bookmark
+import com.kf7mxe.inglenook.storage.DangerSemantic
 import com.kf7mxe.inglenook.edit
 import com.kf7mxe.inglenook.playback.PlaybackState
 import com.kf7mxe.inglenook.storage.BookmarkRepository
@@ -134,7 +135,7 @@ fun ViewWriter.bookmarksList(
                         BookmarkRepository.deleteBookmark(bookmark._id)
                         bookmarks.value = BookmarkRepository.getBookmarksForBook(bookId)
                     }
-                    themeChoice += ThemeDerivation { it.copy(id = "danger", foreground = Color.red).withoutBack }
+                    themeChoice += DangerSemantic
                 }
             }
             separator()

@@ -66,6 +66,13 @@ data object SelectedTab : Semantic("selectedTab") {
     ).withBack
 }
 
+data object DangerSemantic : Semantic("danger") {
+    override fun default(theme: Theme): ThemeAndBack = theme.copy(
+        id = key,
+        foreground = Color.red
+    ).withoutBack
+}
+
 data object UnSelectedTab : Semantic("unselectedTab") {
     override fun default(theme: Theme) =theme.copy(id="unselectedTab",
 //        cornerRadii = CornerRadii.Fixed(1.rem),

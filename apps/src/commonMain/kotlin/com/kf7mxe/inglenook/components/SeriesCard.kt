@@ -8,7 +8,7 @@ import com.lightningkite.kiteui.views.expanding
 import com.lightningkite.kiteui.views.l2.icon
 import com.lightningkite.kiteui.views.card
 import com.kf7mxe.inglenook.Series
-import com.kf7mxe.inglenook.cache.ImageCache
+import com.kf7mxe.inglenook.cache.fetchCoverImage
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.book
 import com.lightningkite.reactive.core.Reactive
@@ -20,11 +20,8 @@ fun ViewWriter.SeriesCard(
     onClick: suspend () -> Unit
 ) {
     val cachedCover = rememberSuspending {
-        val client = jellyfinClient()
         val seriesData = series()
-        if (client != null && seriesData.imageId != null) {
-            ImageCache.get(client.getImageUrl(seriesData.imageId))
-        } else null
+        jellyfinClient().fetchCoverImage(seriesData.imageId)
     }
 
     centered.card.button {

@@ -20,7 +20,7 @@ import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.lang.Exception
 
-actual suspend fun blurServerImageAndCacheImage(
+actual suspend fun blurRemoteImageAndCache(
     location: String,
     image: ImageRemote,
     blurRadius: Float,

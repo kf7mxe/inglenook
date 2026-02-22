@@ -11,8 +11,8 @@ import com.lightningkite.kiteui.views.dynamicTheme
 import com.lightningkite.kiteui.views.forEachUpdating
 import com.lightningkite.kiteui.views.l2.icon
 import com.kf7mxe.inglenook.*
-import com.kf7mxe.inglenook.cache.ImageCache
-import com.kf7mxe.inglenook.cache.blurServerImageAndCacheImage
+import com.kf7mxe.inglenook.cache.fetchCoverImage
+import com.kf7mxe.inglenook.cache.blurRemoteImageAndCache
 import com.kf7mxe.inglenook.cache.getBlurredCachedImage
 import com.kf7mxe.inglenook.components.DownloadButton
 import com.kf7mxe.inglenook.components.connectionError
@@ -80,10 +80,7 @@ class BookDetailPage(val bookId: String) : Page {
                     row {
                         val cachedCover = rememberSuspending {
                             val currentBook = book()
-                            val client = jellyfinClient()
-                            if (client != null && currentBook?.coverImageId != null) {
-                                ImageCache.get(client.getImageUrl(currentBook.coverImageId, currentBook.id))
-                            } else null
+                            jellyfinClient().fetchCoverImage(currentBook?.coverImageId, currentBook?.id)
                         }
 
                         sizeConstraints(width = 12.rem).frame {
@@ -215,101 +212,7 @@ class BookDetailPage(val bookId: String) : Page {
                             themeChoice += ImportantSemantic
                         }
 
-                        // Download button - inline implementation for reactive access
-                        button {
-                            centered.row {
-                                gap = 0.5.rem
-
-                                icon {
-                                    ::source {
-                                        val currentBook = book()
-                                        if (currentBook == null) {
-                                            Icon.download
-                                        } else {
-                                            val activeDownloads =
-                                                com.kf7mxe.inglenook.downloads.DownloadManager.activeDownloads()
-                                            val activeProgress = activeDownloads[currentBook.id]
-
-                                            when {
-                                                com.kf7mxe.inglenook.downloads.DownloadManager.isDownloaded(
-                                                    currentBook.id
-                                                ) -> Icon.checkCircle
-
-                                                activeProgress != null -> when (activeProgress.status) {
-                                                    DownloadStatus.Downloading -> Icon.cloudDownload
-                                                    DownloadStatus.Pending -> Icon.schedule
-                                                    DownloadStatus.Failed -> Icon.errorIcon
-                                                    else -> Icon.download
-                                                }
-
-                                                else -> Icon.download
-                                            }
-                                        }
-                                    }
-                                    description = "Download status"
-                                }
-
-                                text {
-                                    ::content {
-                                        val currentBook = book()
-                                        if (currentBook == null) {
-                                            "Download"
-                                        } else {
-                                            val activeDownloads =
-                                                com.kf7mxe.inglenook.downloads.DownloadManager.activeDownloads()
-                                            val activeProgress = activeDownloads[currentBook.id]
-
-                                            when {
-                                                com.kf7mxe.inglenook.downloads.DownloadManager.isDownloaded(
-                                                    currentBook.id
-                                                ) -> "Downloaded"
-
-                                                activeProgress != null -> when (activeProgress.status) {
-                                                    DownloadStatus.Downloading -> {
-                                                        if (activeProgress.totalBytes > 0) {
-                                                            val percent =
-                                                                (activeProgress.bytesDownloaded * 100 / activeProgress.totalBytes).toInt()
-                                                            "Downloading $percent%"
-                                                        } else {
-                                                            "Downloading..."
-                                                        }
-                                                    }
-
-                                                    DownloadStatus.Pending -> "Waiting..."
-                                                    DownloadStatus.Failed -> "Failed - Retry"
-                                                    DownloadStatus.Cancelled -> "Cancelled"
-                                                    else -> "Download"
-                                                }
-
-                                                else -> "Download"
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-
-                            action = Action("Download") {
-                                val currentBook = book() ?: return@Action
-                                val isDownloaded =
-                                    com.kf7mxe.inglenook.downloads.DownloadManager.isDownloaded(currentBook.id)
-                                val hasActiveDownload =
-                                    com.kf7mxe.inglenook.downloads.DownloadManager.activeDownloads.value.containsKey(
-                                        currentBook.id
-                                    )
-
-                                when {
-                                    isDownloaded -> com.kf7mxe.inglenook.downloads.DownloadManager.deleteDownload(
-                                        currentBook.id
-                                    )
-
-                                    hasActiveDownload -> com.kf7mxe.inglenook.downloads.DownloadManager.cancelDownload(
-                                        currentBook.id
-                                    )
-
-                                    else -> com.kf7mxe.inglenook.downloads.DownloadManager.downloadBook(currentBook)
-                                }
-                            }
-                        }
+                        DownloadButton(book)
 
                         bookshelfButton(bookId)
                     }
@@ -328,74 +231,7 @@ class BookDetailPage(val bookId: String) : Page {
                                 }
                                 themeChoice += ImportantSemantic
                             }
-                            // Download button for ebook
-                            button {
-                                centered.row {
-                                    gap = 0.5.rem
-                                    icon {
-                                        ::source {
-                                            val currentBook = book()
-                                            if (currentBook == null) Icon.download else {
-                                                val activeProgress =
-                                                    com.kf7mxe.inglenook.downloads.DownloadManager.activeDownloads()[currentBook.id]
-                                                when {
-                                                    com.kf7mxe.inglenook.downloads.DownloadManager.isDownloaded(currentBook.id) -> Icon.checkCircle
-                                                    activeProgress?.status == DownloadStatus.Downloading -> Icon.cloudDownload
-                                                    activeProgress?.status == DownloadStatus.Failed -> Icon.errorIcon
-                                                    else -> Icon.download
-                                                }
-                                            }
-                                        }
-                                        description = "Download status"
-                                    }
-                                    text {
-                                        ::content {
-                                            val currentBook = book()
-                                            if (currentBook == null) "Download" else {
-                                                val activeProgress =
-                                                    com.kf7mxe.inglenook.downloads.DownloadManager.activeDownloads()[currentBook.id]
-                                                when {
-                                                    com.kf7mxe.inglenook.downloads.DownloadManager.isDownloaded(currentBook.id) -> "Downloaded"
-                                                    activeProgress?.status == DownloadStatus.Downloading -> {
-                                                        if (activeProgress.totalBytes > 0) {
-                                                            val percent =
-                                                                (activeProgress.bytesDownloaded * 100 / activeProgress.totalBytes).toInt()
-                                                            "Downloading $percent%"
-                                                        } else "Downloading..."
-                                                    }
-
-                                                    activeProgress?.status == DownloadStatus.Failed -> "Failed - Retry"
-                                                    else -> "Download"
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                                action = Action("Download Ebook") {
-                                    val currentBook = book() ?: return@Action
-                                    val isDownloaded =
-                                        com.kf7mxe.inglenook.downloads.DownloadManager.isDownloaded(currentBook.id)
-                                    val activeProgress =
-                                        com.kf7mxe.inglenook.downloads.DownloadManager.activeDownloads.value[currentBook.id]
-                                    when {
-                                        isDownloaded -> com.kf7mxe.inglenook.downloads.DownloadManager.deleteDownload(
-                                            currentBook.id
-                                        )
-
-                                        activeProgress?.status == DownloadStatus.Downloading -> com.kf7mxe.inglenook.downloads.DownloadManager.cancelDownload(
-                                            currentBook.id
-                                        )
-
-                                        activeProgress?.status == DownloadStatus.Failed -> com.kf7mxe.inglenook.downloads.DownloadManager.downloadBook(
-                                            currentBook
-                                        )
-
-                                        activeProgress == null -> com.kf7mxe.inglenook.downloads.DownloadManager.downloadBook(
-                                            currentBook
-                                        )
-                                    }
-                                }
-                            }
+                            DownloadButton(book)
 
                             bookshelfButton(bookId)
                         }

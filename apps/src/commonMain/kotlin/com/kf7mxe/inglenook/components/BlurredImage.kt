@@ -2,7 +2,7 @@ package com.kf7mxe.inglenook.components
 
 import com.kf7mxe.inglenook.Book
 import com.kf7mxe.inglenook.appTheme
-import com.kf7mxe.inglenook.cache.blurServerImageAndCacheImage
+import com.kf7mxe.inglenook.cache.blurRemoteImageAndCache
 import com.kf7mxe.inglenook.cache.getBlurredCachedImage
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.persistedThemeSettings
@@ -44,7 +44,7 @@ fun ViewWriter.blurredImage(book: Reactive<Book?>, shown:Reactive<Boolean>) {
         if (cachedImage == null) {
             cachedImage = imageUrl?.let { imageUrl ->
                 imageToBlur?.let { recipeImage ->
-                    blurServerImageAndCacheImage(
+                    blurRemoteImageAndCache(
                         cachedImageFileName!!,
                         recipeImage,
                         blurSettings.blurRadius,

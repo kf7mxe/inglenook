@@ -14,6 +14,7 @@ import com.kf7mxe.inglenook.jellyfin.JellyfinClient
 import com.kf7mxe.inglenook.jellyfin.addServer
 import com.kf7mxe.inglenook.jellyfin.jellyfinServers
 import com.kf7mxe.inglenook.visibility
+import com.kf7mxe.inglenook.storage.DangerSemantic
 import com.kf7mxe.inglenook.visibilityOff
 import com.lightningkite.kiteui.Routable
 import com.lightningkite.kiteui.reactive.Action
@@ -332,7 +333,7 @@ class JellyfinSetupPage : Page {
                 // Error message (shared between both steps)
                 shownWhen { errorMessage() != null }.text {
                     ::content { errorMessage() ?: "" }
-                    themeChoice += ThemeDerivation { it.copy("error", foreground = Color.red).withoutBack }
+                    themeChoice += DangerSemantic
                 }
             }
         }

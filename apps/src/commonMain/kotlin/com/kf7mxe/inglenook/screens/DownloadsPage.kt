@@ -9,7 +9,8 @@ import com.lightningkite.kiteui.views.direct.*
 import com.lightningkite.kiteui.views.expanding
 import com.lightningkite.kiteui.views.l2.icon
 import com.kf7mxe.inglenook.*
-import com.kf7mxe.inglenook.cache.ImageCache
+import com.kf7mxe.inglenook.storage.DangerSemantic
+import com.kf7mxe.inglenook.cache.fetchCoverImage
 import com.kf7mxe.inglenook.downloads.DownloadManager
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.downloads.toAudioBook
@@ -134,12 +135,9 @@ class DownloadsPage : Page {
 
                                 // Cover image (from cache) or fallback icon
                                 sizedBox(SizeConstraints(width = 3.rem, height = 4.5.rem)).frame {
-                                    val coverUrl = download.coverImageId?.let { coverId ->
-                                        jellyfinClient.value?.getImageUrl(coverId, download._id)
-                                    }
-                                    if (coverUrl != null) {
+                                    if (download.coverImageId != null) {
                                         val cachedCover = rememberSuspending {
-                                            ImageCache.get(coverUrl)
+                                            jellyfinClient.value.fetchCoverImage(download.coverImageId, download._id)
                                         }
                                         image {
                                             ::source { cachedCover() }
@@ -173,7 +171,7 @@ class DownloadsPage : Page {
                                         DownloadManager.deleteDownload(download._id)
                                         loadDownloads()
                                     }
-                                    themeChoice += ThemeDerivation { it.copy(id = "danger", foreground = Color.red).withoutBack }
+                                    themeChoice += DangerSemantic
                                 }
                             }
                             onClick {

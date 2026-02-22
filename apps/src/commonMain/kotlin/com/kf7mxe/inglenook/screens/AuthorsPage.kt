@@ -10,7 +10,7 @@ import com.lightningkite.kiteui.views.expanding
 import com.lightningkite.kiteui.views.l2.icon
 import com.kf7mxe.inglenook.Author
 import com.kf7mxe.inglenook.ViewMode
-import com.kf7mxe.inglenook.cache.ImageCache
+import com.kf7mxe.inglenook.cache.fetchCoverImage
 import com.kf7mxe.inglenook.components.BookCard
 import com.kf7mxe.inglenook.components.BookListItem
 import com.kf7mxe.inglenook.components.connectionError
@@ -154,10 +154,8 @@ class AuthorsPage(val searchQuery:Signal<String> = Signal("")) : Page {
 // Author card component
 fun ViewWriter.AuthorCard(author: Reactive<Author>, onClick: suspend () -> Unit) {
     val cachedAuthorImage = rememberSuspending {
-        val client = jellyfinClient()
-        if (client != null && author().imageId != null) {
-            ImageCache.get(client.getImageUrl(author().imageId, author().id))
-        } else null
+        val authorData = author()
+        jellyfinClient().fetchCoverImage(authorData.imageId, authorData.id)
     }
 
     button {
@@ -192,10 +190,8 @@ fun ViewWriter.AuthorCard(author: Reactive<Author>, onClick: suspend () -> Unit)
 // Author list item component
 fun ViewWriter.AuthorListItem(author: Reactive<Author>, onClick: suspend () -> Unit) {
     val cachedAuthorImage = rememberSuspending {
-        val client = jellyfinClient()
-        if (client != null && author().imageId != null) {
-            ImageCache.get(client.getImageUrl(author().imageId, author().id))
-        } else null
+        val authorData = author()
+        jellyfinClient().fetchCoverImage(authorData.imageId, authorData.id)
     }
 
     button {

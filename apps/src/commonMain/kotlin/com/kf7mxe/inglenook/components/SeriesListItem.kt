@@ -8,7 +8,7 @@ import com.lightningkite.kiteui.views.expanding
 import com.lightningkite.kiteui.views.l2.icon
 import com.kf7mxe.inglenook.Series // Assuming this import exists based on SeriesCard
 import com.kf7mxe.inglenook.book
-import com.kf7mxe.inglenook.cache.ImageCache
+import com.kf7mxe.inglenook.cache.fetchCoverImage
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.lightningkite.reactive.core.Reactive
 import com.lightningkite.reactive.core.rememberSuspending
@@ -20,11 +20,8 @@ fun ViewWriter.SeriesListItem(
 ) {
     // 1. Image Fetching Logic (Taken from SeriesCard)
     val cachedCover = rememberSuspending {
-        val client = jellyfinClient()
         val seriesData = series()
-        if (client != null && seriesData.imageId != null) {
-            ImageCache.get(client.getImageUrl(seriesData.imageId))
-        } else null
+        jellyfinClient().fetchCoverImage(seriesData.imageId)
     }
 
     // 2. Main List Item Container

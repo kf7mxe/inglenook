@@ -3,7 +3,6 @@ package com.kf7mxe.inglenook.cache
 import com.juul.indexeddb.Key
 import com.kf7mxe.inglenook.database
 import com.kf7mxe.inglenook.getDatabase
-import com.kf7mxe.inglenook.storage.getCacheFileName
 import com.lightningkite.kiteui.Blob
 import com.lightningkite.kiteui.models.ImageRaw
 import com.lightningkite.kiteui.models.ImageRemote
@@ -22,7 +21,34 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 import kotlin.js.add
 
-actual suspend fun blurServerImageAndCacheImage(
+private fun applyRadialGradientOverlay(
+    ctx: CanvasRenderingContext2D,
+    w: Double,
+    h: Double,
+    blurRadius: Float,
+    overlayColor: Paint
+) {
+    ctx.filter = "none"
+    ctx.globalCompositeOperation = "source-over"
+
+    val cx = w / 2.0
+    val cy = h / 2.0
+    val radius = kotlin.math.sqrt(cx * cx + cy * cy)
+
+    val gradient = ctx.createRadialGradient(cx, cy, 0.0, cx, cy, radius)
+    val hexColor = overlayColor.closestColor().toWeb()
+
+    gradient.addColorStop(0.0, "rgba(0,0,0,0)")
+    gradient.addColorStop(1.0, hexColor)
+
+    val calculatedAlpha = (blurRadius / 20.0).coerceIn(0.0, 0.6)
+
+    ctx.globalAlpha = calculatedAlpha
+    ctx.fillStyle = gradient
+    ctx.fillRect(0.0, 0.0, w, h)
+}
+
+actual suspend fun blurRemoteImageAndCache(
     location: String,
     image: ImageRemote,
     blurRadius: Float,
@@ -51,29 +77,7 @@ actual suspend fun blurServerImageAndCacheImage(
             ctx.drawImage(imageElement, 0.0, 0.0, w, h)
 
             // 2. Blend the Radial Gradient Overlay
-            ctx.filter = "none" // Turn off blur for the gradient drawing
-            ctx.globalCompositeOperation = "source-over"
-
-            // Calculate geometry
-            val cx = w / 2.0
-            val cy = h / 2.0
-            val radius = kotlin.math.sqrt(cx * cx + cy * cy) // Radius to corner
-
-            val gradient = ctx.createRadialGradient(cx, cy, 0.0, cx, cy, radius)
-            val hexColor = overlayColor.closestColor().toWeb()
-
-            // Stop 0 (Center): Transparent
-            gradient.addColorStop(0.0, "rgba(0,0,0,0)")
-            // Stop 1 (Edge): Solid color (Opacity controlled by globalAlpha below)
-            gradient.addColorStop(1.0, hexColor)
-
-            // Logic: The higher the blurRadius, the stronger the overlay color.
-            // We use globalAlpha to control the max opacity of the gradient edges.
-            val calculatedAlpha = (blurRadius / 20.0).coerceIn(0.0, 0.6)
-
-            ctx.globalAlpha = calculatedAlpha
-            ctx.fillStyle = gradient
-            ctx.fillRect(0.0, 0.0, w, h)
+            applyRadialGradientOverlay(ctx, w, h, blurRadius, overlayColor)
 
             // 3. Convert to Blob
             canvas.toBlob({ blurredImageBlob ->
@@ -81,7 +85,7 @@ actual suspend fun blurServerImageAndCacheImage(
                     AppScope.launch {
                         database?.writeTransaction("blurredImageCache") {
                             val store = objectStore("blurredImageCache")
-                            store.add(blurredImageBlob, Key(getCacheFileName(location)))
+                            store.add(blurredImageBlob, Key(location))
                         }
                         continuation.resume(ImageRaw(blurredImageBlob))
                     }
@@ -108,7 +112,7 @@ actual suspend fun clearImageCaches() {
 actual suspend fun getBlurredCachedImage(localPath: String): ImageSource? {
     database = database ?: getDatabase()
     val image = database?.transaction("blurredImageCache") {
-        val result = objectStore("blurredImageCache").get(Key(getCacheFileName(localPath)))
+        val result = objectStore("blurredImageCache").get(Key(localPath))
         if(result != undefined) result as Blob
         else null
     }
@@ -157,29 +161,8 @@ actual suspend fun blurAndCacheImage(
             ctx.drawImage(imageElement, 0.0, 0.0, w, h)
 
             // 2. Blend the Radial Gradient Overlay
-            ctx.filter = "none" // Turn off blur for the gradient drawing
-            ctx.globalCompositeOperation = "source-over"
+            applyRadialGradientOverlay(ctx, w, h, blurRadius, overlayColor)
 
-            // Calculate geometry
-            val cx = w / 2.0
-            val cy = h / 2.0
-            val radius = kotlin.math.sqrt(cx * cx + cy * cy) // Radius to corner
-
-            val gradient = ctx.createRadialGradient(cx, cy, 0.0, cx, cy, radius)
-            val hexColor = overlayColor.closestColor().toWeb()
-
-            // Stop 0 (Center): Transparent
-            gradient.addColorStop(0.0, "rgba(0,0,0,0)")
-            // Stop 1 (Edge): Solid color (Opacity controlled by globalAlpha below)
-            gradient.addColorStop(1.0, hexColor)
-
-            // Logic: The higher the blurRadius, the stronger the overlay color.
-            // We use globalAlpha to control the max opacity of the gradient edges.
-            val calculatedAlpha = (blurRadius / 20.0).coerceIn(0.0, 0.6)
-
-            ctx.globalAlpha = calculatedAlpha
-            ctx.fillStyle = gradient
-            ctx.fillRect(0.0, 0.0, w, h)
             // Convert the canvas to a Blob and resume the coroutine
             canvas.toBlob({ blurredImageBlob ->
                 if (blurredImageBlob != null) {

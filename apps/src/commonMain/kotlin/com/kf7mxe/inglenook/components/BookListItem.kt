@@ -8,7 +8,7 @@ import com.lightningkite.kiteui.views.expanding
 import com.lightningkite.kiteui.views.l2.icon
 import com.kf7mxe.inglenook.Book
 import com.kf7mxe.inglenook.ItemType
-import com.kf7mxe.inglenook.cache.ImageCache
+import com.kf7mxe.inglenook.cache.fetchCoverImage
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.playback.PlaybackState
 import com.kf7mxe.inglenook.book
@@ -27,11 +27,8 @@ fun ViewWriter.BookListItem(
     onClick: suspend () -> Unit
 ) {
     val cachedCover = rememberSuspending {
-        val client = jellyfinClient()
         val bookData = book()
-        if (client != null && bookData.coverImageId != null) {
-            ImageCache.get(client.getImageUrl(bookData.coverImageId, bookData.id))
-        } else null
+        jellyfinClient().fetchCoverImage(bookData.coverImageId, bookData.id)
     }
 
     row {

@@ -15,7 +15,7 @@ import com.kf7mxe.inglenook.components.BookCard
 import com.kf7mxe.inglenook.components.BookListItem
 import com.kf7mxe.inglenook.components.connectionError
 import com.kf7mxe.inglenook.connectivity.ConnectivityState
-import com.kf7mxe.inglenook.cache.ImageCache
+import com.kf7mxe.inglenook.cache.fetchCoverImage
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.viewMode
 import com.lightningkite.kiteui.Routable
@@ -56,11 +56,7 @@ class AuthorDetailPage(val authorId: String) : Page {
             }
             // Author image
             val cachedAuthorImage = rememberSuspending {
-                val client = jellyfinClient()
-                val imageId = author()?.imageId
-                if (client != null && imageId != null) {
-                    ImageCache.get(client.getImageUrl(imageId, authorId))
-                } else null
+                jellyfinClient().fetchCoverImage(author()?.imageId, authorId)
             }
 
             row {

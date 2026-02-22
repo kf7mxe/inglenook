@@ -11,7 +11,7 @@ import com.lightningkite.kiteui.views.l2.icon
 import com.kf7mxe.inglenook.Book
 import com.kf7mxe.inglenook.Author
 import com.kf7mxe.inglenook.book
-import com.kf7mxe.inglenook.cache.ImageCache
+import com.kf7mxe.inglenook.cache.fetchCoverImage
 import com.kf7mxe.inglenook.searchOff
 import com.kf7mxe.inglenook.connectivity.ConnectivityState
 import com.kf7mxe.inglenook.downloads.DownloadManager
@@ -186,10 +186,7 @@ class SearchPage : Page {
 
     private fun ViewWriter.bookSearchResult(book: Book) {
         val cachedCover = rememberSuspending {
-            val client = jellyfinClient.value
-            if (client != null && book.coverImageId != null) {
-                ImageCache.get(client.getImageUrl(book.coverImageId, book.id))
-            } else null
+            jellyfinClient.value.fetchCoverImage(book.coverImageId, book.id)
         }
 
         button {
@@ -237,10 +234,7 @@ class SearchPage : Page {
 
     private fun ViewWriter.authorSearchResult(author: Author) {
         val cachedAuthorImage = rememberSuspending {
-            val client = jellyfinClient.value
-            if (client != null && author.imageId != null) {
-                ImageCache.get(client.getImageUrl(author.imageId, author.id))
-            } else null
+            jellyfinClient.value.fetchCoverImage(author.imageId, author.id)
         }
 
         button {
