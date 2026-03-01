@@ -12,8 +12,12 @@ import com.kf7mxe.inglenook.cache.fetchCoverImage
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.playback.PlaybackState
 import com.kf7mxe.inglenook.book
+import com.kf7mxe.inglenook.checkCircle
 import com.kf7mxe.inglenook.pause
 import com.kf7mxe.inglenook.playArrow
+import com.lightningkite.kiteui.views.direct.shownWhen
+import com.lightningkite.kiteui.views.direct.progressBar
+import com.lightningkite.kiteui.views.l2.icon
 import com.kf7mxe.inglenook.screens.EbookReaderPage
 import com.kf7mxe.inglenook.screens.openEbook
 import com.kf7mxe.inglenook.storage.ImageSemantic
@@ -73,6 +77,47 @@ fun ViewWriter.BookCard(
                         ::content { book().authors.takeIf { it.isNotEmpty() }?.map{it.name}?.joinToString(",") ?: "Unknown Author" }
                         ellipsis = true
                         lineClamp = 2
+                    }
+                    // Completed
+                    shownWhen { book().userData?.played == true }.row {
+                        icon(Icon.checkCircle, "Completed")
+                        subtext { content = "Completed" }
+                    }
+                    // In progress
+                    shownWhen {
+                        val b = book()
+                        (b.userData?.playbackPositionTicks ?: 0L) > 0L && b.userData?.played != true
+                    }.row {
+                        subtext {
+                            ::content {
+                                val b = book()
+                                val position = b.userData?.playbackPositionTicks ?: 0L
+                                val dur = b.duration
+                                val percent = if (dur > 0) ((position.toFloat() / dur) * 100).toInt().coerceAtMost(100) else 0
+                                "$percent%"
+                            }
+                        }
+                        expanding.progressBar {
+                            ::ratio {
+                                val b = book()
+                                val position = b.userData?.playbackPositionTicks ?: 0L
+                                val dur = b.duration
+                                if (dur > 0) (position.toFloat() / dur).coerceAtMost(1f) else 0f
+                            }
+                        }
+                    }
+                    // Not started - show duration
+                    shownWhen {
+                        val b = book()
+                        (b.userData?.playbackPositionTicks ?: 0L) == 0L && b.userData?.played != true
+                    }.subtext {
+                        ::content {
+                            val durationTicks = book().duration
+                            val totalSeconds = durationTicks / 10_000_000
+                            val hours = totalSeconds / 3600
+                            val minutes = (totalSeconds % 3600) / 60
+                            if (hours > 0) "${hours}h ${minutes}m" else "${minutes}m"
+                        }
                     }
                 }
                 this.onClick { onClick() }
