@@ -28,6 +28,8 @@ import com.kf7mxe.inglenook.storage.SelectedTab
 import com.kf7mxe.inglenook.storage.UnSelectedTab
 import com.kf7mxe.inglenook.storage.readImageFromStorage
 import com.kf7mxe.inglenook.theming.createTheme
+import com.lightningkite.kiteui.lottie.models.LottieRaw
+import com.lightningkite.kiteui.lottie.models.LottieSource
 import com.lightningkite.kiteui.navigation.bindToPlatform
 import com.lightningkite.kiteui.navigation.dialogPageNavigator
 import com.lightningkite.kiteui.navigation.pageNavigator
@@ -44,6 +46,7 @@ import com.lightningkite.reactive.core.remember
 import com.lightningkite.reactive.core.rememberSuspending
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
+import com.lightningkite.kiteui.lottie.views.direct.lottie
 
 // Persistent theme settings - survives app restart
 val persistedThemePreset = PersistentProperty<ThemePreset>("themePreset", ThemePreset.Cozy)
@@ -139,7 +142,21 @@ fun ViewWriter.app(navigator: PageNavigator, dialog: PageNavigator) {
                     }
                 }
             }
-//
+
+            launch {
+                println("DEBUG Resources.inglenookFlameAnimation().toString() ${Resources.inglenookFlameAnimation().toString()}")
+            }
+
+
+//            lottie(
+//                source = LottieRaw(fireBurning),
+//                description = "test"
+//            ) {
+//                loop = true
+//                autoPlay = true
+//            }
+////
+
             image {
                 scaleType = ImageScaleType.Crop
                 ::source { wallpaper() }

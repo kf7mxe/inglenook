@@ -190,11 +190,11 @@ enum class ThemePreset(val displayName: String, val allowsCustomization: Boolean
     AutumnCabin("Autumn Cabin", true),          // Blue tones
     Midnight("Midnight", true),    // Dark theme
     Sunrise("Sunrise", true),      // Warm orange
-    Material("Material", true),    // Material design style
+    NeumorphismLight("Neumorphism Light", true),
     Hackerman("Hackerman", true),  // Terminal/monochrome style
     Clouds("Clouds", true),        // Soft rounded style
     Obsidian("Obsidian", true),    // Dark with gradients
-    Custom("Custom", true)         // Fully user customizable
+    Custom("Custom", true) // Fully user customizable
 }
 
 // Theme settings for customization

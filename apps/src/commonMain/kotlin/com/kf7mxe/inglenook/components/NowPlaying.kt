@@ -14,6 +14,7 @@ import com.kf7mxe.inglenook.playback.SleepTimerMode
 import com.kf7mxe.inglenook.screens.AuthorDetailPage
 import com.kf7mxe.inglenook.screens.BookDetailPage
 import com.kf7mxe.inglenook.storage.DangerSemantic
+import com.kf7mxe.inglenook.storage.ImageSemantic
 import com.kf7mxe.inglenook.storage.NowPlayingSemantic
 import com.lightningkite.kiteui.navigation.mainPageNavigator
 import com.lightningkite.kiteui.views.atBottom
@@ -39,7 +40,7 @@ fun ViewWriter.nowPlayingPreview() {
             expanding.row {
                 // Thumbnail
                 sizeConstraints(width = 3.rem, height = 3.rem).frame {
-                    image {
+                    themed(ImageSemantic).image {
                         ::source { cachedPreviewCover() }
                         scaleType = ImageScaleType.Crop
                     }
@@ -140,7 +141,7 @@ fun ViewWriter.nowPlaying(onClose: () -> Unit = {}) {
                 }
 
                 centered.sizeConstraints(maxWidth = 16.rem, maxHeight = 16.rem).frame {
-                    sizeConstraints(maxWidth = 16.rem, maxHeight = 16.rem).image {
+                    themed(ImageSemantic).sizeConstraints(maxWidth = 16.rem, maxHeight = 16.rem).image {
                         rView::shown{
                             PlaybackState.currentBook() != null
                         }

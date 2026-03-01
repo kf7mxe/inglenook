@@ -17,6 +17,7 @@ import com.kf7mxe.inglenook.components.connectionError
 import com.kf7mxe.inglenook.connectivity.ConnectivityState
 import com.kf7mxe.inglenook.cache.fetchCoverImage
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
+import com.kf7mxe.inglenook.storage.ImageSemantic
 import com.kf7mxe.inglenook.viewMode
 import com.lightningkite.kiteui.Routable
 import com.lightningkite.kiteui.views.l2.RecyclerViewPlacerVerticalGrid
@@ -61,7 +62,7 @@ class AuthorDetailPage(val authorId: String) : Page {
 
             row {
                 sizeConstraints(width = 8.rem, height = 8.rem).frame {
-                    image {
+                    themed(ImageSemantic). image {
                         this.rView::shown{
                             author()?.imageId != null
                         }

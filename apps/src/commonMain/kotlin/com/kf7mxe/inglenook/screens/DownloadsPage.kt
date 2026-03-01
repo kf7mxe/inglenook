@@ -15,6 +15,7 @@ import com.kf7mxe.inglenook.downloads.DownloadManager
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.downloads.toAudioBook
 import com.kf7mxe.inglenook.playback.PlaybackState
+import com.kf7mxe.inglenook.storage.ImageSemantic
 import com.lightningkite.kiteui.Routable
 import com.lightningkite.kiteui.navigation.mainPageNavigator
 import com.lightningkite.kiteui.views.forEach
@@ -139,7 +140,7 @@ class DownloadsPage : Page {
                                         val cachedCover = rememberSuspending {
                                             jellyfinClient.value.fetchCoverImage(download.coverImageId, download._id)
                                         }
-                                        image {
+                                        themed(ImageSemantic).image {
                                             ::source { cachedCover() }
                                             scaleType = ImageScaleType.Crop
                                         }

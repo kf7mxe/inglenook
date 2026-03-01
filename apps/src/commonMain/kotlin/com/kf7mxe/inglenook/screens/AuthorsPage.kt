@@ -198,7 +198,7 @@ fun ViewWriter.AuthorListItem(author: Reactive<Author>, onClick: suspend () -> U
         row {
             // Thumbnail
             frame {
-                sizeConstraints(width = 4.rem, height = 4.rem).image {
+                themed(ImageSemantic).sizeConstraints(width = 4.rem, height = 4.rem).image {
                     rView::shown {
                         author().imageId != null
                     }

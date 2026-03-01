@@ -18,6 +18,7 @@ import com.kf7mxe.inglenook.downloads.DownloadManager
 import com.kf7mxe.inglenook.downloads.toAudioBook
 import com.kf7mxe.inglenook.jellyfin.SearchResults
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
+import com.kf7mxe.inglenook.storage.ImageSemantic
 import com.lightningkite.kiteui.Routable
 import com.lightningkite.kiteui.views.fieldTheme
 import com.lightningkite.kiteui.views.forEach
@@ -196,7 +197,7 @@ class SearchPage : Page {
 
                 // Cover image
                 sizeConstraints(width = 3.rem, height = 4.rem).frame {
-                    shownWhen { book.coverImageId != null }.image {
+                    shownWhen { book.coverImageId != null }.themed(ImageSemantic).image {
                         ::source { cachedCover() }
                         scaleType = ImageScaleType.Crop
                     }
@@ -244,7 +245,7 @@ class SearchPage : Page {
 
                 // Author image
                 sizeConstraints(width = 3.rem, height = 3.rem).frame {
-                    shownWhen { author.imageId != null }.image {
+                    shownWhen { author.imageId != null }.themed(ImageSemantic).image {
                         ::source { cachedAuthorImage() }
                         scaleType = ImageScaleType.Crop
                     }

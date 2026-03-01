@@ -84,7 +84,7 @@ class BookDetailPage(val bookId: String) : Page {
                         }
 
                         sizeConstraints(width = 12.rem).frame {
-                            shownWhen { book()?.coverImageId != null }.themed(ImageSemantic).image {
+                            shownWhen { book()?.coverImageId != null }.themed(ImageSemantic).themed(ImageSemantic).image {
                                 ::source { cachedCover() }
                                 scaleType = ImageScaleType.Fit
                             }

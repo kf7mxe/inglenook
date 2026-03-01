@@ -18,6 +18,7 @@ import com.kf7mxe.inglenook.components.connectionError
 import com.kf7mxe.inglenook.connectivity.ConnectivityState
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.playback.PlaybackState
+import com.kf7mxe.inglenook.storage.ImageSemantic
 import com.kf7mxe.inglenook.viewMode
 import com.lightningkite.kiteui.Routable
 import com.lightningkite.reactive.context.invoke
@@ -50,7 +51,7 @@ class SeriesDetailPage(val seriesName: String) : Page {
                 }
 
                 sizedBox(SizeConstraints(width = 6.rem, height = 9.rem)).frame {
-                    shownWhen { books().isNotEmpty() && books().first().coverImageId != null }.image {
+                    shownWhen { books().isNotEmpty() && books().first().coverImageId != null }.themed(ImageSemantic).image {
                         ::source { cachedSeriesCover() }
                         scaleType = ImageScaleType.Crop
                     }

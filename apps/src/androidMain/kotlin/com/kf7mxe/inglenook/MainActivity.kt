@@ -1,6 +1,7 @@
 package com.kf7mxe.inglenook
 
 import android.os.Bundle
+import android.view.WindowManager
 import androidx.activity.OnBackPressedCallback
 import com.lightningkite.kiteui.KiteUiActivity
 import com.lightningkite.kiteui.Throwable_report
@@ -26,6 +27,7 @@ class MainActivity : KiteUiActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         codeCacheDir.setReadOnly()
+        window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
 
         Throwable_report = { ex, ctx ->
             ex.printStackTrace2()
@@ -47,11 +49,7 @@ class MainActivity : KiteUiActivity() {
 
         // Add the callback to the dispatcher
         onBackPressedDispatcher.addCallback(this, callback)
+        viewWriter.app(main, dialog)
 
-
-
-        with(viewWriter) {
-            app(main, dialog)
-        }
     }
 }

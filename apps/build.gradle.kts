@@ -51,6 +51,7 @@ kotlin {
                 api(project(":shared"))
                 // Readable library for Constant
                 api("com.lightningkite:readable:2.0.0")
+                api(libs.lottie)
                 // Ktor client for Jellyfin API
                 implementation("io.ktor:ktor-client-core:3.0.3")
                 implementation("io.ktor:ktor-client-content-negotiation:3.0.3")
@@ -194,6 +195,15 @@ configure<KiteUiPluginExtension> {
     this.packageName = "com.kf7mxe.inglenook"
     this.iosProjectRoot = project.file("./ios/app")
 }
+
+
+configurations.all {
+    resolutionStrategy {
+        force("com.lightningkite.kiteui:library:0.3.13-tbneumorphism-180-local")
+        // If there are other modules like library-jvmssr, force those too:
+    }
+}
+
 
 // Create symlink for Kotlin/JS source maps to resolve correctly
 // Source maps reference paths like ../../../../../../src/jsMain/kotlin/... which resolve to build/js/packages/src/...

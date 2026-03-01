@@ -142,7 +142,7 @@ class ThemeSettingsPage : Page {
                                 ThemePreset.AutumnCabin -> "Orange warm vibes"
                                 ThemePreset.Midnight -> "Dark and minimal"
                                 ThemePreset.Sunrise -> "Warm light tones"
-                                ThemePreset.Material -> "Clean and modern"
+                                ThemePreset.NeumorphismLight -> "Neumorphism"
                                 ThemePreset.Hackerman -> "Terminal vibes"
                                 ThemePreset.Clouds -> "Soft and rounded"
                                 ThemePreset.Obsidian -> "Dark with accent"

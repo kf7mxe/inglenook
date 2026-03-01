@@ -16,6 +16,7 @@ import com.kf7mxe.inglenook.pause
 import com.kf7mxe.inglenook.playArrow
 import com.kf7mxe.inglenook.screens.EbookReaderPage
 import com.kf7mxe.inglenook.screens.openEbook
+import com.kf7mxe.inglenook.storage.ImageSemantic
 import com.lightningkite.kiteui.navigation.mainPageNavigator
 import com.lightningkite.reactive.core.Reactive
 import com.lightningkite.reactive.core.rememberSuspending
@@ -55,7 +56,7 @@ fun ViewWriter.BookListItem(
             row {
                 // Thumbnail
                 sizeConstraints(height = 7.rem, width=5.rem).frame {
-                    image {
+                    themed(ImageSemantic).image {
                         this.rView::shown {
                             book().coverImageId != null
                         }

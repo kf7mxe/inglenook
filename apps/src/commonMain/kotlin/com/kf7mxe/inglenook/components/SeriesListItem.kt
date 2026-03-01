@@ -10,6 +10,7 @@ import com.kf7mxe.inglenook.Series // Assuming this import exists based on Serie
 import com.kf7mxe.inglenook.book
 import com.kf7mxe.inglenook.cache.fetchCoverImage
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
+import com.kf7mxe.inglenook.storage.ImageSemantic
 import com.lightningkite.reactive.core.Reactive
 import com.lightningkite.reactive.core.rememberSuspending
 import com.lightningkite.reactive.context.invoke
@@ -30,7 +31,7 @@ fun ViewWriter.SeriesListItem(
             // --- Thumbnail Section (Matched dimensions to BookListItem) ---
             sizeConstraints(height = 7.rem, width = 5.rem).frame {
                 // Cover Image
-                image {
+                themed(ImageSemantic).image {
                     this.rView::shown {
                         series().imageId != null
                     }
