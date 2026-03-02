@@ -106,10 +106,10 @@ fun ViewWriter.BookCard(
                             }
                         }
                     }
-                    // Not started - show duration
+                    // Not started - show duration (audiobooks only)
                     shownWhen {
                         val b = book()
-                        (b.userData?.playbackPositionTicks ?: 0L) == 0L && b.userData?.played != true
+                        (b.userData?.playbackPositionTicks ?: 0L) == 0L && b.userData?.played != true && b.itemType == ItemType.AudioBook
                     }.subtext {
                         ::content {
                             val durationTicks = book().duration

@@ -87,7 +87,9 @@ fun Theme.Companion.cozy(accent: Color? = null): Theme {
             ImageSemantic.override {
                 it.withBack(
                     cornerRadii =CornerRadii.Fixed(1.rem),
-                    padding = Edges.ZERO
+                    padding = Edges.ZERO,
+                    outline = null,
+                    outlineWidth = 0.dp
                 )
             },
             DialogSemantic.override {
@@ -456,6 +458,7 @@ fun Theme.Companion.glassish(settings: ThemeSettings): Theme {
                 it.withBack(
                     cornerRadii = CornerRadii(settings.imageSemanticSettings?.cornerRadius?.toDouble()?.rem?: cornerRadius),
                     padding = Edges.ZERO,
+
                 )
             }
         )

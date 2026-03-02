@@ -21,6 +21,7 @@ import com.kf7mxe.inglenook.screens.EbookReaderPage
 import com.kf7mxe.inglenook.screens.openEbook
 import com.kf7mxe.inglenook.storage.ImageSemantic
 import com.lightningkite.kiteui.navigation.mainPageNavigator
+import com.lightningkite.kiteui.views.card
 import com.lightningkite.reactive.core.Reactive
 import com.lightningkite.reactive.core.rememberSuspending
 import com.lightningkite.reactive.context.invoke
@@ -35,7 +36,7 @@ fun ViewWriter.BookListItem(
         jellyfinClient().fetchCoverImage(bookData.coverImageId, bookData.id)
     }
 
-    row {
+    card.row {
 
         // Play button
         centered.col {
@@ -132,10 +133,10 @@ fun ViewWriter.BookListItem(
                             }
                         }
                     }
-                    // Not started - show duration
+                    // Not started - show duration (audiobooks only)
                     shownWhen {
                         val b = book()
-                        (b.userData?.playbackPositionTicks ?: 0L) == 0L && b.userData?.played != true
+                        (b.userData?.playbackPositionTicks ?: 0L) == 0L && b.userData?.played != true && b.itemType == ItemType.AudioBook
                     }.subtext {
                         ::content {
                             val durationTicks = book().duration

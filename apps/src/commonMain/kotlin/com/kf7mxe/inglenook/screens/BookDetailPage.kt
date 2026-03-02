@@ -84,7 +84,7 @@ class BookDetailPage(val bookId: String) : Page {
                         }
 
                         sizeConstraints(width = 12.rem).frame {
-                            shownWhen { book()?.coverImageId != null }.themed(ImageSemantic).themed(ImageSemantic).image {
+                            shownWhen { book()?.coverImageId != null }.themed(ImageSemantic).image {
                                 ::source { cachedCover() }
                                 scaleType = ImageScaleType.Fit
                             }
@@ -143,7 +143,7 @@ class BookDetailPage(val bookId: String) : Page {
                                 }
                             }
 
-                            // Duration
+                            // Duration (audiobooks only)
                             subtext {
                                 ::shown{
                                     book()?.itemType == ItemType.AudioBook
@@ -157,8 +157,17 @@ class BookDetailPage(val bookId: String) : Page {
                                 }
                             }
 
-                            // Progress indicator
-                            shownWhen { (book()?.userData?.playbackPositionTicks ?: 0L) > 0L }.col {
+                            // Completed indicator
+                            shownWhen { book()?.userData?.played == true }.row {
+                                icon(Icon.checkCircle, "Completed")
+                                subtext { content = "Completed" }
+                            }
+
+                            // Progress indicator (in progress, not completed)
+                            shownWhen {
+                                val b = book()
+                                (b?.userData?.playbackPositionTicks ?: 0L) > 0L && b?.userData?.played != true
+                            }.padded.col {
                                 progressBar {
                                     ::ratio {
                                         val b = book()
