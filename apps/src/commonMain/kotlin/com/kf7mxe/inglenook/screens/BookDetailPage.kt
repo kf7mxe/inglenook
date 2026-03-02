@@ -83,16 +83,23 @@ class BookDetailPage(val bookId: String) : Page {
                             jellyfinClient().fetchCoverImage(currentBook?.coverImageId, currentBook?.id)
                         }
 
-                        sizeConstraints(width = 12.rem).frame {
-                            shownWhen { book()?.coverImageId != null }.themed(ImageSemantic).image {
+                        sizeConstraints(height = 15.rem).frame {
+                            shownWhen { book()?.coverImageId != null }.themed(ImageSemantic).sizeConstraints(height = 15.rem, width = 8.rem).image {
+                                this.rView::shown{
+                                    cachedCover() != null
+                                }
                                 ::source { cachedCover() }
                                 scaleType = ImageScaleType.Fit
                             }
+                        }
                             shownWhen { book()?.coverImageId == null }.centered.icon {
+                                ::shown {
+                                    cachedCover() == null
+                                }
                                 source = Icon.book.copy(width = 4.rem, height = 4.rem)
                                 description = "Book cover"
                             }
-                        }
+
 
                         expanding.col {
 

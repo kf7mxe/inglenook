@@ -23,6 +23,8 @@ import com.lightningkite.kiteui.views.fieldTheme
 import com.lightningkite.reactive.core.Signal
 import com.lightningkite.reactive.core.AppScope
 import com.lightningkite.reactive.core.Constant
+import com.kf7mxe.inglenook.FullScreen
+import com.kf7mxe.inglenook.jellyfin.hasSeenDiagnosticsPrompt
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Job
@@ -30,7 +32,7 @@ import kotlinx.coroutines.Job
 enum class LoginMethod { UsernamePassword, QuickConnect }
 
 @Routable("/connect-jellyfin")
-class JellyfinSetupPage : Page {
+class JellyfinSetupPage : Page, FullScreen {
     override val title get() = Constant("Connect to Jellyfin")
 
     override fun ViewWriter.render() {
@@ -226,7 +228,11 @@ class JellyfinSetupPage : Page {
                                 val client = JellyfinClient(serverUrl.value)
                                 val config = client.authenticate(username.value, password.value)
                                 addServer(config)
-                                mainPageNavigator.navigate(HomePage())
+                                if (!hasSeenDiagnosticsPrompt.value) {
+                                    mainPageNavigator.navigate(DiagnosticsOnboardingPage())
+                                } else {
+                                    mainPageNavigator.navigate(LibrarySelectionPage())
+                                }
                             }
                             themeChoice += ImportantSemantic
                         }
@@ -309,7 +315,11 @@ class JellyfinSetupPage : Page {
                                                 val config = client.authenticateWithQuickConnect(secret)
                                                 addServer(config)
                                                 stopPolling()
-                                                mainPageNavigator.navigate(HomePage())
+                                                if (!hasSeenDiagnosticsPrompt.value) {
+                                                    mainPageNavigator.navigate(DiagnosticsOnboardingPage())
+                                                } else {
+                                                    mainPageNavigator.navigate(LibrarySelectionPage())
+                                                }
                                                 return@launch
                                             }
                                         } catch (e: Exception) {

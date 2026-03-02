@@ -14,24 +14,23 @@ import com.lightningkite.kiteui.views.expanding
 import com.lightningkite.kiteui.views.l2.icon
 import com.lightningkite.kiteui.views.dynamicTheme
 import com.kf7mxe.inglenook.*
+import com.kf7mxe.inglenook.components.librarySelector
 import com.kf7mxe.inglenook.storage.DangerSemantic
 import com.kf7mxe.inglenook.connectivity.ConnectivityState
 import com.kf7mxe.inglenook.theming.createTheme
-import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.jellyfin.jellyfinServers
 import com.kf7mxe.inglenook.jellyfin.activeServerId
 import com.kf7mxe.inglenook.jellyfin.switchToServer
 import com.kf7mxe.inglenook.jellyfin.removeServer
 import com.kf7mxe.inglenook.jellyfin.selectedLibraryIds
+import com.kf7mxe.inglenook.jellyfin.diagnosticsEnabled
 import com.lightningkite.kiteui.Routable
 import com.lightningkite.kiteui.reactive.AppState
 import com.lightningkite.kiteui.utils.getAppVersion
 import com.lightningkite.kiteui.views.forEach
 import com.lightningkite.reactive.context.invoke
-import com.lightningkite.reactive.core.Signal
 import com.lightningkite.reactive.core.Constant
 import com.lightningkite.reactive.core.remember
-import com.lightningkite.reactive.core.rememberSuspending
 
 
 @Routable("/settings")
@@ -39,12 +38,6 @@ class SettingsPage : Page {
     override val title get() = Constant("Settings")
 
     override fun ViewWriter.render() {
-        val libraries = rememberSuspending {
-            val client = jellyfinClient.value
-            client?.getLibraries()?:emptyList()
-        }
-            Signal<List<JellyfinLibrary>>(emptyList())
-
         scrolling.col {
             // Jellyfin Servers section
             col {
@@ -233,6 +226,22 @@ class SettingsPage : Page {
             }
 
 
+            // Diagnostics section
+            col {
+                h3 { content = "Diagnostics" }
+                card.col {
+                    row {
+                        expanding.col {
+                            text("Send crash reports")
+                            subtext("Help improve Inglenook by sending anonymous crash reports")
+                        }
+                        switch {
+                            checked bind diagnosticsEnabled
+                        }
+                    }
+                }
+            }
+
             // Library Selection section
             col {
                 row {
@@ -245,81 +254,7 @@ class SettingsPage : Page {
                     }
                 }
 
-                card.col {
-                    shownWhen { !libraries.state().ready }.centered.row {
-                        activityIndicator()
-                        text("Loading libraries...")
-                    }
-
-                    shownWhen { libraries.state().ready }.col {
-                        // Select All / Clear buttons
-                        row {
-                            button {
-                                text("Select All")
-                                onClick {
-                                    selectedLibraryIds.value = libraries.invoke().map { it.id }
-                                }
-                            }
-
-                            button {
-                                text("Clear All")
-                                onClick {
-                                    selectedLibraryIds.value = emptyList()
-                                }
-                            }
-
-                            expanding.space(1.0)
-
-                            subtext {
-                                ::content {
-                                    if (selectedLibraryIds().isEmpty()) "Showing all libraries" else ""
-                                }
-                            }
-                        }
-
-                        separator()
-                        col {
-                            forEach(libraries) { library ->
-                                button {
-                                    row {
-                                        checkbox {
-                                            checked bind selectedLibraryIds.lens(
-                                                get = { it.contains(library.id) },
-                                                modify = { list, isSelected ->
-                                                    if (isSelected) {
-                                                        list + library.id
-                                                    } else {
-                                                        list - library.id
-                                                    }
-                                                }
-                                            )
-                                        }
-
-                                        expanding.col {
-                                            text(library.name)
-                                            shownWhen { library.collectionType != null }.subtext {
-                                                content = library.collectionType ?: ""
-                                            }
-                                        }
-                                    }
-                                    onClick {
-                                        // Toggle selection
-                                        val currentIds = selectedLibraryIds.value
-                                        selectedLibraryIds.value = if (library.id in currentIds) {
-                                            currentIds - library.id
-                                        } else {
-                                            currentIds + library.id
-                                        }
-                                    }
-                                    dynamicTheme {
-                                        if (library.id in selectedLibraryIds()) SelectedSemantic else null
-                                    }
-                                }
-                                separator()
-                            }
-                        }
-                    }
-                }
+                librarySelector()
             }
 
 

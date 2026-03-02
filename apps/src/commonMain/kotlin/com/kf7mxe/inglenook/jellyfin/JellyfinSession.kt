@@ -58,6 +58,12 @@ inline fun <reified T> serverScopedProperty(baseKey: String, default: T): Persis
 val selectedLibraryIds: PersistentProperty<List<String>>
     get() = serverScopedProperty("selectedLibraryIds", emptyList())
 
+/** Whether diagnostic/crash report collection is enabled (off by default). */
+val diagnosticsEnabled = PersistentProperty("diagnosticsEnabled", false)
+
+/** Whether the user has been shown the diagnostics opt-in prompt. */
+val hasSeenDiagnosticsPrompt = PersistentProperty("hasSeenDiagnosticsPrompt", false)
+
 // --- Server management functions ---
 
 /** Add a new server config and make it the active server. */
