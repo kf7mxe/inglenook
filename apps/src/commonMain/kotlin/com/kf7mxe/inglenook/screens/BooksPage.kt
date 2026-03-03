@@ -4,13 +4,17 @@ import com.kf7mxe.inglenook.Book
 import com.kf7mxe.inglenook.ItemType
 import com.kf7mxe.inglenook.ViewMode
 import com.kf7mxe.inglenook.book
+import com.kf7mxe.inglenook.bookLoading
 import com.kf7mxe.inglenook.components.BookCard
 import com.kf7mxe.inglenook.components.BookListItem
 import com.kf7mxe.inglenook.components.connectionError
+import com.kf7mxe.inglenook.components.inglenookActivityIndicator
 import com.kf7mxe.inglenook.connectivity.ConnectivityState
 import com.kf7mxe.inglenook.dashboard
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.viewMode
+import com.lightningkite.kiteui.lottie.models.LottieRaw
+import com.lightningkite.kiteui.lottie.views.direct.lottie
 import com.lightningkite.kiteui.models.Edges
 import com.lightningkite.kiteui.models.Icon
 import com.lightningkite.kiteui.models.ImportantSemantic
@@ -128,7 +132,7 @@ class BooksPage(
                     }
                 }
             }
-            shownWhen { !books.state().ready }.centered.activityIndicator()
+            shownWhen { !books.state().ready }.inglenookActivityIndicator()
 
             // Loading state
 

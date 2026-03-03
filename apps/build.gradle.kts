@@ -199,8 +199,11 @@ configure<KiteUiPluginExtension> {
 
 configurations.all {
     resolutionStrategy {
-        force("com.lightningkite.kiteui:library:0.3.13-tbneumorphism-180-local")
-        // If there are other modules like library-jvmssr, force those too:
+//        force("0.3.13-traxexperimental-199")
+        force("com.lightningkite.kiteui:library:00.3.13-kf7mxeexperimental-200-local")
+
+        // If you also need to force lottie or other modules, do it like this:
+        force("com.lightningkite.kiteui:library-lottie:00.3.13-kf7mxeexperimental-200-local")        // If there are other modules like library-jvmssr, force those too:
     }
 }
 

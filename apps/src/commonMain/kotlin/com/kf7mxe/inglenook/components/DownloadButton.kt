@@ -6,29 +6,46 @@ import com.lightningkite.kiteui.views.centered
 import com.lightningkite.kiteui.views.direct.*
 import com.kf7mxe.inglenook.*
 import com.kf7mxe.inglenook.downloads.DownloadManager
+import com.kf7mxe.inglenook.playback.PlaybackState.currentBook
+import com.lightningkite.kiteui.lottie.models.LottieRaw
+import com.lightningkite.kiteui.lottie.views.direct.LottieView
+import com.lightningkite.kiteui.lottie.views.direct.lottie
 import com.lightningkite.kiteui.reactive.Action
 import com.lightningkite.reactive.core.Reactive
 import com.lightningkite.reactive.context.invoke
+import com.lightningkite.reactive.core.remember
 
 /**
  * A button that shows download status and allows downloading books for offline playback.
  * Reactive overload - accepts a Reactive<Book?> for use in pages where book data is loaded reactively.
  */
 fun ViewWriter.DownloadButton(bookReactive: Reactive<Book?>) {
-    button {
-        centered.row {
+    unpadded.button {
+        var downloadAnimations: LottieView? = null
+        unpadded.centered.row {
             gap = 0.5.rem
 
+            val downloadStatus = remember {
+                val activeDownloads = DownloadManager.activeDownloads()
+                val activeProgress =bookReactive()?.let { book ->
+                     activeDownloads[book.id]
+                }
+//                println("DEBUG downloadStatus ${downlaodStatus}")
+                activeProgress
+            }
+
             icon {
+                ::shown{
+                     downloadStatus()?.status != DownloadStatus.Downloading
+                }
                 ::source {
                     val currentBook = bookReactive()
                     if (currentBook == null) {
                         Icon.download
                     } else {
-                        val activeProgress = DownloadManager.activeDownloads()[currentBook.id]
                         when {
                             DownloadManager.isDownloaded(currentBook.id) -> Icon.checkCircle
-                            activeProgress != null -> when (activeProgress.status) {
+                            downloadStatus() != null -> when (downloadStatus()?.status) {
                                 DownloadStatus.Downloading -> Icon.cloudDownload
                                 DownloadStatus.Pending -> Icon.schedule
                                 DownloadStatus.Failed -> Icon.errorIcon
@@ -40,8 +57,26 @@ fun ViewWriter.DownloadButton(bookReactive: Reactive<Book?>) {
                 }
                 description = "Download status"
             }
+            shownWhen {
+                val test = downloadStatus()?.status == DownloadStatus.Downloading
+                println("DEBUG is active progress: $test")
+                test
+            }.unpadded.centered.sizeConstraints(width = 2.5.rem, height = 2.5.rem).lottie(
+                source = LottieRaw(downloading),
+                description = "Downloading "
+            ) {
+                downloadAnimations = this
+                loop = true
+                autoPlay = false
+                colorTransform = { lottieColor ->
+                    if(lottieColor.layerName == "bg") appTheme.value.background.closestColor()
+                    else lottieColor.color
+//                    Color.red
 
-            text {
+                }
+                }
+
+            centered.text {
                 ::content {
                     val currentBook = bookReactive()
                     if (currentBook == null) {
@@ -79,8 +114,14 @@ fun ViewWriter.DownloadButton(bookReactive: Reactive<Book?>) {
             when {
                 isDownloaded -> DownloadManager.deleteDownload(currentBook.id)
                 activeProgress?.status == DownloadStatus.Downloading -> DownloadManager.cancelDownload(currentBook.id)
-                activeProgress?.status == DownloadStatus.Failed -> DownloadManager.downloadBook(currentBook)
-                activeProgress == null -> DownloadManager.downloadBook(currentBook)
+                activeProgress?.status == DownloadStatus.Failed -> {
+                    downloadAnimations?.pause()
+                    DownloadManager.downloadBook(currentBook)
+                }
+                activeProgress == null -> {
+                    downloadAnimations?.play()
+                    DownloadManager.downloadBook(currentBook)
+                }
             }
         }
     }

@@ -60,315 +60,310 @@ class BookDetailPage(val bookId: String) : Page {
         book
     }
 
+    val cachedCover = rememberSuspending {
+        val currentBook = book()
+        jellyfinClient().fetchCoverImage(currentBook?.coverImageId, currentBook?.id)
+    }
+
     override fun ViewWriter.render() {
         val showChapters = Signal(true)
-        padded.col {
-            // Loading state
-            shownWhen { !book.state().ready }.expanding.centered.col {
-                activityIndicator { }
-            }
 
+        // Scrollable content
+        padded.expanding.scrolling.col {
+            space()
             // Connection error state (book failed to load due to network)
             shownWhen { book.state().ready && book() == null && ConnectivityState.lastNetworkError() != null }.expanding.connectionError {
                 mainPageNavigator.navigate(BookDetailPage(bookId))
             }
 
-            // Scrollable content
-            expanding.scrolling.col {
+                row {
 
-                shownWhen { book() != null && book.state().ready }.padded.col {
-                    row {
-                        val cachedCover = rememberSuspending {
-                            val currentBook = book()
-                            jellyfinClient().fetchCoverImage(currentBook?.coverImageId, currentBook?.id)
+
+//                        sizeConstraints(height = 15.rem).frame {
+                    themed(ImageSemantic).sizeConstraints(height = 15.rem).image {
+//                                this.rView::shown{
+//                                    cachedCover() != null
+//                                }
+                        ::source { cachedCover() }
+                        scaleType = ImageScaleType.Fit
+
+                    }
+//                        }
+//                            shownWhen { book()?.coverImageId == null }.centered.icon {
+//                                ::shown {
+//                                    cachedCover() == null
+//                                }
+//                                source = Icon.book.copy(width = 4.rem, height = 4.rem)
+//                                description = "Book cover"
+//                            }
+
+
+                    expanding.col {
+
+                        h2 { ::content { book()?.title ?: "" } }
+
+                        val authorInfos = remember { book()?.authorInfos ?: emptyList() }
+
+                        text {
+                            ::shown {
+                                authorInfos().isEmpty()
+                            }
+                            content = "Unknown Author"
                         }
 
-                        sizeConstraints(height = 15.rem).frame {
-                            shownWhen { book()?.coverImageId != null }.themed(ImageSemantic).sizeConstraints(height = 15.rem, width = 8.rem).image {
-                                this.rView::shown{
-                                    cachedCover() != null
-                                }
-                                ::source { cachedCover() }
-                                scaleType = ImageScaleType.Fit
-                            }
-                        }
-                            shownWhen { book()?.coverImageId == null }.centered.icon {
-                                ::shown {
-                                    cachedCover() == null
-                                }
-                                source = Icon.book.copy(width = 4.rem, height = 4.rem)
-                                description = "Book cover"
-                            }
-
-
-                        expanding.col {
-
-                            h2 { ::content { book()?.title ?: "" } }
-
-                            val authorInfos = remember { book()?.authorInfos ?: emptyList() }
-
-                            text {
-                                ::shown {
-                                    authorInfos().isEmpty()
-                                }
-                                content = "Unknown Author"
-                            }
-
-                            col {
-                                forEach(authorInfos) { author ->
-                                    button {
-                                        text {
-                                            ::content {
-                                                author.name
-                                            }
+                        col {
+                            forEach(authorInfos) { author ->
+                                button {
+                                    text {
+                                        ::content {
+                                            author.name
                                         }
-                                        onClick {
-                                            author.id?.let { id ->
-                                                mainPageNavigator.navigate(AuthorDetailPage(id))
-                                            }
-                                        }
-                                    }
-
-                                }
-                            }
-
-                            // Narrator (reactive)
-                            shownWhen { book()?.narrator != null }.row {
-                                subtext { content = "Narrated by " }
-                                subtext { ::content { book()?.narrator ?: "" } }
-                            }
-
-                            // Series info
-                            shownWhen { book()?.seriesName != null }.subtext {
-                                ::content {
-                                    val b = book()
-                                    if (b?.indexNumber != null) {
-                                        "${b.seriesName} #${b.indexNumber}"
-                                    } else {
-                                        b?.seriesName ?: ""
-                                    }
-                                }
-                            }
-
-                            // Duration (audiobooks only)
-                            subtext {
-                                ::shown{
-                                    book()?.itemType == ItemType.AudioBook
-                                }
-                                ::content {
-                                    val durationTicks = book()?.duration ?: 0L
-                                    val totalSeconds = durationTicks / 10_000_000
-                                    val hours = totalSeconds / 3600
-                                    val minutes = (totalSeconds % 3600) / 60
-                                    if (hours > 0) "${hours}h ${minutes}m" else "${minutes}m"
-                                }
-                            }
-
-                            // Completed indicator
-                            shownWhen { book()?.userData?.played == true }.row {
-                                icon(Icon.checkCircle, "Completed")
-                                subtext { content = "Completed" }
-                            }
-
-                            // Progress indicator (in progress, not completed)
-                            shownWhen {
-                                val b = book()
-                                (b?.userData?.playbackPositionTicks ?: 0L) > 0L && b?.userData?.played != true
-                            }.padded.col {
-                                progressBar {
-                                    ::ratio {
-                                        val b = book()
-                                        val position = b?.userData?.playbackPositionTicks ?: 0L
-                                        val dur = b?.duration ?: 1L
-                                        if (dur > 0) (position.toFloat() / dur).coerceAtMost(1f) else 0f
-                                    }
-                                }
-                                subtext {
-                                    ::content {
-                                        val b = book()
-                                        val position = b?.userData?.playbackPositionTicks ?: 0L
-                                        val dur = b?.duration ?: 1L
-                                        val percent = if (dur > 0) ((position.toFloat() / dur) * 100).toInt()
-                                            .coerceAtMost(100) else 0
-                                        "$percent% complete"
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    // Action buttons for audiobooks
-                    shownWhen { book()?.itemType == ItemType.AudioBook }.row {
-                        expanding.button {
-                            row {
-                                centered.icon {
-                                    ::source {
-                                        if (PlaybackState.currentBook()?.id == book()?.id && PlaybackState.isPlaying()) Icon.pause else
-                                            Icon.playArrow
-                                    }
-                                }
-                                centered.text {
-                                    ::content {
-                                        val position = book()?.userData?.playbackPositionTicks ?: 0L
-                                        if (position > 0) "Continue" else "Play"
-                                    }
-                                }
-                            }
-                            onClick {
-                                val currentBook = book()
-                                if (currentBook != null) {
-                                    if (PlaybackState.currentBook.value?.id == currentBook.id && PlaybackState.isPlaying.value) {
-                                        PlaybackState.pause()
-                                    } else {
-                                        val startPosition = currentBook.userData?.playbackPositionTicks ?: 0L
-                                        PlaybackState.play(currentBook, startPosition)
-                                    }
-                                }
-                            }
-                            themeChoice += ImportantSemantic
-                        }
-
-                        DownloadButton(book)
-
-                        bookshelfButton(bookId)
-                    }
-
-                    // Action buttons for ebooks
-                    shownWhen { book()?.itemType == ItemType.Ebook }.col {
-                        // Read button - opens in-app reader
-                        row {
-                            expanding.button {
-                                row {
-                                    centered.icon(Icon.book, "Read")
-                                    centered.text { content = "Read" }
-                                }
-                                onClick {
-                                    openEbook(bookId,this@button)
-                                }
-                                themeChoice += ImportantSemantic
-                            }
-                            DownloadButton(book)
-
-                            bookshelfButton(bookId)
-                        }
-
-
-
-                        // Open in browser
-                        button {
-                            row {
-                                centered.icon(Icon.chevronRight, "Open in Browser")
-                                centered.text { content = "Open in Browser" }
-                            }
-                            onClick {
-                                val currentBook = book()
-                                val client = jellyfinClient.value
-                                if (currentBook != null && client != null) {
-                                    // Open the book reader URL in browser
-                                    val readerUrl =
-                                        "${client.serverUrl}/web/index.html#!/details?id=${currentBook.id}"
-                                    // Use platform-specific URL opener
-                                    com.kf7mxe.inglenook.util.openUrl(readerUrl)
-                                }
-                            }
-                        }
-                    }
-
-                    // Bookshelf membership
-                    val memberBookshelves = remember {
-                        BookshelfRepository.getBookshelvesContainingBook(bookId)
-                    }
-                    shownWhen { memberBookshelves().isNotEmpty() }.col {
-                        h3 { content = "Bookshelves" }
-                        scrollingHorizontally.row {
-                            forEach(memberBookshelves) { shelf ->
-                                card.button {
-                                    row {
-                                        icon(Icon.collectionsBookmark.copy(width = 1.rem, height = 1.rem), "Bookshelf")
-                                        text { content = shelf.name }
                                     }
                                     onClick {
-                                        mainPageNavigator.navigate(BookshelfDetailPage(shelf._id.toString()))
+                                        author.id?.let { id ->
+                                            mainPageNavigator.navigate(AuthorDetailPage(id))
+                                        }
                                     }
                                 }
+
                             }
                         }
-                    }
 
-                    // Description section
-                    shownWhen { book()?.description != null }.col {
-                        h3 { content = "Description" }
-                        text { ::setBasicHtmlContent { book()?.description ?: "" } }
-                    }
-
-                    // Chapters section (only for audiobooks)
-                    shownWhen {
-                        val b = book()
-                        b?.itemType == ItemType.AudioBook && (b.chapters.size) > 0
-                    }.col {
-                        unpadded. button {
-                            paddingByEdge = Edges(0.rem,0.rem,1.rem,1.rem)
-                            row {
-                                expanding.h3 {
-                                    ::content { "Chapters (${book()?.chapters?.size ?: 0})" }
-                                }
-                                icon {
-                                    ::source { if (showChapters()) Icon.unfoldLess else Icon.unfoldMore }
-                                    description = "Toggle chapters"
-                                }
-                            }
-                            onClick { showChapters.value = !showChapters.value }
+                        // Narrator (reactive)
+                        shownWhen { book()?.narrator != null }.row {
+                            subtext { content = "Narrated by " }
+                            subtext { ::content { book()?.narrator ?: "" } }
                         }
 
-                        shownWhen { showChapters() }.unpadded.col {
-                            // Render chapters with reactive updates using forEachUpdating
-                            val chapters = remember {
-                                book()?.chapters ?: emptyList()
-                            }
-
-                            chaptersList(chapters) { chapter ->
-                                val currentBook = book()
-                                if (currentBook != null) {
-                                    PlaybackState.play(currentBook, chapter.startPositionTicks)
+                        // Series info
+                        shownWhen { book()?.seriesName != null }.subtext {
+                            ::content {
+                                val b = book()
+                                if (b?.indexNumber != null) {
+                                    "${b.seriesName} #${b.indexNumber}"
+                                } else {
+                                    b?.seriesName ?: ""
                                 }
                             }
                         }
-                    }
 
-                    // Bookmarks section
-                    val showBookmarks = Signal(false)
-                    val bookmarks = Signal(BookmarkRepository.getBookmarksForBook(bookId))
-
-                    shownWhen { bookmarks().isNotEmpty() }.col {
-                        unpadded.button {
-                            row {
-                                expanding.h3 {
-                                    ::content { "Bookmarks (${bookmarks().size})" }
-                                }
-                                icon {
-                                    ::source { if (showBookmarks()) Icon.unfoldLess else Icon.unfoldMore }
-                                    description = "Toggle bookmarks"
-                                }
+                        // Duration (audiobooks only)
+                        subtext {
+                            ::shown{
+                                book()?.itemType == ItemType.AudioBook
                             }
-                            onClick { showBookmarks.value = !showBookmarks.value }
+                            ::content {
+                                val durationTicks = book()?.duration ?: 0L
+                                val totalSeconds = durationTicks / 10_000_000
+                                val hours = totalSeconds / 3600
+                                val minutes = (totalSeconds % 3600) / 60
+                                if (hours > 0) "${hours}h ${minutes}m" else "${minutes}m"
+                            }
                         }
 
-                        shownWhen { showBookmarks() }.col {
-                            bookmarksList(bookId, bookmarks) { positionTicks ->
-                                book()?.let { currentBook ->
-                                    PlaybackState.play(currentBook, positionTicks)
+                        // Completed indicator
+                        shownWhen { book()?.userData?.played == true }.row {
+                            icon(Icon.checkCircle, "Completed")
+                            subtext { content = "Completed" }
+                        }
+
+                        // Progress indicator (in progress, not completed)
+                        shownWhen {
+                            val b = book()
+                            (b?.userData?.playbackPositionTicks ?: 0L) > 0L && b?.userData?.played != true
+                        }.padded.col {
+                            progressBar {
+                                ::ratio {
+                                    val b = book()
+                                    val position = b?.userData?.playbackPositionTicks ?: 0L
+                                    val dur = b?.duration ?: 1L
+                                    if (dur > 0) (position.toFloat() / dur).coerceAtMost(1f) else 0f
+                                }
+                            }
+                            subtext {
+                                ::content {
+                                    val b = book()
+                                    val position = b?.userData?.playbackPositionTicks ?: 0L
+                                    val dur = b?.duration ?: 1L
+                                    val percent = if (dur > 0) ((position.toFloat() / dur) * 100).toInt()
+                                        .coerceAtMost(100) else 0
+                                    "$percent% complete"
                                 }
                             }
                         }
                     }
                 }
-            }
+
+                // Action buttons for audiobooks
+                shownWhen { book()?.itemType == ItemType.AudioBook }.row {
+                    expanding.button {
+                        row {
+                            centered.icon {
+                                ::source {
+                                    if (PlaybackState.currentBook()?.id == book()?.id && PlaybackState.isPlaying()) Icon.pause else
+                                        Icon.playArrow
+                                }
+                            }
+                            centered.text {
+                                ::content {
+                                    val position = book()?.userData?.playbackPositionTicks ?: 0L
+                                    if (position > 0) "Continue" else "Play"
+                                }
+                            }
+                        }
+                        onClick {
+                            val currentBook = book()
+                            if (currentBook != null) {
+                                if (PlaybackState.currentBook.value?.id == currentBook.id && PlaybackState.isPlaying.value) {
+                                    PlaybackState.pause()
+                                } else {
+                                    val startPosition = currentBook.userData?.playbackPositionTicks ?: 0L
+                                    PlaybackState.play(currentBook, startPosition)
+                                }
+                            }
+                        }
+                        themeChoice += ImportantSemantic
+                    }
+
+                    DownloadButton(book)
+
+                    bookshelfButton(bookId)
+                }
+
+                // Action buttons for ebooks
+                shownWhen { book()?.itemType == ItemType.Ebook }.col {
+                    // Read button - opens in-app reader
+                    row {
+                        expanding.button {
+                            row {
+                                centered.icon(Icon.book, "Read")
+                                centered.text { content = "Read" }
+                            }
+                            onClick {
+                                openEbook(bookId, this@button)
+                            }
+                            themeChoice += ImportantSemantic
+                        }
+                        DownloadButton(book)
+
+                        bookshelfButton(bookId)
+                    }
+
+
+                    // Open in browser
+                    button {
+                        row {
+                            centered.icon(Icon.chevronRight, "Open in Browser")
+                            centered.text { content = "Open in Browser" }
+                        }
+                        onClick {
+                            val currentBook = book()
+                            val client = jellyfinClient.value
+                            if (currentBook != null && client != null) {
+                                // Open the book reader URL in browser
+                                val readerUrl =
+                                    "${client.serverUrl}/web/index.html#!/details?id=${currentBook.id}"
+                                // Use platform-specific URL opener
+                                com.kf7mxe.inglenook.util.openUrl(readerUrl)
+                            }
+                        }
+                    }
+                }
+
+                // Bookshelf membership
+                val memberBookshelves = remember {
+                    BookshelfRepository.getBookshelvesContainingBook(bookId)
+                }
+                shownWhen { memberBookshelves().isNotEmpty() }.col {
+                    h3 { content = "Bookshelves" }
+                    scrollingHorizontally.row {
+                        forEach(memberBookshelves) { shelf ->
+                            card.button {
+                                row {
+                                    icon(Icon.collectionsBookmark.copy(width = 1.rem, height = 1.rem), "Bookshelf")
+                                    text { content = shelf.name }
+                                }
+                                onClick {
+                                    mainPageNavigator.navigate(BookshelfDetailPage(shelf._id.toString()))
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Description section
+                shownWhen { book()?.description != null }.col {
+                    h3 { content = "Description" }
+                    text { ::setBasicHtmlContent { book()?.description ?: "" } }
+                }
+
+                // Chapters section (only for audiobooks)
+                shownWhen {
+                    val b = book()
+                    b?.itemType == ItemType.AudioBook && (b.chapters.size) > 0
+                }.col {
+                    unpadded.button {
+                        paddingByEdge = Edges(0.rem, 0.rem, 1.rem, 1.rem)
+                        row {
+                            expanding.h3 {
+                                ::content { "Chapters (${book()?.chapters?.size ?: 0})" }
+                            }
+                            icon {
+                                ::source { if (showChapters()) Icon.unfoldLess else Icon.unfoldMore }
+                                description = "Toggle chapters"
+                            }
+                        }
+                        onClick { showChapters.value = !showChapters.value }
+                    }
+
+                    shownWhen { showChapters() }.unpadded.col {
+                        // Render chapters with reactive updates using forEachUpdating
+                        val chapters = remember {
+                            book()?.chapters ?: emptyList()
+                        }
+
+                        chaptersList(chapters) { chapter ->
+                            val currentBook = book()
+                            if (currentBook != null) {
+                                PlaybackState.play(currentBook, chapter.startPositionTicks)
+                            }
+                        }
+                    }
+                }
+
+                // Bookmarks section
+                val showBookmarks = Signal(false)
+                val bookmarks = Signal(BookmarkRepository.getBookmarksForBook(bookId))
+
+                shownWhen { bookmarks().isNotEmpty() }.col {
+                    unpadded.button {
+                        row {
+                            expanding.h3 {
+                                ::content { "Bookmarks (${bookmarks().size})" }
+                            }
+                            icon {
+                                ::source { if (showBookmarks()) Icon.unfoldLess else Icon.unfoldMore }
+                                description = "Toggle bookmarks"
+                            }
+                        }
+                        onClick { showBookmarks.value = !showBookmarks.value }
+                    }
+
+                    shownWhen { showBookmarks() }.col {
+                        bookmarksList(bookId, bookmarks) { positionTicks ->
+                            book()?.let { currentBook ->
+                                PlaybackState.play(currentBook, positionTicks)
+                            }
+                        }
+                    }
+                }
+
         }
 
     }
 }
 
-suspend fun openEbook(bookId: String,vw: ViewWriter) {
+suspend fun openEbook(bookId: String, vw: ViewWriter) {
     if (com.lightningkite.kiteui.Platform.current == com.lightningkite.kiteui.Platform.Web) vw.mainPageNavigator.navigate(
         EbookReaderPage(bookId)
     )
@@ -377,7 +372,7 @@ suspend fun openEbook(bookId: String,vw: ViewWriter) {
         if (client != null) {
             val downloadUrl = "${client.serverUrl}/Items/$bookId/Download"
             val authHeader = client.getAuthHeader()
-            vw.ebookReader(bookId,downloadUrl,authHeader)
+            vw.ebookReader(bookId, downloadUrl, authHeader)
 //            vw.mainPageNavigator.navigate(EbookReaderPage(bookId))
         }
     }

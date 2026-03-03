@@ -143,19 +143,6 @@ fun ViewWriter.app(navigator: PageNavigator, dialog: PageNavigator) {
                 }
             }
 
-            launch {
-                println("DEBUG Resources.inglenookFlameAnimation().toString() ${Resources.inglenookFlameAnimation().toString()}")
-            }
-
-
-//            lottie(
-//                source = LottieRaw(fireBurning),
-//                description = "test"
-//            ) {
-//                loop = true
-//                autoPlay = true
-//            }
-////
 
             image {
                 scaleType = ImageScaleType.Crop

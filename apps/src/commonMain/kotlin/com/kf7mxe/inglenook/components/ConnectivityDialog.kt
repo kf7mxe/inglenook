@@ -1,8 +1,13 @@
 package com.kf7mxe.inglenook.components
 
+import com.kf7mxe.inglenook.appTheme
 import com.kf7mxe.inglenook.cloudOff
+import com.kf7mxe.inglenook.connectionLost
 import com.kf7mxe.inglenook.connectivity.ConnectivityState
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
+import com.lightningkite.kiteui.ExperimentalKiteUi
+import com.lightningkite.kiteui.lottie.models.LottieRaw
+import com.lightningkite.kiteui.lottie.views.direct.lottie
 import com.lightningkite.kiteui.models.*
 import com.lightningkite.kiteui.views.ViewWriter
 import com.lightningkite.kiteui.views.card
@@ -12,11 +17,23 @@ import com.lightningkite.kiteui.views.l2.icon
 import com.lightningkite.kiteui.reactive.Action
 import com.lightningkite.reactive.context.invoke
 
+@OptIn(ExperimentalKiteUi::class)
 fun ViewWriter.connectivityDialog(dismiss: () -> Unit) {
     centered.col {
-        centered.icon {
-            source = Icon.cloudOff.copy(width = 3.rem, height = 3.rem)
-            description = "No connection"
+//        centered.icon {
+//            source = Icon.cloudOff.copy(width = 3.rem, height = 3.rem)
+//            description = "No connection"
+//        }
+        sizeConstraints(width = 10.rem, height = 10.rem).lottie(
+            source = LottieRaw(connectionLost),
+            description = "connection lost"
+        ) {
+            loop = true
+            autoPlay = true
+            colorTransform = { lottieColor ->
+                if(lottieColor.layerIndex == 2) appTheme.value.background.closestColor()
+                else lottieColor.color
+            }
         }
         centered.h3 { content = "Connection Lost" }
         centered.text {
