@@ -3,6 +3,9 @@ package com.kf7mxe.inglenook.theming
 import com.lightningkite.kiteui.models.*
 import com.kf7mxe.inglenook.ThemePreset
 import com.kf7mxe.inglenook.ThemeSettings
+import com.kf7mxe.inglenook.ImportantSemanticSettings
+import com.kf7mxe.inglenook.SelectedSemanticSettings
+import com.kf7mxe.inglenook.CardSemanticSettings
 import com.kf7mxe.inglenook.storage.ImageSemantic
 import com.lightningkite.kiteui.models.CornerRadii.Fixed
 import com.lightningkite.kiteui.models.Dimension
@@ -29,10 +32,11 @@ fun createTheme(preset: ThemePreset, settings: ThemeSettings = ThemeSettings()):
         ThemePreset.AutumnCabin -> Theme.autumnCabin(primaryColor)
         ThemePreset.Midnight -> Theme.midnight(primaryColor)
         ThemePreset.Sunrise -> Theme.sunrise(primaryColor)
-        ThemePreset.NeumorphismLight -> Theme.neomorphismLight()
+        ThemePreset.NeumorphismLight -> Theme.neomorphismLight(primaryColor ?: Color.fromHex(0xFF6200EE.toInt()))
         ThemePreset.Hackerman -> Theme.hackerman(primaryColor)
         ThemePreset.Clouds -> Theme.clouds(primaryColor)
         ThemePreset.Obsidian -> Theme.obsidian(primaryColor)
+        ThemePreset.Glassish -> Theme.glassish(settings)
         ThemePreset.Custom -> Theme.custom(settings)
     }
 }
@@ -116,12 +120,13 @@ fun Theme.Companion.cozy(accent: Color? = null): Theme {
 }
 
 fun Theme.Companion.autumnCabin(accent: Color? = null): Theme {
+    val primary = accent ?: Color.fromHexString("#D48441")
     return Theme(
-        id = "Autumn-cabin",
+        id = "autumn-cabin-${primary.toInt()}",
         font = FontAndStyle(),
         foreground = Color.fromHexString("#3E2F28"),
         background = Color.fromHexString("#E9DCC9"),
-        outline = Color.fromHexString("#D48441"),
+        outline = primary,
         outlineWidth = 0.px,
         elevation = 0.dp,
         gap = 0.75.rem,
@@ -138,12 +143,14 @@ fun Theme.Companion.autumnCabin(accent: Color? = null): Theme {
             MainContentSemantic.override { it.withBack },
             ImportantSemantic.override {
                 it.withBack(
+                    background = primary,
                     foreground = Color.white
                 )
             },
             SelectedSemantic.override {
                 it.withBack(
                     outlineWidth = 2.dp,
+                    outline = primary,
                 )
             },
             FieldSemantic.override {
@@ -252,7 +259,7 @@ fun Theme.Companion.sunrise(accent: Color? = null): Theme {
 }
 
 // Material theme - Material design style
-fun Theme.Companion.neomorphismLight(accent: Color =  Color.fromHex(0xFF6200EE.toInt())): Theme {
+fun Theme.Companion.neomorphismLight(accent: Color = Color.fromHex(0xFF6200EE.toInt())): Theme {
     return Theme.neumorphism(
     id = "neomorphism",
         baseColor =  Color.gray(0.9f),
@@ -394,6 +401,9 @@ fun Theme.Companion.glassish(settings: ThemeSettings): Theme {
     val accentColor = settings.accentColor?.toColorOrNull() ?: primaryColor.darken(0.3f)
     val foreground = if (backgroundColor.perceivedBrightness <= 0.5) Color.white else Color.black
 
+    // Cap opacity so glass always has some transparency
+    val cappedBaseOpacity = settings.baseOpacity.coerceAtMost(0.85f)
+
     // Use custom layout settings
     val cornerRadius = settings.cornerRadius.toDouble().rem
     val paddingValue = settings.padding.toDouble().rem
@@ -402,10 +412,10 @@ fun Theme.Companion.glassish(settings: ThemeSettings): Theme {
     val outlineWidthValue = settings.outlineWidth.toDouble().dp
 
     return Theme(
-        id = "custom-${settings.hashCode()}",
+        id = "glassish-${settings.hashCode()}",
         font = FontAndStyle(),
         foreground = foreground,
-        background = backgroundColor.applyAlpha(settings.baseOpacity),
+        background = backgroundColor.applyAlpha(cappedBaseOpacity),
         outline = accentColor.applyAlpha(settings.outlineOpacity),
         outlineWidth = outlineWidthValue,
         elevation = elevationValue,
@@ -414,38 +424,37 @@ fun Theme.Companion.glassish(settings: ThemeSettings): Theme {
         cornerRadii = CornerRadii.AdaptiveToSpacing(cornerRadius),
         semanticOverrides = SemanticOverrides(
             CardSemantic.override { theme ->
-                val newBack = theme.background.closestColor().lighten(0.08f).applyAlpha(settings.baseOpacity + settings.opacityStep)
-                theme.withBack(
-                    background = newBack,
-                    outlineWidth = outlineWidthValue,
-                    outline = accentColor.applyAlpha(settings.outlineOpacity)
-                )
+                val bg = settings.cardSemanticSettings?.backgroundColor?.toColorOrNull()
+                    ?: theme.background.closestColor().lighten(0.08f).applyAlpha(cappedBaseOpacity + settings.opacityStep)
+                val ol = settings.cardSemanticSettings?.outlineColor?.toColorOrNull()
+                    ?: accentColor.applyAlpha(settings.outlineOpacity)
+                val olw = settings.cardSemanticSettings?.outlineWidth?.toDouble()?.dp ?: outlineWidthValue
+                theme.withBack(background = bg, outlineWidth = olw, outline = ol)
             },
             BarSemantic.override { it.withBack },
             NavSemantic.override {
                 it.withBack(
-                    background = it.background.closestColor().applyAlpha(0.9f)
+                    background = it.background.closestColor().applyAlpha(0.7f)
                 )
             },
             MainContentSemantic.override { it.withBack },
             FieldSemantic.override {
                 it.withBack(
-                    background = it.background.closestColor().applyAlpha(0.8f),
+                    background = it.background.closestColor().applyAlpha(0.6f),
                     outlineWidth = outlineWidthValue
                 )
             },
             ImportantSemantic.override {
-                it.withBack(
-                    background = primaryColor,
-                    foreground = if (primaryColor.perceivedBrightness > 0.5f) Color.black else Color.white
-                )
+                val bg = settings.importantSemanticSettings?.backgroundColor?.toColorOrNull() ?: primaryColor
+                val fg = settings.importantSemanticSettings?.foregroundColor?.toColorOrNull()
+                    ?: if (bg.perceivedBrightness > 0.5f) Color.black else Color.white
+                it.withBack(background = bg, foreground = fg)
             },
             SelectedSemantic.override {
-                it.withBack(
-                    background = primaryColor.applyAlpha(0.3f),
-                    outlineWidth = 2.dp,
-                    outline = primaryColor
-                )
+                val bg = settings.selectedSemanticSettings?.backgroundColor?.toColorOrNull() ?: primaryColor.applyAlpha(0.3f)
+                val ol = settings.selectedSemanticSettings?.outlineColor?.toColorOrNull() ?: primaryColor
+                val olw = settings.selectedSemanticSettings?.outlineWidth?.toDouble()?.dp ?: 2.dp
+                it.withBack(background = bg, outlineWidth = olw, outline = ol)
             },
             HoverSemantic.override {
                 it.withBack(background = it.background.lighten(0.15f))
@@ -459,9 +468,9 @@ fun Theme.Companion.glassish(settings: ThemeSettings): Theme {
             },
             ImageSemantic.override {
                 it.withBack(
-                    cornerRadii = CornerRadii(settings.imageSemanticSettings?.cornerRadius?.toDouble()?.rem?: cornerRadius),
-                    padding = Edges.ZERO,
-
+                    cornerRadii = CornerRadii(settings.imageSemanticSettings?.cornerRadius?.toDouble()?.rem ?: cornerRadius),
+                    padding = Edges(settings.imageSemanticSettings?.padding?.toDouble()?.rem ?: 0.0.rem),
+                    outlineWidth = settings.imageSemanticSettings?.outlineWidth?.toDouble()?.dp ?: 0.dp
                 )
             }
         )
@@ -498,12 +507,12 @@ fun Theme.Companion.custom(settings: ThemeSettings): Theme {
         cornerRadii = CornerRadii.AdaptiveToSpacing(cornerRadius),
         semanticOverrides = SemanticOverrides(
             CardSemantic.override { theme ->
-                val newBack = theme.background.closestColor().lighten(0.08f).applyAlpha(settings.baseOpacity + settings.opacityStep)
-                theme.withBack(
-                    background = newBack,
-                    outlineWidth = outlineWidthValue,
-                    outline = accentColor.applyAlpha(settings.outlineOpacity)
-                )
+                val bg = settings.cardSemanticSettings?.backgroundColor?.toColorOrNull()
+                    ?: theme.background.closestColor().lighten(0.08f).applyAlpha(settings.baseOpacity + settings.opacityStep)
+                val ol = settings.cardSemanticSettings?.outlineColor?.toColorOrNull()
+                    ?: accentColor.applyAlpha(settings.outlineOpacity)
+                val olw = settings.cardSemanticSettings?.outlineWidth?.toDouble()?.dp ?: outlineWidthValue
+                theme.withBack(background = bg, outlineWidth = olw, outline = ol)
             },
             BarSemantic.override { it.withBack },
             NavSemantic.override {
@@ -519,17 +528,16 @@ fun Theme.Companion.custom(settings: ThemeSettings): Theme {
                 )
             },
             ImportantSemantic.override {
-                it.withBack(
-                    background = primaryColor,
-                    foreground = if (primaryColor.perceivedBrightness > 0.5f) Color.black else Color.white
-                )
+                val bg = settings.importantSemanticSettings?.backgroundColor?.toColorOrNull() ?: primaryColor
+                val fg = settings.importantSemanticSettings?.foregroundColor?.toColorOrNull()
+                    ?: if (bg.perceivedBrightness > 0.5f) Color.black else Color.white
+                it.withBack(background = bg, foreground = fg)
             },
             SelectedSemantic.override {
-                it.withBack(
-                    background = primaryColor.applyAlpha(0.3f),
-                    outlineWidth = 2.dp,
-                    outline = primaryColor
-                )
+                val bg = settings.selectedSemanticSettings?.backgroundColor?.toColorOrNull() ?: primaryColor.applyAlpha(0.3f)
+                val ol = settings.selectedSemanticSettings?.outlineColor?.toColorOrNull() ?: primaryColor
+                val olw = settings.selectedSemanticSettings?.outlineWidth?.toDouble()?.dp ?: 2.dp
+                it.withBack(background = bg, outlineWidth = olw, outline = ol)
             },
             HoverSemantic.override {
                 it.withBack(background = it.background.lighten(0.15f))
@@ -543,8 +551,9 @@ fun Theme.Companion.custom(settings: ThemeSettings): Theme {
             },
             ImageSemantic.override {
                 it.withBack(
-                    cornerRadii = CornerRadii(settings.imageSemanticSettings?.cornerRadius?.toDouble()?.rem?: cornerRadius),
-                    padding = Edges.ZERO,
+                    cornerRadii = CornerRadii(settings.imageSemanticSettings?.cornerRadius?.toDouble()?.rem ?: cornerRadius),
+                    padding = Edges(settings.imageSemanticSettings?.padding?.toDouble()?.rem ?: 0.0.rem),
+                    outlineWidth = settings.imageSemanticSettings?.outlineWidth?.toDouble()?.dp ?: 0.dp
                 )
             }
         )

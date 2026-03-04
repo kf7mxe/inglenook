@@ -194,6 +194,7 @@ enum class ThemePreset(val displayName: String, val allowsCustomization: Boolean
     Hackerman("Hackerman", true),  // Terminal/monochrome style
     Clouds("Clouds", true),        // Soft rounded style
     Obsidian("Obsidian", true),    // Dark with gradients
+    Glassish("Glassish", true),    // Glass transparency
     Custom("Custom", true) // Fully user customizable
 }
 
@@ -220,14 +221,37 @@ data class ThemeSettings(
     val showPlayingBookCoverOnNowPlayingAndBookDetail: Boolean = false,
     val blurRadius: Float = 20f,            // Blur radius for cover image background
 
-    val imageSemanticSettings:ImageSemanticSettings? = ImageSemanticSettings(cornerRadius= 0.5f),
-
+    val imageSemanticSettings: ImageSemanticSettings? = ImageSemanticSettings(cornerRadius = 0.5f),
+    val importantSemanticSettings: ImportantSemanticSettings? = null,
+    val selectedSemanticSettings: SelectedSemanticSettings? = null,
+    val cardSemanticSettings: CardSemanticSettings? = null,
 )
 
 @Serializable
 data class ImageSemanticSettings(
-    val cornerRadius: Float,
+    val cornerRadius: Float = 0.5f,
+    val padding: Float = 0f,
+    val outlineWidth: Float = 0f,
+)
 
+@Serializable
+data class ImportantSemanticSettings(
+    val backgroundColor: String? = null,
+    val foregroundColor: String? = null,
+)
+
+@Serializable
+data class SelectedSemanticSettings(
+    val backgroundColor: String? = null,
+    val outlineColor: String? = null,
+    val outlineWidth: Float = 2f,
+)
+
+@Serializable
+data class CardSemanticSettings(
+    val backgroundColor: String? = null,
+    val outlineColor: String? = null,
+    val outlineWidth: Float = 1f,
 )
 
 // App settings stored locally
