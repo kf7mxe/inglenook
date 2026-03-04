@@ -2,7 +2,7 @@ package com.kf7mxe.inglenook.screens
 
 import com.kf7mxe.inglenook.FullScreen
 import com.kf7mxe.inglenook.Resources
-import com.kf7mxe.inglenook.jellyfin.diagnosticsEnabled
+import com.kf7mxe.inglenook.diagnosticsEnabled
 import com.kf7mxe.inglenook.jellyfin.hasSeenDiagnosticsPrompt
 import com.lightningkite.kiteui.models.*
 import com.lightningkite.kiteui.navigation.Page

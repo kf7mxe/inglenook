@@ -55,6 +55,7 @@ val persistedThemeSettings = PersistentProperty<ThemeSettings>("themeSettings", 
 // Initialize theme from persisted settings
 val appTheme = Signal<Theme>(createTheme(persistedThemePreset.value, persistedThemeSettings.value))
 
+val diagnosticsEnabled = PersistentProperty("diagnosticsEnabled", false)
 
 val bookToShowBlurredBackgroundCoverOf = Signal<Book?>(null)
 

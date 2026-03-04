@@ -12,6 +12,8 @@ plugins {
     alias(libs.plugins.kiteui)
     alias(libs.plugins.kjsplain)
     alias(libs.plugins.kfc)
+    id("io.sentry.kotlin.multiplatform.gradle") version "0.24.0"
+
 }
 
 group = "com.kf7mxe.inglenook"
