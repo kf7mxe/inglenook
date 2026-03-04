@@ -124,11 +124,14 @@ fun ViewWriter.app(navigator: PageNavigator, dialog: PageNavigator) {
 
 
             val wallpaper = rememberSuspending {
-                persistedThemeSettings().wallpaperPath?.let { wallpaperPath ->
+                val settings = persistedThemeSettings()
+                val preset = persistedThemePreset()
+                val wallpaperPath = settings.wallpaperPath
+                println("DEBUG wallpaperPath ${wallpaperPath}")
+                if (wallpaperPath != null) {
                     val parentDir = wallpaperPath.split("/").first()
                     val fileName = wallpaperPath.split("/").last()
-
-                    val cachedFileName = "${persistedThemeSettings().wallpaperBlurRadius}-${fileName}"
+                    val cachedFileName = "${settings.wallpaperBlurRadius}-${fileName}"
 
                     getBlurredCachedImage(cachedFileName) ?: readImageFromStorage(
                         parentDir,
@@ -138,11 +141,25 @@ fun ViewWriter.app(navigator: PageNavigator, dialog: PageNavigator) {
                             cachedFileName,
                             wallpaperPath,
                             unblurredImage,
-                            persistedThemeSettings().wallpaperBlurRadius,
+                            settings.wallpaperBlurRadius,
                             appTheme().background,
                             0.75f
                         )
                     }
+                } else if (preset == ThemePreset.Glassish || preset == ThemePreset.Custom) {
+                    println("DEBUG where it needs to be")
+                    val defaultBlur = 6f
+                    val cachedFileName = "${defaultBlur}-default-wallpaper"
+                    getBlurredCachedImage(cachedFileName) ?: blurAndCacheImage(
+                        cachedFileName,
+                        "default-wallpaper",
+                        Resources.defailtWallpaper,
+                        defaultBlur,
+                        appTheme().background,
+                        0.75f
+                    )
+                } else {
+                    null
                 }
             }
 

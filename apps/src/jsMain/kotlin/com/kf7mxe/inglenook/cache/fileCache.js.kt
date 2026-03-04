@@ -6,6 +6,7 @@ import com.kf7mxe.inglenook.getDatabase
 import com.lightningkite.kiteui.Blob
 import com.lightningkite.kiteui.models.ImageRaw
 import com.lightningkite.kiteui.models.ImageRemote
+import com.lightningkite.kiteui.models.ImageResource
 import com.lightningkite.kiteui.models.ImageSource
 import com.lightningkite.kiteui.models.Paint
 import com.lightningkite.kiteui.views.direct.createObjectURL
@@ -128,21 +129,33 @@ actual suspend fun blurAndCacheImage(
     quality: Float
 ): ImageSource? {
     database = database ?: getDatabase()
-    val splitDirectoryAndFileName = localPath.split("/")
-    val directoryName = splitDirectoryAndFileName[0]
-    val fileName = splitDirectoryAndFileName[1]
-    val image = database?.transaction("images") {
-        val result = objectStore("images").get(Key("${directoryName}/${fileName}"))
-        if (result != undefined) result as Blob
-        else null
+
+    // Determine the image src URL based on the ImageSource type
+    val imageSrc: String = when (image) {
+        is ImageResource -> {
+            image.relativeUrl
+        }
+        is ImageRaw -> {
+            createObjectURL(image.data as Blob)
+        }
+        else -> {
+            // Fall back to loading from IndexedDB for user-uploaded images
+            val splitDirectoryAndFileName = localPath.split("/")
+            if (splitDirectoryAndFileName.size < 2) return null
+            val directoryName = splitDirectoryAndFileName[0]
+            val fileName = splitDirectoryAndFileName[1]
+            val blob = database?.transaction("images") {
+                val result = objectStore("images").get(Key("${directoryName}/${fileName}"))
+                if (result != undefined) result as Blob
+                else null
+            } ?: return null
+            createObjectURL(blob)
+        }
     }
-    if (image == null) return null
 
     return suspendCoroutine { continuation ->
         val imageElement = Image()
-        val objectUrl = createObjectURL(image)
-        imageElement.src = objectUrl
-        imageElement.crossOrigin = "Anonymous"
+        imageElement.src = imageSrc
 
         imageElement.onload = {
             val canvas = document.createElement("canvas") as HTMLCanvasElement
@@ -171,17 +184,16 @@ actual suspend fun blurAndCacheImage(
                             val store = objectStore("blurredImageCache")
                             store.add(blurredImageBlob, Key(cacheFileName))
                         }
-                        continuation.resume(blurredImageBlob?.let {ImageRaw(it)}) // Resume coroutine with result
+                        continuation.resume(ImageRaw(blurredImageBlob))
                     }
                 } else {
-                    continuation.resume(null) // Resume with null if conversion fails
+                    continuation.resume(null)
                 }
-            }, "image/jpeg",quality.toDouble().coerceIn(0.0,1.0))
+            }, "image/jpeg", quality.toDouble().coerceIn(0.0, 1.0))
         }
 
         imageElement.onerror = { _: Event, _: String, _: Int, _: Int, _: Any? ->
             continuation.resume(null)
         }
     }
-    return null
 }

@@ -8,6 +8,7 @@ import com.lightningkite.kiteui.Blob
 import com.lightningkite.kiteui.fetch
 import com.lightningkite.kiteui.models.ImageRaw
 import com.lightningkite.kiteui.models.ImageRemote
+import com.lightningkite.kiteui.models.ImageResource
 import com.lightningkite.kiteui.models.ImageSource
 import com.lightningkite.kiteui.models.Paint
 import com.lightningkite.kiteui.views.AndroidAppContext
@@ -411,21 +412,29 @@ actual suspend fun blurAndCacheImage(
             }
 
             // 2. Decode Image Data
-            val imageRaw = image as? ImageRaw ?: return@withContext null
-
-            val imageData = imageRaw.data
-
-            // FIX: Ensure bitmap is Mutable. Canvas drawing (Step 5) requires a Mutable bitmap.
             val options = BitmapFactory.Options().apply {
                 inMutable = true
             }
 
-            val bitmap = BitmapFactory.decodeByteArray(
-                imageData.data,
-                0,
-                imageData.data.size,
-                options
-            ) ?: return@withContext null
+            val bitmap = when (image) {
+                is ImageRaw -> {
+                    val imageData = image.data
+                    BitmapFactory.decodeByteArray(
+                        imageData.data,
+                        0,
+                        imageData.data.size,
+                        options
+                    )
+                }
+                is ImageResource -> {
+                    BitmapFactory.decodeResource(
+                        AndroidAppContext.applicationCtx.resources,
+                        image.resource,
+                        options
+                    )
+                }
+                else -> null
+            } ?: return@withContext null
 
             // 3. Resize
             val originalWidth = bitmap.width
