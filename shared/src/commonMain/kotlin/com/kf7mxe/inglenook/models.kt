@@ -238,6 +238,7 @@ data class ImageSemanticSettings(
 data class ImportantSemanticSettings(
     val backgroundColor: String? = null,
     val foregroundColor: String? = null,
+    val opacity: Float = 1f,
 )
 
 @Serializable
@@ -245,6 +246,7 @@ data class SelectedSemanticSettings(
     val backgroundColor: String? = null,
     val outlineColor: String? = null,
     val outlineWidth: Float = 2f,
+    val opacity: Float = 1f,
 )
 
 @Serializable
@@ -252,6 +254,7 @@ data class CardSemanticSettings(
     val backgroundColor: String? = null,
     val outlineColor: String? = null,
     val outlineWidth: Float = 1f,
+    val opacity: Float = 1f,
 )
 
 // App settings stored locally

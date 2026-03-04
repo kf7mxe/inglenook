@@ -205,6 +205,11 @@ class ThemeSettingsPage : Page {
         )
         val cardOutlineWidth = Signal(savedSettings.cardSemanticSettings?.outlineWidth ?: 1f)
 
+        // Semantic opacity settings
+        val importantOpacity = Signal(savedSettings.importantSemanticSettings?.opacity ?: 1f)
+        val selectedOpacity = Signal(savedSettings.selectedSemanticSettings?.opacity ?: 1f)
+        val cardOpacity = Signal(savedSettings.cardSemanticSettings?.opacity ?: 1f)
+
         // Apply theme changes
         fun applyTheme() {
             val settings = ThemeSettings(
@@ -223,6 +228,7 @@ class ThemeSettingsPage : Page {
                 showPlayingBookCoverOnNowPlayingAndBookDetail = showPlayingBookCoverOnNowPlayingAndBookDetail.value,
                 blurRadius = blurRadius.value,
                 wallpaperPath = wallpaperPath.value,
+                wallpaperBlurRadius = wallpaperBlur.value,
                 imageSemanticSettings = ImageSemanticSettings(
                     cornerRadius = imageCornerRadius.value,
                     padding = imagePadding.value,
@@ -230,17 +236,20 @@ class ThemeSettingsPage : Page {
                 ),
                 importantSemanticSettings = ImportantSemanticSettings(
                     backgroundColor = importantBgColor.value.toHexString(),
-                    foregroundColor = importantFgColor.value.toHexString()
+                    foregroundColor = importantFgColor.value.toHexString(),
+                    opacity = importantOpacity.value
                 ),
                 selectedSemanticSettings = SelectedSemanticSettings(
                     backgroundColor = selectedBgColor.value.toHexString(),
                     outlineColor = selectedOutlineColor.value.toHexString(),
-                    outlineWidth = selectedOutlineWidth.value
+                    outlineWidth = selectedOutlineWidth.value,
+                    opacity = selectedOpacity.value
                 ),
                 cardSemanticSettings = CardSemanticSettings(
                     backgroundColor = cardBgColor.value.toHexString(),
                     outlineColor = cardOutlineColor.value.toHexString(),
-                    outlineWidth = cardOutlineWidth.value
+                    outlineWidth = cardOutlineWidth.value,
+                    opacity = cardOpacity.value
                 ),
             )
             // Persist theme settings
@@ -273,6 +282,7 @@ class ThemeSettingsPage : Page {
             cornerRadiusValue, paddingValue, gapValue, elevationValue, outlineWidthValue,
             imageCornerRadius, imagePadding, imageOutlineWidth,
             selectedOutlineWidth, cardOutlineWidth,
+            importantOpacity, selectedOpacity, cardOpacity,
         )
         for (signal in reactiveSignals) {
             signal.addListener { debouncedApplyTheme() }
@@ -633,6 +643,14 @@ class ThemeSettingsPage : Page {
             col {
                 colorPickerRow("Background Color", "#6366f1", importantBgColor)
                 colorPickerRow("Foreground Color", "#ffffff", importantFgColor)
+                row {
+                    expanding.text { content = "Opacity" }
+                    text { ::content { "${(importantOpacity() * 100).toInt()}%" } }
+                }
+                slider {
+                    min = 0.1f; max = 1.0f
+                    value bind importantOpacity
+                }
             }
 
             separator()
@@ -650,6 +668,14 @@ class ThemeSettingsPage : Page {
                     min = 0f; max = 6f
                     value bind selectedOutlineWidth
                 }
+                row {
+                    expanding.text { content = "Opacity" }
+                    text { ::content { "${(selectedOpacity() * 100).toInt()}%" } }
+                }
+                slider {
+                    min = 0.1f; max = 1.0f
+                    value bind selectedOpacity
+                }
             }
 
             separator()
@@ -666,6 +692,14 @@ class ThemeSettingsPage : Page {
                 slider {
                     min = 0f; max = 6f
                     value bind cardOutlineWidth
+                }
+                row {
+                    expanding.text { content = "Opacity" }
+                    text { ::content { "${(cardOpacity() * 100).toInt()}%" } }
+                }
+                slider {
+                    min = 0.1f; max = 1.0f
+                    value bind cardOpacity
                 }
             }
         }
