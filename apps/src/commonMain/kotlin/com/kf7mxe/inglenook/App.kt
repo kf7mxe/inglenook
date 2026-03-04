@@ -95,7 +95,9 @@ fun ViewWriter.app(navigator: PageNavigator, dialog: PageNavigator) {
     )
 
     // Restore last played book so the now-playing preview shows on relaunch
-    PlaybackState.restoreLastPlayed()
+    launch {
+        PlaybackState.restoreLastPlayed()
+    }
 
     // Check if Jellyfin is configured, if not go to setup
     AppScope.launch {

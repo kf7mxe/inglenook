@@ -71,7 +71,7 @@ class SplashPage : Page, FullScreen {
                 recommended.await()
                 timer2.await()
 
-                currentlyLoading.set("Stacking the newest arrivals...")
+                currentlyLoading.set("  Stacking the newest arrivals...")
                 val timer3 = async { delay(minDisplayTime) }
                 recentlyAdded.await()
                 timer3.await()

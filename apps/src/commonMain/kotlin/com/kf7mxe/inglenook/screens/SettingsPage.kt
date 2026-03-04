@@ -23,7 +23,6 @@ import com.kf7mxe.inglenook.jellyfin.activeServerId
 import com.kf7mxe.inglenook.jellyfin.switchToServer
 import com.kf7mxe.inglenook.jellyfin.removeServer
 import com.kf7mxe.inglenook.jellyfin.selectedLibraryIds
-import com.kf7mxe.inglenook.jellyfin.diagnosticsEnabled
 import com.lightningkite.kiteui.Routable
 import com.lightningkite.kiteui.reactive.AppState
 import com.lightningkite.kiteui.utils.getAppVersion

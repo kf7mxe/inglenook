@@ -32,7 +32,8 @@ private const val SEEK_SYNC_THRESHOLD_MS = 50L
 @OptIn(ExperimentalTime::class)
 fun ViewWriter.PlaybackControls() {
     // Create a signal for the seek bar that syncs with PlaybackState
-    val seekRatio = Signal(if (PlaybackState.duration.value > 0)  PlaybackState.positionTicks.value.toFloat() / PlaybackState.duration.value else 0f)
+    val seekRatio =
+        Signal(if (PlaybackState.duration.value > 0) PlaybackState.positionTicks.value.toFloat() / PlaybackState.duration.value else 0f)
 
     // Track if we're currently seeking (to avoid feedback loops)
     var isUserDragging = false
@@ -49,7 +50,7 @@ fun ViewWriter.PlaybackControls() {
             lastSyncTime = kotlin.time.Clock.System.now().toEpochMilliseconds()
             println("DEBUG duration = $duration")
             println("DEBUG positionTicks = $position")
-            println("DEBUG value = ${ if (duration > 0) position.toFloat() / duration else 0f}")
+            println("DEBUG value = ${if (duration > 0) position.toFloat() / duration else 0f}")
             seekRatio.value = if (duration > 0) position.toFloat() / duration else 0f
         }
     }
@@ -64,10 +65,10 @@ fun ViewWriter.PlaybackControls() {
 
     // When seekRatio changes from user input, seek in PlaybackState
     seekRatio.addListener {
-            launch {
-                val now = kotlin.time.Clock.System.now().toEpochMilliseconds()
-                if (now - lastSyncTime > SEEK_SYNC_THRESHOLD_MS) {
-                    val newPosition = (seekRatio.value * PlaybackState.duration.value).toLong()
+        launch {
+            val now = kotlin.time.Clock.System.now().toEpochMilliseconds()
+            if (now - lastSyncTime > SEEK_SYNC_THRESHOLD_MS) {
+                val newPosition = (seekRatio.value * PlaybackState.duration.value).toLong()
                 PlaybackState.seek(newPosition)
             }
         }
@@ -85,7 +86,7 @@ fun ViewWriter.PlaybackControls() {
             // Show loading indicator while buffering, seek bar when ready
             shownWhen { PlaybackState.isBuffering() }.centered.row {
                 gap = 0.5.rem
-                    inglenookActivityIndicator()
+                inglenookActivityIndicator()
                 subtext { content = "Loading..." }
             }
 
@@ -116,6 +117,7 @@ fun ViewWriter.PlaybackControls() {
                 ::content {
 
                     val currentChapter = PlaybackState.currentChapter()
+
                     val chapters = chapters()
                     if (chapters.isNotEmpty() && currentChapter != null) {
                         val currentIndex = chapters.indexOf(currentChapter)
@@ -160,17 +162,26 @@ fun ViewWriter.PlaybackControls() {
                 }
                 icon(Icon.skipPrevious, "Previous chapter")
                 onClick { PlaybackState.previousChapter() }
-                onLongClick { toast("Previous chapter") }
+                onLongClick {
+                    openPopover(PopoverPreferredDirection.aboveLeft, {
+                        text("Previous chapter")
+                    })
+                }
             }
 
             // Skip back 15s
             buttonTheme.button {
                 icon(Icon.reverseThirtySeconds, "Skip back")
                 onClick { PlaybackState.skipBackward() }
+                onLongClick {
+                    openPopover(PopoverPreferredDirection.aboveLeft, {
+                        text("Go back 30 seconds")
+                    })
+                }
             }
 
             // Play/Pause
-             important.buttonTheme.button {
+            important.buttonTheme.button {
                 sizedBox(SizeConstraints(width = 3.rem, height = 3.rem)).centered.icon {
                     ::source { if (PlaybackState.isPlaying()) Icon.pause else Icon.playArrow }
                     ::description { if (PlaybackState.isPlaying()) "Pause" else "Play" }
@@ -188,6 +199,11 @@ fun ViewWriter.PlaybackControls() {
             buttonTheme.button {
                 icon(Icon.forwardThirtySeconds, "Skip forward")
                 onClick { PlaybackState.skipForward() }
+                onLongClick {
+                    openPopover(PopoverPreferredDirection.aboveLeft, {
+                        text("Go forward 30 seconds")
+                    })
+                }
             }
 
             // Next chapter
@@ -197,9 +213,14 @@ fun ViewWriter.PlaybackControls() {
                 }
                 icon(Icon.skipNext, "Next chapter")
                 onClick { PlaybackState.nextChapter() }
-                onLongClick { toast("Next chapter") }
+                onLongClick {
+                    openPopover(PopoverPreferredDirection.aboveLeft, {
+                        text("Next chapter")
+                    })
+                }
             }
         }
+
 
         // Bookmark buttons (only show when a book is playing)
         shownWhen { PlaybackState.currentBook() != null }.centered.row {
@@ -227,7 +248,9 @@ fun ViewWriter.PlaybackControls() {
                                     val minutes = (totalSeconds % 3600) / 60
                                     val seconds = totalSeconds % 60
                                     content = "Position: " + if (hours > 0) {
-                                        "$hours:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}"
+                                        "$hours:${minutes.toString().padStart(2, '0')}:${
+                                            seconds.toString().padStart(2, '0')
+                                        }"
                                     } else {
                                         "$minutes:${seconds.toString().padStart(2, '0')}"
                                     }
@@ -285,7 +308,7 @@ fun ViewWriter.PlaybackControls() {
                                         onClick { control.close() }
                                     }
                                 }
-                                bookmarksList(book.id, bookmarkSignal,{bookmark ->
+                                bookmarksList(book.id, bookmarkSignal, { bookmark ->
                                     PlaybackState.seek(bookmark)
                                     control.close()
                                 })
@@ -298,14 +321,3 @@ fun ViewWriter.PlaybackControls() {
     }
 }
 
-private fun formatDuration(ticks: Long): String {
-    val totalSeconds = ticks / 10_000_000
-    val hours = totalSeconds / 3600
-    val minutes = (totalSeconds % 3600) / 60
-    val seconds = totalSeconds % 60
-    return if (hours > 0) {
-        "$hours:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}"
-    } else {
-        "$minutes:${seconds.toString().padStart(2, '0')}"
-    }
-}

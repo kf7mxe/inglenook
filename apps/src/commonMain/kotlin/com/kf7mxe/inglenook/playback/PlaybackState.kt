@@ -80,7 +80,7 @@ object PlaybackState {
         persistedLastPosition.value = 0L
     }
 
-    fun restoreLastPlayed() {
+    suspend fun restoreLastPlayed() {
         if (currentBook.value != null) return // Already have an active book
         val book = persistedLastBook.value ?: return
         currentBook.value = book
@@ -88,6 +88,7 @@ object PlaybackState {
         positionTicks.value = persistedLastPosition.value
         duration.value = book.duration
         isPlaying.value = false
+        updateCurrentChapter()
     }
 
     suspend fun play(book: Book, startPosition: Long = 0L) {

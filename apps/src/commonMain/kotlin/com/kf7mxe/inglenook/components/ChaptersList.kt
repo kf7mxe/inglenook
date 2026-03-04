@@ -115,7 +115,7 @@ fun ViewWriter.chaptersList(
     }
 }
 
-private fun formatDuration(ticks: Long): String {
+fun formatDuration(ticks: Long): String {
     val totalSeconds = ticks / 10_000_000
     val hours = totalSeconds / 3600
     val minutes = (totalSeconds % 3600) / 60

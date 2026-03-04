@@ -42,9 +42,9 @@ fun Theme.Companion.cozy(accent: Color? = null): Theme {
     return Theme(
         id = "cozy",
         font = FontAndStyle(),
-        foreground = Color.fromHexString("#3E2F28"),
+        foreground =  Color.fromHexString("#3E2F28"),
         background = Color.fromHexString("#F0E2C6"),
-        outline = Color.fromHexString("#7B8266"),
+        outline = accent?: Color.fromHexString("#7B8266"),
         outlineWidth = 1.px,
         elevation = 0.dp,
         gap = 0.75.rem,
@@ -105,7 +105,10 @@ fun Theme.Companion.cozy(accent: Color? = null): Theme {
                 it.withBack()
             },
             ButtonSemantic.override {
-                it.withBack
+                it.copy(
+                    id = "buttonSemantic",
+                    outlineWidth = 0.dp
+                ).withBack
             },
 
             )

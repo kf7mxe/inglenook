@@ -43,7 +43,7 @@ import kotlin.uuid.Uuid
 
 // Preset colors for quick accent selection
 val presetColors = listOf(
-    "#364a3b" to "Forest",
+    "#7B8266" to "Forest",
     "#2c5f7c" to "Ocean",
     "#6366f1" to "Indigo",
     "#c67c4e" to "Amber",
@@ -323,23 +323,16 @@ class ThemeSettingsPage : Page {
                                 }
                             }
                             onClick {
-                                customPrimaryColor.value = Color.fromHexString(colorHex)
+                                println("DEBUG right here")
+                                customPrimaryColor.set(Color.fromHexString(colorHex))
+                                val lastTheme = selectedPreset.value
+                                selectedPreset.value = ThemePreset.Custom
+                                selectedPreset.value = lastTheme
                                 applyTheme()
                             }
                             dynamicTheme {
                                 if (customPrimaryColor() == Color.fromHexString(colorHex)) SelectedSemantic else null
                             }
-                        }
-                    }
-                }
-
-                col {
-                    row {
-                        text { content = "Hex:" }
-                        button {
-                            text("Apply")
-                            onClick { applyTheme() }
-                            themeChoice += ImportantSemantic
                         }
                     }
                 }

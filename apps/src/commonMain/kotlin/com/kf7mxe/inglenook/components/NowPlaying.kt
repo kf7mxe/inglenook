@@ -23,6 +23,7 @@ import com.lightningkite.kiteui.views.dynamicTheme
 import com.lightningkite.kiteui.views.forEach
 import com.lightningkite.kiteui.views.l2.dialog
 import com.lightningkite.kiteui.current
+import com.lightningkite.kiteui.views.buttonTheme
 import com.lightningkite.reactive.context.invoke
 import com.lightningkite.reactive.context.onRemove
 import com.lightningkite.reactive.core.remember
@@ -76,6 +77,11 @@ fun ViewWriter.nowPlayingPreview() {
                     nowPlayingBottomSheet()
                 }
             }
+        }
+
+        buttonTheme.button {
+            icon(Icon.reverseThirtySeconds, "Skip back")
+            onClick { PlaybackState.skipBackward() }
         }
 
         // Play/Pause button
