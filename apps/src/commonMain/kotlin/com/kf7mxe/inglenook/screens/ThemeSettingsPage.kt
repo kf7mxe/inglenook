@@ -391,7 +391,7 @@ class ThemeSettingsPage : Page {
                             }
 
                             button {
-                                image {
+                                sizeConstraints(height = 5.rem).image {
                                     scaleType = ImageScaleType.Crop
                                     rView::shown { wallpaper() != null }
                                     ::source { wallpaper() }
@@ -705,7 +705,7 @@ class ThemeSettingsPage : Page {
         }
 
         fun ViewWriter.customThemeSection() {
-            shownWhen { selectedPreset() == ThemePreset.Custom || selectedPreset() == ThemePreset.Glassish }.col {
+            shownWhen { selectedPreset() == ThemePreset.Custom }.col {
                 h3 {
                     ::content {
                         if (selectedPreset() == ThemePreset.Glassish) "Glassish Theme Settings"
