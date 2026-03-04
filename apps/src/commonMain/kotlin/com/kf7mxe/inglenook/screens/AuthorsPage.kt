@@ -14,6 +14,7 @@ import com.kf7mxe.inglenook.cache.fetchCoverImage
 import com.kf7mxe.inglenook.components.BookCard
 import com.kf7mxe.inglenook.components.BookListItem
 import com.kf7mxe.inglenook.components.connectionError
+import com.kf7mxe.inglenook.components.inglenookActivityIndicator
 import com.kf7mxe.inglenook.connectivity.ConnectivityState
 import com.kf7mxe.inglenook.dashboard
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
@@ -80,7 +81,7 @@ class AuthorsPage(val searchQuery:Signal<String> = Signal("")) : Page {
 
 
             // Loading state
-            shownWhen { !authors.state().ready }.centered.activityIndicator()
+            shownWhen { !authors.state().ready }.centered.inglenookActivityIndicator()
 
             // Connection error state
             shownWhen { authors.state().ready && authors().isEmpty() && ConnectivityState.lastNetworkError() != null }.connectionError {

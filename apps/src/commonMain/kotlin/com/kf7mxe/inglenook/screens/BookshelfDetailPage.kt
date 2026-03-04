@@ -15,6 +15,7 @@ import com.kf7mxe.inglenook.book
 import com.kf7mxe.inglenook.check
 import com.kf7mxe.inglenook.components.BookCard
 import com.kf7mxe.inglenook.components.BookListItem
+import com.kf7mxe.inglenook.components.inglenookActivityIndicator
 import com.kf7mxe.inglenook.dashboard
 import com.kf7mxe.inglenook.edit
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
@@ -103,7 +104,7 @@ class BookshelfDetailPage(val bookshelfId: String) : Page {
 
             expanding.frame {
                 // Loading state
-                shownWhen { !books.state().ready }.centered.activityIndicator()
+                shownWhen { !books.state().ready }.centered.inglenookActivityIndicator()
 
                 // Error state
 //                shownWhen { !books.state().ready && !isLoading() }.centered.col {

@@ -1,6 +1,6 @@
 package com.kf7mxe.inglenook.components
 
-import com.kf7mxe.inglenook.bookLoading
+import com.kf7mxe.inglenook.LottieAnimations
 import com.lightningkite.kiteui.lottie.models.LottieRaw
 import com.lightningkite.kiteui.lottie.views.direct.lottie
 import com.lightningkite.kiteui.models.rem
@@ -12,7 +12,7 @@ import com.lightningkite.kiteui.views.direct.sizeConstraints
 fun ViewWriter.inglenookActivityIndicator() {
     frame {
         sizeConstraints(width = 10.rem, height = 10.rem).centered.lottie(
-            source = LottieRaw(bookLoading),
+            source = LottieRaw(LottieAnimations.bookLoading),
             description = "test"
         ) {
             loop = true

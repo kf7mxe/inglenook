@@ -11,11 +11,14 @@ import com.kf7mxe.inglenook.playback.PlaybackState
 import com.kf7mxe.inglenook.storage.BookmarkRepository
 import com.kf7mxe.inglenook.storage.SeekBarSemantic
 import com.lightningkite.kiteui.views.atEnd
+import com.lightningkite.kiteui.views.buttonTheme
 import com.lightningkite.kiteui.views.card
 import com.lightningkite.kiteui.views.dynamicTheme
 import com.lightningkite.kiteui.views.fieldTheme
 import com.lightningkite.kiteui.views.forEach
 import com.lightningkite.kiteui.views.forEachById
+import com.lightningkite.kiteui.views.important
+import com.lightningkite.kiteui.views.l2.toast
 import com.lightningkite.reactive.context.invoke
 import com.lightningkite.reactive.core.Signal
 import com.lightningkite.reactive.core.remember
@@ -70,6 +73,11 @@ fun ViewWriter.PlaybackControls() {
         }
     }
 
+    val chapters = remember {
+        val book = PlaybackState.currentBook()
+        book?.chapters ?: emptyList()
+    }
+
     col {
 
         // Seek bar with time
@@ -77,7 +85,7 @@ fun ViewWriter.PlaybackControls() {
             // Show loading indicator while buffering, seek bar when ready
             shownWhen { PlaybackState.isBuffering() }.centered.row {
                 gap = 0.5.rem
-                activityIndicator { }
+                    inglenookActivityIndicator()
                 subtext { content = "Loading..." }
             }
 
@@ -106,9 +114,9 @@ fun ViewWriter.PlaybackControls() {
 
             subtext {
                 ::content {
-                    val book = PlaybackState.currentBook()
-                    val chapters = book?.chapters ?: emptyList()
+
                     val currentChapter = PlaybackState.currentChapter()
+                    val chapters = chapters()
                     if (chapters.isNotEmpty() && currentChapter != null) {
                         val currentIndex = chapters.indexOf(currentChapter)
                         val remaining = chapters.size - currentIndex - 1
@@ -146,19 +154,23 @@ fun ViewWriter.PlaybackControls() {
         centered.row {
 
             // Previous chapter
-            button {
+            buttonTheme.button {
+                ::shown{
+                    chapters().isNotEmpty()
+                }
                 icon(Icon.skipPrevious, "Previous chapter")
                 onClick { PlaybackState.previousChapter() }
+                onLongClick { toast("Previous chapter") }
             }
 
             // Skip back 15s
-            button {
+            buttonTheme.button {
                 icon(Icon.reverseThirtySeconds, "Skip back")
                 onClick { PlaybackState.skipBackward() }
             }
 
             // Play/Pause
-            button {
+             important.buttonTheme.button {
                 sizedBox(SizeConstraints(width = 3.rem, height = 3.rem)).centered.icon {
                     ::source { if (PlaybackState.isPlaying()) Icon.pause else Icon.playArrow }
                     ::description { if (PlaybackState.isPlaying()) "Pause" else "Play" }
@@ -170,19 +182,22 @@ fun ViewWriter.PlaybackControls() {
                         PlaybackState.resume()
                     }
                 }
-                themeChoice += ImportantSemantic
             }
 
             // Skip forward 30s
-            button {
+            buttonTheme.button {
                 icon(Icon.forwardThirtySeconds, "Skip forward")
                 onClick { PlaybackState.skipForward() }
             }
 
             // Next chapter
-            button {
+            buttonTheme.button {
+                ::shown{
+                    chapters().isNotEmpty()
+                }
                 icon(Icon.skipNext, "Next chapter")
                 onClick { PlaybackState.nextChapter() }
+                onLongClick { toast("Next chapter") }
             }
         }
 

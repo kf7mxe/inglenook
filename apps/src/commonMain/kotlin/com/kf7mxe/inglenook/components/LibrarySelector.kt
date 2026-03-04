@@ -26,7 +26,7 @@ fun ViewWriter.librarySelector() {
 
     card.col {
         shownWhen { !libraries.state().ready }.centered.row {
-            activityIndicator()
+            inglenookActivityIndicator()
             text("Loading libraries...")
         }
 

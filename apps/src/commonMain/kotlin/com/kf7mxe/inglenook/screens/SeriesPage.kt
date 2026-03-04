@@ -14,6 +14,7 @@ import com.kf7mxe.inglenook.ViewMode
 import com.kf7mxe.inglenook.components.SeriesCard
 import com.kf7mxe.inglenook.components.SeriesListItem
 import com.kf7mxe.inglenook.components.connectionError
+import com.kf7mxe.inglenook.components.inglenookActivityIndicator
 import com.kf7mxe.inglenook.connectivity.ConnectivityState
 import com.kf7mxe.inglenook.dashboard
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
@@ -63,7 +64,7 @@ class SeriesPage(val searchQuery:Signal<String> = Signal("")) : Page {
 
 
             // Loading state
-            shownWhen { !allSeries.state().ready }.centered.activityIndicator()
+            shownWhen { !allSeries.state().ready }.centered.inglenookActivityIndicator()
 
             // Error state
 //            shownWhen { errorMessage() != null && !isLoading() }.centered.col {

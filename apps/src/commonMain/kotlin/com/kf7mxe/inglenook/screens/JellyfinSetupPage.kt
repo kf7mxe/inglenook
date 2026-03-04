@@ -24,6 +24,7 @@ import com.lightningkite.reactive.core.Signal
 import com.lightningkite.reactive.core.AppScope
 import com.lightningkite.reactive.core.Constant
 import com.kf7mxe.inglenook.FullScreen
+import com.kf7mxe.inglenook.components.inglenookActivityIndicator
 import com.kf7mxe.inglenook.jellyfin.hasSeenDiagnosticsPrompt
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -262,7 +263,7 @@ class JellyfinSetupPage : Page, FullScreen {
 
                             row {
                                 gap = 0.5.rem
-                                activityIndicator()
+                                inglenookActivityIndicator()
                                 subtext { content = "Waiting for authorization..." }
                             }
 

@@ -27,3 +27,5 @@ expect class ColorPicker(context: RContext) : RView {
 fun Color.toHexString():String {
     return "#" + (this.toInt() and 0xFFFFFF).toString(16).padStart(6, '0')
 }
+
+expect fun RView.animatePulsating()

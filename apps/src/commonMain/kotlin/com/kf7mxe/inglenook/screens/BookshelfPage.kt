@@ -1,6 +1,7 @@
 package com.kf7mxe.inglenook.screens
 
 import com.kf7mxe.inglenook.collectionsBookmark
+import com.kf7mxe.inglenook.components.inglenookActivityIndicator
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.storage.BookshelfRepository
 import com.lightningkite.kiteui.Routable
@@ -118,7 +119,7 @@ class BookshelfPage : Page {
 
             separator()
             // Loading state
-            shownWhen { !bookshelves.state().ready }.centered.activityIndicator()
+            shownWhen { !bookshelves.state().ready }.centered.inglenookActivityIndicator()
 
             // Empty state
             shownWhen { bookshelves.state().ready && bookshelves().isEmpty() }.centered.col {

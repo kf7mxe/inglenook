@@ -1,8 +1,8 @@
 package com.kf7mxe.inglenook.components
 
+import com.kf7mxe.inglenook.LottieAnimations
 import com.kf7mxe.inglenook.appTheme
 import com.kf7mxe.inglenook.cloudOff
-import com.kf7mxe.inglenook.connectionLost
 import com.kf7mxe.inglenook.connectivity.ConnectivityState
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.lightningkite.kiteui.ExperimentalKiteUi
@@ -25,7 +25,7 @@ fun ViewWriter.connectivityDialog(dismiss: () -> Unit) {
 //            description = "No connection"
 //        }
         sizeConstraints(width = 10.rem, height = 10.rem).lottie(
-            source = LottieRaw(connectionLost),
+            source = LottieRaw(LottieAnimations.connectionLost),
             description = "connection lost"
         ) {
             loop = true

@@ -16,6 +16,7 @@ import com.kf7mxe.inglenook.components.BookListItem
 import com.kf7mxe.inglenook.components.connectionError
 import com.kf7mxe.inglenook.connectivity.ConnectivityState
 import com.kf7mxe.inglenook.cache.fetchCoverImage
+import com.kf7mxe.inglenook.components.inglenookActivityIndicator
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.storage.ImageSemantic
 import com.kf7mxe.inglenook.viewMode
@@ -41,7 +42,7 @@ class AuthorDetailPage(val authorId: String) : Page {
         }
         col {
 
-            shownWhen { !books.state().ready }.centered.activityIndicator()
+            shownWhen { !books.state().ready }.centered.inglenookActivityIndicator()
 
             // Connection error state
             shownWhen { books.state().ready && books().isEmpty() && ConnectivityState.lastNetworkError() != null }.connectionError {

@@ -279,6 +279,7 @@ class SettingsPage : Page {
                     }
                 }
             }
+            space()
         }
     }
 }

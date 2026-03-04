@@ -4,7 +4,6 @@ import com.kf7mxe.inglenook.Book
 import com.kf7mxe.inglenook.ItemType
 import com.kf7mxe.inglenook.ViewMode
 import com.kf7mxe.inglenook.book
-import com.kf7mxe.inglenook.bookLoading
 import com.kf7mxe.inglenook.components.BookCard
 import com.kf7mxe.inglenook.components.BookListItem
 import com.kf7mxe.inglenook.components.connectionError
@@ -172,6 +171,7 @@ class BooksPage(
             // Books list/grid
 //                    col {
             expanding.swapView {
+
                 swapping(
                     current = {
                         viewMode()
@@ -180,6 +180,9 @@ class BooksPage(
                         when (viewMode) {
                             ViewMode.Grid -> {
                                 expanding.recyclerView {
+                                    ::shown {
+                                        books.state().ready
+                                    }
                                     ::placer{ RecyclerViewPlacerVerticalGrid(2) }
                                     children(filteredBooks, { it.id }) { book ->
                                         BookCard(book) {
@@ -192,6 +195,9 @@ class BooksPage(
 
                             ViewMode.List -> {
                                 expanding.recyclerView {
+                                    ::shown {
+                                        books.state().ready
+                                    }
                                     children(filteredBooks, { it.id }) { book ->
                                         BookListItem(book) {
                                             mainPageNavigator.navigate(BookDetailPage(book.invoke().id))

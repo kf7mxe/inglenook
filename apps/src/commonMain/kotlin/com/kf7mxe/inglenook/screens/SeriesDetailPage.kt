@@ -15,6 +15,7 @@ import com.kf7mxe.inglenook.cache.ImageCache
 import com.kf7mxe.inglenook.components.BookCard
 import com.kf7mxe.inglenook.components.BookListItem
 import com.kf7mxe.inglenook.components.connectionError
+import com.kf7mxe.inglenook.components.inglenookActivityIndicator
 import com.kf7mxe.inglenook.connectivity.ConnectivityState
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.playback.PlaybackState
@@ -81,7 +82,7 @@ class SeriesDetailPage(val seriesName: String) : Page {
             separator()
 
             // Loading state
-            shownWhen { !books.state().ready }.centered.activityIndicator()
+            shownWhen { !books.state().ready }.centered.inglenookActivityIndicator()
 
             // Connection error state
             shownWhen { books().isEmpty() && books.state().ready && ConnectivityState.lastNetworkError() != null }.connectionError {

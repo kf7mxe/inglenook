@@ -43,7 +43,7 @@ class DownloadsPage : Page {
         // Initial load
         loadDownloads()
 
-        scrolls.col {
+        scrolling.col {
             padding = 1.rem
             gap = 1.5.rem
 
@@ -157,7 +157,7 @@ class DownloadsPage : Page {
                                         ellipsis = true
                                     }
                                     subtext {
-                                        content = download.authors.joinToString(", ")
+                                        content = download.authors.map{it.name}.joinToString(", ")
                                         ellipsis = true
                                     }
                                     subtext {

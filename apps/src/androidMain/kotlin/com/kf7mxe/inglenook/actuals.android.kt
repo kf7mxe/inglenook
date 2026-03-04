@@ -1,5 +1,7 @@
 package com.kf7mxe.inglenook
 
+import android.animation.ObjectAnimator
+import android.animation.PropertyValuesHolder
 import android.annotation.SuppressLint
 import android.app.AlertDialog
 import android.content.Context
@@ -297,5 +299,19 @@ actual class ColorPicker actual constructor(context: RContext) : RView(context) 
                 getButton(AlertDialog.BUTTON_POSITIVE)?.setTextColor(AndroidColor.parseColor("#6200EE"))
                 getButton(AlertDialog.BUTTON_NEGATIVE)?.setTextColor(AndroidColor.GRAY)
             }
+    }
+}
+
+actual fun RView.animatePulsating() {
+    // 1. Define the properties you want to animate (Scale X and Scale Y)
+    val scaleX = PropertyValuesHolder.ofFloat(View.SCALE_X, 1f, 1.1f)
+    val scaleY = PropertyValuesHolder.ofFloat(View.SCALE_Y, 1f, 1.1f)
+
+    // 2. Apply them to the native view
+    ObjectAnimator.ofPropertyValuesHolder(native, scaleX, scaleY).apply {
+        duration = 1550
+        repeatCount = ObjectAnimator.INFINITE
+        repeatMode = ObjectAnimator.REVERSE
+        start() // Don't forget to start it!
     }
 }

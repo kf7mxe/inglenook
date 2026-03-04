@@ -23,15 +23,10 @@ import com.lightningkite.kiteui.views.dynamicTheme
 import com.lightningkite.kiteui.views.forEach
 import com.lightningkite.kiteui.views.l2.dialog
 import com.lightningkite.kiteui.current
-import com.lightningkite.kiteui.lottie.models.LottieRaw
-import com.lightningkite.kiteui.lottie.views.direct.LottieView
-import com.lightningkite.kiteui.lottie.views.direct.lottie
 import com.lightningkite.reactive.context.invoke
 import com.lightningkite.reactive.context.onRemove
-import com.lightningkite.reactive.context.reactive
 import com.lightningkite.reactive.core.remember
 import com.lightningkite.reactive.core.rememberSuspending
-import kotlinx.coroutines.delay
 
 fun ViewWriter.nowPlayingPreview() {
     val cachedPreviewCover = rememberSuspending {
@@ -85,39 +80,14 @@ fun ViewWriter.nowPlayingPreview() {
 
         // Play/Pause button
         button {
-//            centered.icon {
-//                ::source { if (PlaybackState.isPlaying()) Icon.pause else Icon.playArrow }
-//                ::description { if (PlaybackState.isPlaying()) "Pause" else "Play" }
-//            }
-            var playPauseAnimation:LottieView? = null
-            sizeConstraints(width =3.rem, height = 3.rem).lottie(
-                source = LottieRaw(play),
-                description = "play/pause"
-            ){
-                playPauseAnimation = this
-                loop = false
-                autoPlay = false
+            centered.icon {
+                ::source { if (PlaybackState.isPlaying()) Icon.pause else Icon.playArrow }
+                ::description { if (PlaybackState.isPlaying()) "Pause" else "Play" }
             }
-            reactive {
-                println("DEBUG playPauseAnimation?.progress? ${playPauseAnimation?.progress()}")
-            }
-            withoutLoadingAnimations()
             onClick {
                 if (PlaybackState.isPlaying.value) {
                     PlaybackState.pause()
-                    println("DEBUG playPauseAnimation?.progress ${playPauseAnimation?.progress}")
-                    playPauseAnimation?.seekToProgress(0.5f)
-                    playPauseAnimation?.play()
-                    delay(500)
-                    playPauseAnimation?.pause()
                 } else {
-                    playPauseAnimation?.play()
-                    delay(500)
-                    playPauseAnimation?.pause()
-//                    playPauseAnimation?.seekToProgress(0.5f)
-
-//                    playPauseAnimation?.progress?.set(0.5f)
-
                     PlaybackState.resume()
                 }
             }

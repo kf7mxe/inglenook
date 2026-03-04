@@ -12,6 +12,7 @@ import com.kf7mxe.inglenook.Book
 import com.kf7mxe.inglenook.Author
 import com.kf7mxe.inglenook.book
 import com.kf7mxe.inglenook.cache.fetchCoverImage
+import com.kf7mxe.inglenook.components.inglenookActivityIndicator
 import com.kf7mxe.inglenook.searchOff
 import com.kf7mxe.inglenook.connectivity.ConnectivityState
 import com.kf7mxe.inglenook.downloads.DownloadManager
@@ -110,7 +111,7 @@ class SearchPage : Page {
             // Loading indicator
             shownWhen { isLoading() }.centered.col {
                 padding = 2.rem
-                activityIndicator()
+                    inglenookActivityIndicator()
             }
 
             // Search results

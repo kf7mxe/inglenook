@@ -15,6 +15,7 @@ import com.kf7mxe.inglenook.connectivity.ConnectivityState
 import com.kf7mxe.inglenook.downloads.DownloadManager
 import com.kf7mxe.inglenook.downloads.toAudioBook
 import com.kf7mxe.inglenook.components.connectionError
+import com.kf7mxe.inglenook.components.inglenookActivityIndicator
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.lightningkite.kiteui.Routable
 import com.lightningkite.kiteui.views.forEachUpdating
@@ -101,11 +102,6 @@ class HomePage : Page {
             // Main content sections (shown online, or offline with cached data)
             unpadded.col {
 
-                // Loading indicator (before any data arrives)
-                shownWhen { !allFinishedLoading() }.centered.col {
-                    activityIndicator { }
-                }
-
                 // Continue Listening Section
                 col {
                     ::shown { inProgressBooks().isNotEmpty() || !inProgressBooks.state().ready }
@@ -116,7 +112,8 @@ class HomePage : Page {
                             to = { LibraryPage() }
                         }
                     }
-                    shownWhen { !inProgressBooks.state().ready }.activityIndicator { }
+
+                    shownWhen { !inProgressBooks.state().ready }.inglenookActivityIndicator()
 
                     scrollingHorizontally.padded.row {
                         ::shown {
@@ -142,7 +139,7 @@ class HomePage : Page {
                         }
                     }
 
-                    shownWhen { !recommendedBooks.state().ready }.activityIndicator { }
+                    shownWhen { !recommendedBooks.state().ready }.inglenookActivityIndicator()
 
 
                     scrollingHorizontally.padded.row {
@@ -169,7 +166,7 @@ class HomePage : Page {
                             to = { LibraryPage() }
                         }
                     }
-                    shownWhen { !recentlyAddedBooks.state().ready }.activityIndicator { }
+                    shownWhen { !recentlyAddedBooks.state().ready }.inglenookActivityIndicator()
 
 
 

@@ -62,7 +62,7 @@ fun ViewWriter.DownloadButton(bookReactive: Reactive<Book?>) {
                 println("DEBUG is active progress: $test")
                 test
             }.unpadded.centered.sizeConstraints(width = 2.5.rem, height = 2.5.rem).lottie(
-                source = LottieRaw(downloading),
+                source = LottieRaw(LottieAnimations.downloading),
                 description = "Downloading "
             ) {
                 downloadAnimations = this

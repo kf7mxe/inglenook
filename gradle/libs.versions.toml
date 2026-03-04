@@ -8,7 +8,7 @@ kfc = "16.5.0"
 #kiteui = "7.0.0-prerelease-182"
 # Experimental
 kiteui = "0.3.13-kf7mxeexperimental-200-local"
-lottie = "0.3.13-kf7mxeexperimental-200-local
+lottie = "0.3.13-kf7mxeexperimental-200-local"
 indexdDbVersion="0.9.0"
 
 kotlin = "2.2.20"
