@@ -206,7 +206,7 @@ fun ViewWriter.nowPlaying(onClose: () -> Unit = {}) {
                     onClick {
                         coordinatorFrame?.bottomSheet { control ->
                             card.col {
-                                sizeConstraints(width = 30.rem).chaptersList(chapters) { chapter ->
+                                themed(DialogSemantic).sizeConstraints(width = 30.rem).chaptersList(chapters) { chapter ->
                                     PlaybackState.seek(chapter.startPositionTicks)
                                     control.close()
                                 }

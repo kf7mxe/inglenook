@@ -411,7 +411,7 @@ fun Theme.Companion.glassish(settings: ThemeSettings): Theme {
     val paddingValue = 0.75.rem
     val gapValue = 0.75.rem
     val elevationValue = 0.dp
-    val outlineWidthValue = 0.dp
+    val outlineWidthValue = 2.dp
 
     return Theme(
         id = "glassish-${settings.hashCode()}",
@@ -424,6 +424,7 @@ fun Theme.Companion.glassish(settings: ThemeSettings): Theme {
         gap = gapValue,
         padding = Edges(paddingValue),
         cornerRadii = CornerRadii.AdaptiveToSpacing(cornerRadius),
+        iconOverride = primaryColor,
         semanticOverrides = SemanticOverrides(
             CardSemantic.override { theme ->
                 val cardOpacity = 0.10f
@@ -432,7 +433,7 @@ fun Theme.Companion.glassish(settings: ThemeSettings): Theme {
                     .let { if (cardOpacity < 1f) it.closestColor().applyAlpha(cardOpacity) else it }
                 val ol = settings.cardSemanticSettings?.outlineColor?.toColorOrNull()
                     ?: accentColor.applyAlpha(settings.outlineOpacity)
-                theme.withBack(background = bg, outlineWidth = 0.0.dp, outline = ol)
+                theme.withBack(background = bg, outlineWidth = outlineWidthValue, outline = ol)
             },
             BarSemantic.override { it.withBack },
             NavSemantic.override {
@@ -457,25 +458,19 @@ fun Theme.Companion.glassish(settings: ThemeSettings): Theme {
                 it.withBack(background = bg, foreground = fg)
             },
             SelectedSemantic.override {
-                val selectedOpacity =0.45f
+                val selectedOpacity = 0.45f
                 val bg = (settings.selectedSemanticSettings?.backgroundColor?.toColorOrNull()
                     ?: primaryColor.applyAlpha(0.3f * baseOpacity))
                     .let { if (selectedOpacity < 1f) it.closestColor().applyAlpha(selectedOpacity) else it }
                 val ol = settings.selectedSemanticSettings?.outlineColor?.toColorOrNull() ?: primaryColor
-                val olw = settings.selectedSemanticSettings?.outlineWidth?.toDouble()?.dp ?: 2.dp
-                it.withBack(background = bg, outlineWidth = 0.dp, outline = ol)
+                it.withBack(background = bg, outlineWidth = 2.dp, outline = ol)
             },
-//            UnSelectedTab.override {
-//                it.withoutBack(
-//                    cornerRadii = CornerRadii(0.5.rem)
-//                )
-//            },
             HoverSemantic.override {
                 it.withBack(background = it.background.lighten(0.15f))
             },
             DialogSemantic.override {
                 it.withBack(
-                    background = it.background.closestColor().applyAlpha((0.75f)),
+                    background = it.background,
                     outline = accentColor,
                     outlineWidth = outlineWidthValue
                 )
@@ -682,6 +677,11 @@ fun Theme.Companion.flat(
         NavSemantic.override { it[CardSemantic] },
         OuterSemantic.override {
             it.withBack
+        },
+        DialogSemantic.override {
+            it.withBack(
+                background = it.background.closestColor(),
+            )
         },
         MainContentSemantic.override {
             it.withBack(

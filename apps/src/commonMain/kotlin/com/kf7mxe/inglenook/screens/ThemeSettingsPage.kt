@@ -40,6 +40,9 @@ import com.lightningkite.services.files.ServerFile
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import com.kf7mxe.inglenook.util.assignThemeColors
+import com.kf7mxe.inglenook.util.extractDominantColors
+import com.kf7mxe.inglenook.util.loadResizedImagePixels
 import kotlin.math.roundToInt
 import kotlin.time.Duration.Companion.seconds
 import kotlin.uuid.ExperimentalUuidApi
@@ -256,7 +259,8 @@ class ThemeSettingsPage : Page {
             persistedThemePreset.value = selectedPreset.value
             persistedThemeSettings.value = settings
             // Update reactive theme
-            appTheme.value = createTheme(selectedPreset.value, settings)
+            val newTheme = createTheme(selectedPreset.value, settings)
+            appTheme.value = newTheme
         }
 
         // Debounced apply for reactive custom/glassish theme updates
@@ -298,6 +302,27 @@ class ThemeSettingsPage : Page {
             val fileName = "${Uuid.random()}"
             saveImageToStorage("images", fileName, ImageLocal(file), fileExtension)
             wallpaperPath.set("images/$fileName.$fileExtension")
+
+            // Extract colors from the wallpaper and apply to theme
+            try {
+                val imageData = loadResizedImagePixels(file, 128, 128)
+                val colors = extractDominantColors(imageData.pixels, imageData.width, imageData.height, 5)
+                val (bgHex, primaryHex, outlineHex) = assignThemeColors(colors)
+                println("Wallpaper colors extracted - bg: $bgHex, primary: $primaryHex, outline: $outlineHex")
+                println("Extracted palette: ${colors.map { it.toHexString() }}")
+                val primaryCol = Color.fromHexString(primaryHex)
+                val outlineCol = Color.fromHexString(outlineHex)
+                customSecondaryColor.value = Color.fromHexString(bgHex)
+                customPrimaryColor.value = primaryCol
+                customAccentColor.value = outlineCol
+                // Update semantic colors so they match the extracted palette
+                importantBgColor.value = primaryCol
+                selectedBgColor.value = primaryCol
+                selectedOutlineColor.value = primaryCol
+                applyTheme()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
 
         fun ViewWriter.themePresetCard(
@@ -391,7 +416,7 @@ class ThemeSettingsPage : Page {
                             }
 
                             button {
-                                sizeConstraints(height = 5.rem).image {
+                                sizeConstraints(height = 15.rem).image {
                                     scaleType = ImageScaleType.Crop
                                     rView::shown { wallpaper() != null }
                                     ::source { wallpaper() }
