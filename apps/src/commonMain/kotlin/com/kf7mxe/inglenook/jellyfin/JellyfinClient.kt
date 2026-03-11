@@ -439,7 +439,10 @@ class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
             if (!response.status.isSuccess()) return null
 
             val item: JellyfinItem = response.body()
+
+            println("DEBUG item ${item}")
             var book = item.toAudioBook()
+            println("DEBUG book ${book}")
 
             // Fetch chapters from the AudiobookChapters plugin endpoint
             val pluginChapters = getAudiobookChapters(itemId)

@@ -231,7 +231,9 @@ class BookDetailPage(val bookId: String) : Page {
                 }
 
                 // Action buttons for ebooks
-                shownWhen { book()?.itemType == ItemType.Ebook }.col {
+                shownWhen {
+                    println("DEBUG book()?.itemType ${book()?.itemType}")
+                    book()?.itemType == ItemType.Ebook }.col {
                     // Read button - opens in-app reader
                     row {
                         expanding.button {

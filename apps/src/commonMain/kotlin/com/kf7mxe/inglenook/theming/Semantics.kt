@@ -77,6 +77,7 @@ data object DangerSemantic : Semantic("danger") {
 data object UnSelectedTab : Semantic("unselectedTab") {
     override fun default(theme: Theme) =theme.copy(id="unselectedTab",
 //        cornerRadii = CornerRadii.Fixed(1.rem),
+        cornerRadii = CornerRadii.Fixed(1.rem),
         padding = Edges(1.rem,0.25.rem),
         outline =  theme.background,
 //        background = theme.outline,

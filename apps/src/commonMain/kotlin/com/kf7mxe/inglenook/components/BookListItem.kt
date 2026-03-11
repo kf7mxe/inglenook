@@ -49,8 +49,20 @@ fun ViewWriter.BookListItem(
                 }
                 themeChoice += ImportantSemantic
                 onClick {
-                    val currentBook = book.invoke()
-                    openEbook(currentBook.id, this@BookListItem)
+                    if(book().itemType == ItemType.Ebook) {
+                        val currentBook = book.invoke()
+                        openEbook(currentBook.id, this@BookListItem)
+                    }
+                    else {
+                        if (book() == PlaybackState.currentBook && PlaybackState.isPlaying()) {
+                            PlaybackState.pause()
+
+                        } else {
+                            val startPosition = book().userData?.playbackPositionTicks ?: 0
+                            PlaybackState.play(book(), startPosition)
+                        }
+                    }
+
                 }
             }
         }

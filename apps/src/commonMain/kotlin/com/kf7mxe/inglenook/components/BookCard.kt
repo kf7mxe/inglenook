@@ -28,7 +28,7 @@ import com.lightningkite.reactive.context.invoke
 
 fun ViewWriter.BookCard(
     book: Reactive<Book>,
-    onPlayClick: (suspend (Book)-> Unit)? = null,
+    onPlayClick: (suspend (Book) -> Unit)? = null,
     onClick: suspend () -> Unit
 ) {
     val cachedCover = rememberSuspending {
@@ -44,14 +44,14 @@ fun ViewWriter.BookCard(
                 // Cover image with play button overlay
                 centered.frame {
                     // Cover image
-                    themed(ImageSemantic).sizeConstraints( height = 12.rem).centered.image {
+                    themed(ImageSemantic).sizeConstraints(height = 12.rem).centered.image {
                         this.rView::shown {
                             book().coverImageId != null
                         }
                         ::source { cachedCover() }
                         scaleType = ImageScaleType.Fit
                     }
-                    centered.sizeConstraints( height = 12.rem).icon {
+                    centered.sizeConstraints(height = 12.rem).icon {
                         ::shown {
                             book().coverImageId == null
                         }
@@ -74,7 +74,10 @@ fun ViewWriter.BookCard(
                         lineClamp = 2
                     }
                     subtext {
-                        ::content { book().authors.takeIf { it.isNotEmpty() }?.map{it.name}?.joinToString(",") ?: "Unknown Author" }
+                        ::content {
+                            book().authors.takeIf { it.isNotEmpty() }?.map { it.name }?.joinToString(",")
+                                ?: "Unknown Author"
+                        }
                         ellipsis = true
                         lineClamp = 2
                     }
@@ -93,7 +96,8 @@ fun ViewWriter.BookCard(
                                 val b = book()
                                 val position = b.userData?.playbackPositionTicks ?: 0L
                                 val dur = b.duration
-                                val percent = if (dur > 0) ((position.toFloat() / dur) * 100).toInt().coerceAtMost(100) else 0
+                                val percent =
+                                    if (dur > 0) ((position.toFloat() / dur) * 100).toInt().coerceAtMost(100) else 0
                                 "$percent%"
                             }
                         }
@@ -109,7 +113,8 @@ fun ViewWriter.BookCard(
                     // Not started - show duration (audiobooks only)
                     shownWhen {
                         val b = book()
-                        (b.userData?.playbackPositionTicks ?: 0L) == 0L && b.userData?.played != true && b.itemType == ItemType.AudioBook
+                        (b.userData?.playbackPositionTicks
+                            ?: 0L) == 0L && b.userData?.played != true && b.itemType == ItemType.AudioBook
                     }.subtext {
                         ::content {
                             val durationTicks = book().duration
@@ -129,8 +134,8 @@ fun ViewWriter.BookCard(
                     // Show play icon for audiobooks, book icon for ebooks
                     centered.icon {
                         ::source {
-                            if (book().itemType == ItemType.Ebook)  Icon.book else {
-                                if( PlaybackState.currentBook()?.id == book().id && PlaybackState.isPlaying()) {
+                            if (book().itemType == ItemType.Ebook) Icon.book else {
+                                if (PlaybackState.currentBook()?.id == book().id && PlaybackState.isPlaying()) {
                                     Icon.pause
                                 } else {
                                     Icon.playArrow
@@ -142,7 +147,17 @@ fun ViewWriter.BookCard(
                     }
                     onClick {
                         val currentBook = book.invoke()
-                        openEbook(currentBook.id,this@button)
+                        if (book().itemType == ItemType.Ebook)
+                            openEbook(currentBook.id, this@button)
+                        else {
+                            if (currentBook == PlaybackState.currentBook && PlaybackState.isPlaying()) {
+                                PlaybackState.pause()
+
+                            } else {
+                                val startPosition = currentBook.userData?.playbackPositionTicks ?: 0
+                                PlaybackState.play(currentBook, startPosition)
+                            }
+                        }
                     }
                 }
             }

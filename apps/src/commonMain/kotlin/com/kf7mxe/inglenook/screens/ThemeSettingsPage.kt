@@ -43,6 +43,8 @@ import kotlinx.coroutines.launch
 import com.kf7mxe.inglenook.util.assignThemeColors
 import com.kf7mxe.inglenook.util.extractDominantColors
 import com.kf7mxe.inglenook.util.loadResizedImagePixels
+import com.lightningkite.reactive.context.reactive
+import com.lightningkite.reactive.context.reactiveSuspending
 import kotlin.math.roundToInt
 import kotlin.time.Duration.Companion.seconds
 import kotlin.uuid.ExperimentalUuidApi
@@ -375,6 +377,7 @@ class ThemeSettingsPage : Page {
                         for (preset in ThemePreset.entries.filterIndexed { i, _ -> i % 2 == 0 }) {
                             themePresetCard(preset) {
                                 selectedPreset.value = preset
+                                if(preset != ThemePreset.Glassish && preset !=ThemePreset.Custom) wallpaperPath.value  =null
                                 applyTheme()
                             }
                         }
@@ -499,19 +502,24 @@ class ThemeSettingsPage : Page {
                             max = 50.0f
                             value bind blurRadius
                         }
-                    }
-
-                    button {
-                        row {
-                            centered.icon(Icon.check, "Apply")
-                            text("Apply Background Effects")
-                        }
-                        onClick {
+                        reactiveSuspending {
                             clearImageCaches()
                             applyTheme()
                         }
-                        themeChoice += ImportantSemantic
+
                     }
+//
+//                    button {
+//                        row {
+//                            centered.icon(Icon.check, "Apply")
+//                            text("Apply Background Effects")
+//                        }
+//                        onClick {
+//                            clearImageCaches()
+//                            applyTheme()
+//                        }
+//                        themeChoice += ImportantSemantic
+//                    }
                 }
             }
         }

@@ -113,46 +113,47 @@ class SettingsPage : Page {
                         to = { ThemeSettingsPage() }
                     }
                 }
-                card.col {
+//                card.col {
                     // Show first 4 presets as quick options[
-                    for (preset in ThemePreset.entries) {
-                        button {
-                            row {
-                                // Color preview
-                                sizedBox(SizeConstraints(width = 2.rem, height = 2.rem)).frame {
-                                    val presetTheme = createTheme(preset)
-                                    themeChoice += ThemeDerivation { presetTheme.withBack }
-                                }
-
-                                expanding.text { content = preset.displayName }
-
-                                shownWhen { currentThemePreset() == preset }.icon(Icon.check, "Selected")
-                            }
-                            onClick {
-                                currentThemePreset.value = preset
-                                appTheme.value = createTheme(preset)
-                            }
-                            dynamicTheme {
-                                if (currentThemePreset() == preset) SelectedSemantic else null
-                            }
-                        }
-
-                        if (preset != ThemePreset.entries.last()) {
-                            separator()
-                        }
-                    }
-
-                    separator()
+//                    for (preset in ThemePreset.entries) {
+//                        button {
+//                            row {
+//                                // Color preview
+//                                sizedBox(SizeConstraints(width = 2.rem, height = 2.rem)).frame {
+//                                    val presetTheme = createTheme(preset)
+//                                    themeChoice += ThemeDerivation { presetTheme.withBack }
+//                                }
+//
+//                                expanding.text { content = preset.displayName }
+//
+//                                shownWhen { currentThemePreset() == preset }.icon(Icon.check, "Selected")
+//                            }
+//                            onClick {
+//                                currentThemePreset.value = preset
+//                                appTheme.value = createTheme(preset)
+//
+//                            }
+//                            dynamicTheme {
+//                                if (currentThemePreset() == preset) SelectedSemantic else null
+//                            }
+//                        }
+//
+//                        if (preset != ThemePreset.entries.last()) {
+//                            separator()
+//                        }
+//                    }
+//
+//                    separator()
 
                     // Link to full theme settings
-                    button {
+                    card.button {
                         row {
-                            expanding.text { content = "Customization..." }
-                            icon(Icon.chevronRight, "More")
+                            expanding.text { content = "Theme" }
+                            icon(Icon.themePalette, "theme")
                         }
                         onClick{ mainPageNavigator.navigate(ThemeSettingsPage()) }
                     }
-                }
+//                }
             }
 
             // Connectivity section

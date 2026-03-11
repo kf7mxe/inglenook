@@ -19,7 +19,7 @@ import com.lightningkite.reactive.context.invoke
 
 @OptIn(ExperimentalKiteUi::class)
 fun ViewWriter.connectivityDialog(dismiss: () -> Unit) {
-    themed(DialogSemantic).centered.col {
+    centered.col {
 //        centered.icon {
 //            source = Icon.cloudOff.copy(width = 3.rem, height = 3.rem)
 //            description = "No connection"

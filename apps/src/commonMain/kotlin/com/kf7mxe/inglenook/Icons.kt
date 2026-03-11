@@ -1,8 +1,10 @@
 package com.kf7mxe.inglenook
 
+import com.lightningkite.kiteui.models.Color
 import com.lightningkite.kiteui.models.Icon
 import com.lightningkite.kiteui.models.Icon.StrokeLineCap
 import com.lightningkite.kiteui.models.Icon.StrokePathData
+import com.lightningkite.kiteui.models.Paint
 import com.lightningkite.kiteui.models.dp
 import com.lightningkite.kiteui.models.rem
 
@@ -457,3 +459,45 @@ val Icon.Companion.visibilityOff get() = Icon(
     viewBoxHeight = 960,
     listOf("m644-428-58-58q9-47-27-88t-93-32l-58-58q17-8 34.5-12t37.5-4q75 0 127.5 52.5T660-500q0 20-4 37.5T644-428Zm128 126-58-56q38-29 67.5-63.5T832-500q-50-101-143.5-160.5T480-720q-29 0-57 4t-55 12l-62-62q41-17 84-25.5t90-8.5q151 0 269 83.5T920-500q-23 59-60.5 109.5T772-302Zm20 246L624-222q-35 11-70.5 16.5T480-200q-151 0-269-83.5T40-500q21-53 53-98.5t73-81.5L56-792l56-56 736 736-56 56ZM222-624q-29 26-53 57t-41 67q50 101 143.5 160.5T480-280q20 0 39-2.5t39-5.5l-36-38q-11 3-21 4.5t-21 1.5q-75 0-127.5-52.5T300-500q0-11 1.5-21t4.5-21l-84-82Zm319 93Zm-151 75Z")
 )
+
+val Icon.Companion.themePalette
+    get() = Icon(
+        width = 2.rem,
+        height = 2.rem,
+        viewBoxMinX = 0,
+        viewBoxMinY = 0,
+        viewBoxWidth = 24,
+        viewBoxHeight = 24,
+        strokePathDatas = listOf(
+            // Palette body
+            StrokePathData(
+                strokeWidth = 0.dp,
+                path = "M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10c1.1 0 2-.9 2-2 0-.51-.2-1-.54-1.36-.34-.38-.56-.86-.56-1.34 0-1.1.9-2 2-2h2.4c3.09 0 5.6-2.51 5.6-5.6C22.9 5.35 17.95 2 12 2z",
+                fill = Color.fromHexString("#616161")
+            ),
+            // Red dot
+            StrokePathData(
+                strokeWidth = 0.dp,
+                path = "M5.5 12a1.5 1.5 0 1 1 3 0 1.5 1.5 0 1 1-3 0z",
+                fill = Color.fromHexString("#F44336")
+            ),
+            // Orange dot
+            StrokePathData(
+                strokeWidth = 0.dp,
+                path = "M8 7.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 1 1-3 0z",
+                fill = Color.fromHexString("#FF9800")
+            ),
+            // Green dot
+            StrokePathData(
+                strokeWidth = 0.dp,
+                path = "M13 7.5a1.5 1.5 0 1 1 3 0 1.5 1.5 0 1 1-3 0z",
+                fill = Color.fromHexString("#4CAF50")
+            ),
+            // Blue dot
+            StrokePathData(
+                strokeWidth = 0.dp,
+                path = "M15.5 11a1.5 1.5 0 1 1 3 0 1.5 1.5 0 1 1-3 0z",
+                fill = Color.fromHexString("#2196F3")
+            ),
+        ),
+    )

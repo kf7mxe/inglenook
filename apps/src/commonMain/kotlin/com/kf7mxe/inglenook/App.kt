@@ -44,6 +44,9 @@ import com.lightningkite.kiteui.views.rContextAddon
 import com.lightningkite.reactive.context.invoke
 import com.lightningkite.reactive.core.remember
 import com.lightningkite.reactive.core.rememberSuspending
+import com.kf7mxe.inglenook.util.assignThemeColors
+import com.kf7mxe.inglenook.util.extractDominantColors
+import com.kf7mxe.inglenook.util.loadResizedImagePixels
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import com.lightningkite.kiteui.lottie.views.direct.lottie
@@ -147,7 +150,35 @@ fun ViewWriter.app(navigator: PageNavigator, dialog: PageNavigator) {
                         )
                     }
                 } else if (preset == ThemePreset.Glassish || preset == ThemePreset.Custom) {
-                    println("DEBUG where it needs to be")
+                    // Extract colors from default wallpaper and apply to theme
+                    if (settings.wallpaperPath == null) {
+                        try {
+                            val imageData = loadResizedImagePixels(Resources.defailtWallpaper, 128, 128)
+                            val colors = extractDominantColors(imageData.pixels, imageData.width, imageData.height, 5)
+                            val (bgHex, primaryHex, outlineHex) = assignThemeColors(colors)
+                            val updatedSettings = settings.copy(
+                                secondaryColor = bgHex,
+                                primaryColor = primaryHex,
+                                accentColor = outlineHex,
+                                cardSemanticSettings = settings.cardSemanticSettings?.copy(
+                                    backgroundColor = bgHex,
+                                    outlineColor = primaryHex,
+                                ),
+                                importantSemanticSettings = settings.importantSemanticSettings?.copy(
+                                    backgroundColor = primaryHex,
+
+                                ),
+                                selectedSemanticSettings = settings.selectedSemanticSettings?.copy(
+                                    backgroundColor = primaryHex,
+                                    outlineColor = primaryHex
+                                )
+                            )
+                            persistedThemeSettings.value = updatedSettings
+                            appTheme.value = createTheme(preset, updatedSettings)
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
+                    }
                     val defaultBlur = 6f
                     val cachedFileName = "${defaultBlur}-default-wallpaper"
                     getBlurredCachedImage(cachedFileName) ?: blurAndCacheImage(

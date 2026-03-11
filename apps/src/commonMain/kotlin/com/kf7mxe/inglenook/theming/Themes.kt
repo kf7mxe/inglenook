@@ -7,7 +7,9 @@ import com.kf7mxe.inglenook.ImportantSemanticSettings
 import com.kf7mxe.inglenook.SelectedSemanticSettings
 import com.kf7mxe.inglenook.CardSemanticSettings
 import com.kf7mxe.inglenook.storage.ImageSemantic
+import com.kf7mxe.inglenook.storage.NowPlayingSemantic
 import com.kf7mxe.inglenook.storage.UnSelectedTab
+import com.lightningkite.kiteui.models.CornerRadii
 import com.lightningkite.kiteui.models.CornerRadii.Fixed
 import com.lightningkite.kiteui.models.Dimension
 import kotlin.math.abs
@@ -65,7 +67,7 @@ fun Theme.Companion.cozy(accent: Color? = null): Theme {
 
                 cornerRadii = CornerRadii.PerCorner(1.rem,false,false,true,true),
             ) },
-            MainContentSemantic.override { it.withBack(
+            MainContentSemantic.override { it.withoutBack(
                 cascading = false,
                 padding = Edges(1.rem,0.rem,1.rem,0.rem),
                 cornerRadii = CornerRadii.Fixed(0.rem),
@@ -433,15 +435,25 @@ fun Theme.Companion.glassish(settings: ThemeSettings): Theme {
                     .let { if (cardOpacity < 1f) it.closestColor().applyAlpha(cardOpacity) else it }
                 val ol = settings.cardSemanticSettings?.outlineColor?.toColorOrNull()
                     ?: accentColor.applyAlpha(settings.outlineOpacity)
-                theme.withBack(background = bg, outlineWidth = outlineWidthValue, outline = ol)
+                theme.withBack(background = bg, outlineWidth = 0.dp, outline = ol)
             },
-            BarSemantic.override { it.withBack },
+            BarSemantic.override { it.withBack(
+                cascading = false,
+                cornerRadii = CornerRadii.PerCorner(1.rem,false,false,true,true),
+            ) },
             NavSemantic.override {
                 it.withBack(
-                    background = it.background.closestColor().applyAlpha(0.7f)
+                    background = it.background.closestColor().applyAlpha(0.7f),
+                            cornerRadii = CornerRadii.PerCorner(1.rem,true,true,false,false)
                 )
             },
-            MainContentSemantic.override { it.withBack },
+
+            MainContentSemantic.override { it.withoutBack(
+                cascading = false,
+                padding = Edges(1.rem,0.rem,1.rem,0.rem),
+                cornerRadii = CornerRadii.Fixed(0.rem),
+                outlineWidth = 0.dp,
+            ) },
             FieldSemantic.override {
                 it.withBack(
                     background = it.background.closestColor().applyAlpha(0.6f),
@@ -463,14 +475,14 @@ fun Theme.Companion.glassish(settings: ThemeSettings): Theme {
                     ?: primaryColor.applyAlpha(0.3f * baseOpacity))
                     .let { if (selectedOpacity < 1f) it.closestColor().applyAlpha(selectedOpacity) else it }
                 val ol = settings.selectedSemanticSettings?.outlineColor?.toColorOrNull() ?: primaryColor
-                it.withBack(background = bg, outlineWidth = 2.dp, outline = ol)
+                it.withBack(background = bg, outlineWidth = 0.dp, outline = ol)
             },
             HoverSemantic.override {
                 it.withBack(background = it.background.lighten(0.15f))
             },
             DialogSemantic.override {
                 it.withBack(
-                    background = it.background,
+                    background = it.background.darken(1f).applyAlpha(0.9f),
                     outline = accentColor,
                     outlineWidth = outlineWidthValue
                 )
@@ -481,6 +493,12 @@ fun Theme.Companion.glassish(settings: ThemeSettings): Theme {
                     padding = Edges( 0.0.rem),
                     outlineWidth =  0.dp
                 )
+            },
+            NowPlayingSemantic.override {
+                it.withBack(
+                    cascading = true,
+                    background = it.outline.darken(5f).applyAlpha(0.99f),
+                    )
             }
         )
     )
