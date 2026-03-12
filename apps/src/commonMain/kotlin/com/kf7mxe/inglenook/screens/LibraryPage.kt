@@ -12,6 +12,7 @@ import com.kf7mxe.inglenook.ItemType
 import com.lightningkite.kiteui.QueryParameter
 import com.lightningkite.kiteui.Routable
 import com.lightningkite.kiteui.views.buttonTheme
+import com.lightningkite.kiteui.views.card
 import com.lightningkite.reactive.core.Signal
 import com.lightningkite.reactive.core.Constant
 import kotlinx.serialization.Serializable
@@ -53,7 +54,7 @@ class LibraryPage : Page {
             paddingByEdge = Edges(0.rem,1.rem,0.rem,0.rem)
             row {
                 paddingByEdge = Edges(1.rem,0.rem,1.rem,0.rem)
-                expanding.buttonTheme.button {
+                expanding.card.button {
                     centered.text("Books")
                     onClick { currentTab.set(BooksTab.Books) }
                     dynamicTheme {
@@ -61,7 +62,7 @@ class LibraryPage : Page {
                     }
                 }
 
-                expanding.buttonTheme.button {
+                expanding.card.button {
                     centered.text("Authors")
                     onClick { currentTab.set(BooksTab.Authors) }
                     dynamicTheme {
@@ -69,7 +70,7 @@ class LibraryPage : Page {
                     }
                 }
 
-                expanding.buttonTheme.button {
+                expanding.card.button {
                     centered.text("Series")
                     onClick { currentTab.set(BooksTab.Series) }
                     dynamicTheme {

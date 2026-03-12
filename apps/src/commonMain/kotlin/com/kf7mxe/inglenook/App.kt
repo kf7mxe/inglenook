@@ -112,9 +112,9 @@ fun ViewWriter.app(navigator: PageNavigator, dialog: PageNavigator) {
         }
     }
 
-    appBase(navigator, dialog) {
+    OuterSemantic.onNext.appBase(navigator, dialog) {
         applySafeInsets(bottom = false)
-        OuterSemantic.onNext.coordinatorFrame {
+        coordinatorFrame {
 
             mainPageNavigator = navigator
             dialog?.let {
@@ -209,7 +209,7 @@ fun ViewWriter.app(navigator: PageNavigator, dialog: PageNavigator) {
                 mainPageNavigator.currentPage() is BookDetailPage && persistedThemeSettings().showPlayingBookCoverOnNowPlayingAndBookDetail
             })
 
-            unpadded.col {
+            col {
                 gap = 0.0.rem
 
 

@@ -66,11 +66,11 @@ class BookDetailPage(val bookId: String) : Page {
     }
 
     override fun ViewWriter.render() {
-        val showChapters = Signal(true)
+        val showChapters = Signal(false)
 
         // Scrollable content
         padded.expanding.scrolling.col {
-            space()
+            paddingByEdge = Edges(0.rem,1.rem)
             // Connection error state (book failed to load due to network)
             shownWhen { book.state().ready && book() == null && ConnectivityState.lastNetworkError() != null }.expanding.connectionError {
                 mainPageNavigator.navigate(BookDetailPage(bookId))
@@ -303,9 +303,7 @@ class BookDetailPage(val bookId: String) : Page {
                 shownWhen {
                     val b = book()
                     b?.itemType == ItemType.AudioBook && (b.chapters.size) > 0
-                }.col {
-                    unpadded.button {
-                        paddingByEdge = Edges(0.rem, 0.rem, 1.rem, 1.rem)
+                }.button {
                         row {
                             expanding.h3 {
                                 ::content { "Chapters (${book()?.chapters?.size ?: 0})" }
@@ -318,27 +316,26 @@ class BookDetailPage(val bookId: String) : Page {
                         onClick { showChapters.value = !showChapters.value }
                     }
 
-                    shownWhen { showChapters() }.unpadded.col {
-                        // Render chapters with reactive updates using forEachUpdating
-                        val chapters = remember {
-                            book()?.chapters ?: emptyList()
-                        }
 
-                        chaptersList(chapters) { chapter ->
-                            val currentBook = book()
-                            if (currentBook != null) {
-                                PlaybackState.play(currentBook, chapter.startPositionTicks)
-                            }
-                        }
+            shownWhen { showChapters() }.unpadded.col {
+                // Render chapters with reactive updates using forEachUpdating
+                val chapters = remember {
+                    book()?.chapters ?: emptyList()
+                }
+
+                chaptersList(chapters) { chapter ->
+                    val currentBook = book()
+                    if (currentBook != null) {
+                        PlaybackState.play(currentBook, chapter.startPositionTicks)
                     }
                 }
+            }
 
                 // Bookmarks section
                 val showBookmarks = Signal(false)
                 val bookmarks = Signal(BookmarkRepository.getBookmarksForBook(bookId))
 
-                shownWhen { bookmarks().isNotEmpty() }.col {
-                    unpadded.button {
+                shownWhen { bookmarks().isNotEmpty() }.button {
                         row {
                             expanding.h3 {
                                 ::content { "Bookmarks (${bookmarks().size})" }
@@ -349,16 +346,16 @@ class BookDetailPage(val bookId: String) : Page {
                             }
                         }
                         onClick { showBookmarks.value = !showBookmarks.value }
-                    }
 
-                    shownWhen { showBookmarks() }.col {
-                        bookmarksList(bookId, bookmarks) { positionTicks ->
-                            book()?.let { currentBook ->
-                                PlaybackState.play(currentBook, positionTicks)
-                            }
-                        }
+                }
+            shownWhen { showBookmarks() }.col {
+                bookmarksList(bookId, bookmarks) { positionTicks ->
+                    book()?.let { currentBook ->
+                        PlaybackState.play(currentBook, positionTicks)
                     }
                 }
+            }
+
 
         }
 

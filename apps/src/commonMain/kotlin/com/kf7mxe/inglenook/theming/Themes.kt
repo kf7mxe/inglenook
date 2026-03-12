@@ -52,10 +52,16 @@ fun Theme.Companion.cozy(accent: Color? = null): Theme {
         foreground =  Color.fromHexString("#3E2F28"),
         background = Color.fromHexString("#F0E2C6"),
         outline = accent?: Color.fromHexString("#7B8266"),
-        outlineWidth = 1.px,
+        outlineWidth = 2.px,
         elevation = 0.dp,
         gap = 0.75.rem,
         semanticOverrides = SemanticOverrides(
+            OuterSemantic.override {
+                it.withBack(
+                    cascading = false,
+                    outlineWidth = 0.dp
+                )
+            },
             CardSemantic.override {
                 it.withBack(
                     background = it.background.closestColor().lighten(0.08f),
@@ -65,7 +71,7 @@ fun Theme.Companion.cozy(accent: Color? = null): Theme {
             },
             BarSemantic.override { it.withBack(
 
-                cornerRadii = CornerRadii.PerCorner(1.rem,false,false,true,true),
+                cornerRadii = CornerRadii.PerCorner(1.rem,true,true,true,true),
             ) },
             MainContentSemantic.override { it.withoutBack(
                 cascading = false,
@@ -124,16 +130,17 @@ fun Theme.Companion.cozy(accent: Color? = null): Theme {
 
 fun Theme.Companion.autumnCabin(accent: Color? = null): Theme {
     val primary = accent ?: Color.fromHexString("#D48441")
+    val cornerRadii = CornerRadii.RatioOfSpacing(1.5f)
     return Theme(
         id = "autumn-cabin-${primary.toInt()}",
         font = FontAndStyle(),
         foreground = Color.fromHexString("#3E2F28"),
         background = Color.fromHexString("#E9DCC9"),
         outline = primary,
-        outlineWidth = 0.px,
+        outlineWidth = 2.px,
         elevation = 0.dp,
         gap = 0.75.rem,
-        cornerRadii = CornerRadii.RatioOfSpacing(1.5f),
+        cornerRadii = cornerRadii,
         semanticOverrides = SemanticOverrides(
             CardSemantic.override {
                 it.withBack(
@@ -141,10 +148,19 @@ fun Theme.Companion.autumnCabin(accent: Color? = null): Theme {
                     outlineWidth = 1.dp
                 )
             },
-            BarSemantic.override { it.withBack },
-            NavSemantic.override { it.withBack },
-            MainContentSemantic.override { it.withBack },
-            ImportantSemantic.override {
+            BarSemantic.override { it.withBack(
+
+                cornerRadii = CornerRadii.PerCorner(1.rem,true,true,true,true),
+            ) },
+            NavSemantic.override { it.withBack(
+                gap=0.5.rem,
+                cornerRadii = CornerRadii.PerCorner(1.rem,true,true,false,false)) },
+            MainContentSemantic.override { it.withoutBack(
+                cascading = false,
+                padding = Edges(1.rem,0.rem,1.rem,0.rem),
+                cornerRadii = CornerRadii.Fixed(0.rem),
+                outlineWidth = 0.dp,
+            )},            ImportantSemantic.override {
                 it.withBack(
                     background = primary,
                     foreground = Color.white
@@ -158,6 +174,26 @@ fun Theme.Companion.autumnCabin(accent: Color? = null): Theme {
             },
             FieldSemantic.override {
                 it.withBack(outlineWidth = 1.dp)
+            },
+            ImageSemantic.override {
+                it.withBack(
+                    cornerRadii =cornerRadii,
+                    padding = Edges.ZERO,
+                    outline = null,
+                    outlineWidth = 0.dp
+                )
+            },
+            OuterSemantic.override {
+                it.withoutBack(
+                    cascading = false,
+                    outlineWidth = 0.dp
+                )
+            },
+            DialogSemantic.override {
+                it.withBack(
+                    cornerRadii =cornerRadii,
+                    padding = Edges(1.rem,1.rem,1.rem,1.rem)
+                )
             },
         )
     )
@@ -173,7 +209,7 @@ fun Theme.Companion.midnight(accent: Color? = null): Theme {
         foreground = Color.gray(0.9f),
         background = Color.fromHexString("#0f0f0f"),
         outline = Color.fromHexString("#1f1f1f"),
-        outlineWidth = 0.px,
+        outlineWidth = 2.px,
         elevation = 0.dp,
         gap = 0.75.rem,
         cornerRadii = CornerRadii.RatioOfSpacing(0.5f),
@@ -185,9 +221,19 @@ fun Theme.Companion.midnight(accent: Color? = null): Theme {
                     outline = Color.fromHexString("#2a2a2a")
                 )
             },
-            BarSemantic.override { it.withBack },
-            NavSemantic.override { it.withBack },
-            MainContentSemantic.override { it.withBack(
+            OuterSemantic.override {
+                it.withoutBack(
+                    cascading = false,
+                    outlineWidth = 0.dp
+                )
+            },
+            BarSemantic.override { it.withBack(
+
+                cornerRadii = CornerRadii.PerCorner(1.rem,true,true,true,true),
+            ) },
+            NavSemantic.override { it.withBack(
+                gap=0.5.rem,
+                cornerRadii = CornerRadii.PerCorner(1.rem,true,true,false,false)) },            MainContentSemantic.override { it.withBack(
                 cascading = false,
                 outlineWidth = 0.dp,
             )},
@@ -224,7 +270,7 @@ fun Theme.Companion.sunrise(accent: Color? = null): Theme {
         foreground = Color.gray(0.15f),
         background = Color.fromHexString("#fef7ed"),
         outline = Color.fromHexString("#e5d5c5"),
-        outlineWidth = 0.px,
+        outlineWidth = 2.px,
         elevation = 0.dp,
         gap = 0.75.rem,
         cornerRadii = CornerRadii.RatioOfSpacing(0.5f),
@@ -235,9 +281,22 @@ fun Theme.Companion.sunrise(accent: Color? = null): Theme {
                     elevation = 1.dp
                 )
             },
-            BarSemantic.override { it.withBack },
-            NavSemantic.override { it.withBack },
-            MainContentSemantic.override { it.withBack },
+            OuterSemantic.override {
+                it.withoutBack(
+                    cascading = false,
+                    outlineWidth = 0.dp
+                )
+            },
+            MainContentSemantic.override { it.withoutBack(
+                outlineWidth = 0.dp
+            )},
+            BarSemantic.override { it.withBack(
+
+                cornerRadii = CornerRadii.PerCorner(1.rem,true,true,true,true),
+            ) },
+            NavSemantic.override { it.withBack(
+                gap=0.5.rem,
+                cornerRadii = CornerRadii.PerCorner(1.rem,true,true,true,true)) },            MainContentSemantic.override { it.withBack },
             ImportantSemantic.override {
                 it.withBack(
                     background = primary,
@@ -290,14 +349,28 @@ fun Theme.Companion.hackerman(accent: Color? = null): Theme {
         background = Color.black,
         foreground = primary,
         outline = primary,
-        outlineWidth = 0.px,
+        outlineWidth = 1.px,
         gap = 0.5.rem,
         padding = Edges(0.5.rem),
         cornerRadii = CornerRadii.Fixed(0.px),
         semanticOverrides = SemanticOverrides(
-            BarSemantic.override { it.withBack },
-            NavSemantic.override { it.withBack },
-            MainContentSemantic.override { it.withBack },
+            BarSemantic.override { it.withBack(
+
+                cornerRadii = CornerRadii.PerCorner(1.rem,true,true,true,true),
+            ) },
+            OuterSemantic.override {
+                it.withoutBack(
+                    cascading = false,
+                    outlineWidth = 0.dp
+                )
+            },
+            NavSemantic.override { it.withBack(
+                gap=0.5.rem,
+                cornerRadii = CornerRadii.PerCorner(1.rem,true,true,true,true)) },            MainContentSemantic.override { it.withBack(
+                cascading = false,
+                outlineWidth = 0.dp,
+            )},
+            MainContentSemantic.override { it.withoutBack },
             FieldSemantic.override { it.withBack(outlineWidth = 1.px, outline = primary) },
             CardSemantic.override { it.withBack(outlineWidth = 1.px, outline = primary.darken(0.7f)) },
             HoverSemantic.override { it.withBack(outlineWidth = 1.px, outline = primary) },
@@ -323,14 +396,14 @@ fun Theme.Companion.clouds(accent: Color? = null): Theme {
         font = FontAndStyle(),
         foreground = Color.gray(0.2f),
         background = Color.gray(0.95f),
-        outlineWidth = 0.px,
+        outlineWidth = 1.px,
         elevation = 0.px,
         cornerRadii = CornerRadii.Fixed(1.rem),
         semanticOverrides = SemanticOverrides(
             CardSemantic.override { it.withBack(elevation = 1.dp, background = Color.white) },
             BarSemantic.override { it[CardSemantic] },
             NavSemantic.override { it[CardSemantic] },
-            MainContentSemantic.override { it.withBack },
+            MainContentSemantic.override { it.withoutBack },
             ImportantSemantic.override {
                 val primaryFixed = primary.darken(0.3f)
                 it.withBack(
@@ -359,7 +432,7 @@ fun Theme.Companion.obsidian(accent: Color? = null): Theme {
         foreground = Color.gray(0.85f),
         background = Color.fromHexString("#1e1e2e"),
         outline = Color.fromHexString("#313244"),
-        outlineWidth = 0.px,
+        outlineWidth = 2.px,
         elevation = 0.dp,
         gap = 0.75.rem,
         cornerRadii = CornerRadii.RatioOfSpacing(0.4f),
@@ -371,9 +444,17 @@ fun Theme.Companion.obsidian(accent: Color? = null): Theme {
                     outline = Color.fromHexString("#3b3b4d")
                 )
             },
-            BarSemantic.override { it.withBack },
-            NavSemantic.override { it.withBack },
-            MainContentSemantic.override { it.withBack },
+            BarSemantic.override { it.withBack(
+
+                cornerRadii = CornerRadii.PerCorner(1.rem,true,true,true,true),
+            ) },
+            NavSemantic.override { it.withBack(
+                gap=0.5.rem,
+                cornerRadii = CornerRadii.PerCorner(1.rem,true,true,false,false)) },            MainContentSemantic.override { it.withBack(
+                cascading = false,
+                outlineWidth = 0.dp,
+            )},
+            MainContentSemantic.override { it.withoutBack },
             ImportantSemantic.override {
                 it.withBack(
                     background = primary,
@@ -402,8 +483,7 @@ fun Theme.Companion.glassish(settings: ThemeSettings): Theme {
     val primaryColor = settings.primaryColor?.toColorOrNull() ?: Color.fromHexString("#6366f1")
     val backgroundColor = settings.secondaryColor?.toColorOrNull() ?: Color.fromHexString("#1a1a2e")
     val accentColor = settings.accentColor?.toColorOrNull() ?: primaryColor.darken(0.3f)
-    val foreground = if (backgroundColor.perceivedBrightness <= 0.5) Color.white else Color.black
-
+    val foreground = if (backgroundColor.perceivedBrightness <= 0.5) accentColor.lighten(0.5f) else accentColor.darken(0.5f)
     // Cap opacity so glass always has some transparency
 //    val cappedBaseOpacity = settings.baseOpacity.coerceAtMost(0.85f)
     val baseOpacity = 0.40f
@@ -424,12 +504,12 @@ fun Theme.Companion.glassish(settings: ThemeSettings): Theme {
         outlineWidth = outlineWidthValue,
         elevation = elevationValue,
         gap = gapValue,
+        iconOverride = foreground,
         padding = Edges(paddingValue),
         cornerRadii = CornerRadii.AdaptiveToSpacing(cornerRadius),
-        iconOverride = primaryColor,
         semanticOverrides = SemanticOverrides(
             CardSemantic.override { theme ->
-                val cardOpacity = 0.10f
+                val cardOpacity = 0.20f
                 val bg = (settings.cardSemanticSettings?.backgroundColor?.toColorOrNull()
                     ?: theme.background.closestColor().lighten(0.08f).applyAlpha(baseOpacity))
                     .let { if (cardOpacity < 1f) it.closestColor().applyAlpha(cardOpacity) else it }
@@ -443,8 +523,8 @@ fun Theme.Companion.glassish(settings: ThemeSettings): Theme {
             ) },
             NavSemantic.override {
                 it.withBack(
-                    background = it.background.closestColor().applyAlpha(0.7f),
-                            cornerRadii = CornerRadii.PerCorner(1.rem,true,true,false,false)
+                    cornerRadii = CornerRadii.PerCorner(1.rem,true,true,false,false),
+                    background = it.background.closestColor().applyAlpha(0.9f),
                 )
             },
 
@@ -469,14 +549,14 @@ fun Theme.Companion.glassish(settings: ThemeSettings): Theme {
                     ?: if (bg.closestColor().perceivedBrightness > 0.5f) Color.black else Color.white
                 it.withBack(background = bg, foreground = fg)
             },
-            SelectedSemantic.override {
-                val selectedOpacity = 0.45f
-                val bg = (settings.selectedSemanticSettings?.backgroundColor?.toColorOrNull()
-                    ?: primaryColor.applyAlpha(0.3f * baseOpacity))
-                    .let { if (selectedOpacity < 1f) it.closestColor().applyAlpha(selectedOpacity) else it }
-                val ol = settings.selectedSemanticSettings?.outlineColor?.toColorOrNull() ?: primaryColor
-                it.withBack(background = bg, outlineWidth = 0.dp, outline = ol)
-            },
+//            SelectedSemantic.override {
+//                val selectedOpacity = 0.45f
+//                val bg = (settings.selectedSemanticSettings?.backgroundColor?.toColorOrNull()
+//                    ?: primaryColor.applyAlpha(0.3f * baseOpacity))
+//                    .let { if (selectedOpacity < 1f) it.closestColor().applyAlpha(selectedOpacity) else it }
+//                val ol = settings.selectedSemanticSettings?.outlineColor?.toColorOrNull() ?: primaryColor
+//                it.withBack(background = bg, outlineWidth = 0.dp, outline = ol)
+//            },
             HoverSemantic.override {
                 it.withBack(background = it.background.lighten(0.15f))
             },
@@ -546,7 +626,7 @@ fun Theme.Companion.custom(settings: ThemeSettings): Theme {
             BarSemantic.override { it.withBack },
             NavSemantic.override {
                 it.withBack(
-                    background = it.background.closestColor().applyAlpha(0.9f)
+                    background = it.background.closestColor().applyAlpha(0.9f),
                 )
             },
             MainContentSemantic.override { it.withBack },

@@ -104,24 +104,24 @@ class BooksPage(
                 }
 
                 // Book type filter toggles
-                buttonTheme.button {
+                card.button {
                     text("All")
                     onClick { bookTypeFilter.value = null }
                     dynamicTheme { if (bookTypeFilter() == null) ImportantSemantic else null }
                 }
-                buttonTheme.button {
+                card.button {
                     text("Audio")
                     onClick { bookTypeFilter.value = ItemType.AudioBook }
                     dynamicTheme { if (bookTypeFilter() == ItemType.AudioBook) ImportantSemantic else null }
                 }
-                buttonTheme.button {
+                card.button {
                     text("Ebooks")
                     onClick { bookTypeFilter.value = ItemType.Ebook }
                     dynamicTheme { if (bookTypeFilter() == ItemType.Ebook) ImportantSemantic else null }
                 }
 
                 // View mode toggle
-                buttonTheme.button {
+                card.button {
                     icon {
                         ::source { if (viewMode() == ViewMode.Grid) Icon.menu else Icon.dashboard }
                         description = "Toggle view"

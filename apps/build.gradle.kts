@@ -49,7 +49,7 @@ kotlin {
             dependencies {
                 api(libs.kiteui)
                 api(libs.csvDurable)
-                api(libs.lightningServer.client)
+//                api(libs.lightningServer.client)
                 api(project(":shared"))
                 // Readable library for Constant
                 api("com.lightningkite:readable:2.0.0")

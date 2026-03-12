@@ -14,14 +14,10 @@ import com.kf7mxe.inglenook.cache.clearImageCaches
 import com.kf7mxe.inglenook.storage.ImageSemantic
 import com.kf7mxe.inglenook.storage.deleteImageFromStorage
 import com.kf7mxe.inglenook.storage.readImageFromStorage
-import com.kf7mxe.inglenook.storage.saveFile
 import com.kf7mxe.inglenook.storage.saveImageToStorage
 import com.kf7mxe.inglenook.theming.createTheme
 import com.kf7mxe.inglenook.util.getFileExtensionFromMimeType
-import com.lightningkite.kiteui.HttpMethod
-import com.lightningkite.kiteui.Log
 import com.lightningkite.kiteui.Routable
-import com.lightningkite.kiteui.fetch
 import com.lightningkite.kiteui.mimeType
 import com.lightningkite.kiteui.reactive.Action
 import com.lightningkite.kiteui.requestFile
@@ -31,12 +27,7 @@ import com.lightningkite.reactive.context.invoke
 import com.lightningkite.reactive.core.Signal
 import com.lightningkite.reactive.core.Constant
 import com.lightningkite.reactive.core.AppScope
-import com.lightningkite.reactive.core.Reactive
-import com.lightningkite.reactive.core.remember
 import com.lightningkite.reactive.core.rememberSuspending
-import com.lightningkite.reactive.extensions.modify
-import com.lightningkite.reactive.lensing.lens
-import com.lightningkite.services.files.ServerFile
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -53,6 +44,7 @@ import kotlin.uuid.Uuid
 // Per-theme accent color palettes
 fun accentColorsForPreset(preset: ThemePreset): List<Pair<String, String>> = when (preset) {
     ThemePreset.Cozy -> listOf(
+        "7B8266" to "forest",
         "#A45D4B" to "Terracotta",
         "#C58273" to "Clay",
         "#4A5D6E" to "Slate",
@@ -332,7 +324,7 @@ class ThemeSettingsPage : Page {
             onSelect: () -> Unit
         ) {
             button {
-                expanding.card.row {
+                expanding.row {
                     sizedBox(SizeConstraints(width = 3.rem, height = 3.rem)).frame {
                         val previewTheme = createTheme(preset)
                         themeChoice += ThemeDerivation {
@@ -488,13 +480,15 @@ class ThemeSettingsPage : Page {
                         }
                         col {
                             text { content = "Show Book Cover Background" }
-                            subtext { content = "Show cover image behind content on now playing bottom and sheet and book detail" }
+                            subtext { content = "Show cover image behind content on now playing bottom and sheet and book detail"
+                            wraps = true
+                            }
                         }
                     }
 
                     col {
                         row {
-                            expanding.text { content = "Blur Intensity" }
+                            text { content = "Blur Intensity" }
                             text { ::content { "${blurRadius().toInt()}px" } }
                         }
                         slider {
@@ -533,7 +527,7 @@ class ThemeSettingsPage : Page {
                 for (preset in ThemePreset.entries.filter { it != ThemePreset.Custom && it != ThemePreset.Glassish }) {
                     val colors = accentColorsForPreset(preset)
                     if (colors.isNotEmpty()) {
-                        shownWhen { selectedPreset() == preset }.row {
+                        shownWhen { selectedPreset() == preset }.scrolling.row {
                             for ((colorHex, _) in colors) {
                                 button {
                                     sizedBox(SizeConstraints(width = 2.5.rem, height = 2.5.rem)).frame {
@@ -555,17 +549,6 @@ class ThemeSettingsPage : Page {
                                 }
                             }
                         }
-                    }
-                }
-
-                button {
-                    row {
-                        icon(Icon.close, "Reset")
-                        text("Reset to Default")
-                    }
-                    onClick {
-                        customPrimaryColor.set(Color.fromHexString("#fff"))
-                        applyTheme()
                     }
                 }
             }

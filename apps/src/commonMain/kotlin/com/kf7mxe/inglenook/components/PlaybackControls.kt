@@ -86,7 +86,7 @@ fun ViewWriter.PlaybackControls() {
             // Show loading indicator while buffering, seek bar when ready
             shownWhen { PlaybackState.isBuffering() }.centered.row {
                 gap = 0.5.rem
-                inglenookActivityIndicator()
+                sizeConstraints(height = 1.5.rem, width = 1.5.rem).inglenookActivityIndicator()
                 subtext { content = "Loading..." }
             }
 

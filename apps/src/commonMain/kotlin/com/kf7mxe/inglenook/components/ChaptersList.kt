@@ -9,6 +9,7 @@ import com.lightningkite.kiteui.views.l2.icon
 import com.kf7mxe.inglenook.Chapter
 import com.kf7mxe.inglenook.playArrow
 import com.kf7mxe.inglenook.playback.PlaybackState
+import com.lightningkite.kiteui.views.card
 import com.lightningkite.kiteui.views.dynamicTheme
 import com.lightningkite.kiteui.views.forEachUpdating
 import com.lightningkite.reactive.context.invoke
@@ -41,7 +42,7 @@ fun ViewWriter.chaptersList(
                 index() < currentIndex()
             }
 
-            button {
+            card.button {
                 row {
                     gap = 0.5.rem
                     padding = 0.5.rem

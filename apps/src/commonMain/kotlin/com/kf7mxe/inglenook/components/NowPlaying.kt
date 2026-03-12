@@ -79,7 +79,7 @@ fun ViewWriter.nowPlayingPreview() {
             }
         }
 
-        buttonTheme.button {
+        button {
             icon(Icon.reverseThirtySeconds, "Skip back")
             onClick { PlaybackState.skipBackward() }
         }
@@ -205,7 +205,7 @@ fun ViewWriter.nowPlaying(onClose: () -> Unit = {}) {
                     }
                     onClick {
                         coordinatorFrame?.bottomSheet { control ->
-                            card.col {
+                            col {
                                 themed(DialogSemantic).sizeConstraints(width = 30.rem).chaptersList(chapters) { chapter ->
                                     PlaybackState.seek(chapter.startPositionTicks)
                                     control.close()
