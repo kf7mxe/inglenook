@@ -19,7 +19,7 @@ import kotlinx.serialization.json.Json
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
-class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
+open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
     val serverUrl: String,
     private var accessToken: String? = null,
     private var userId: String? = null,
@@ -88,7 +88,7 @@ class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
         )
     }
 
-    suspend fun getServerInfo(): ServerInfoResponse? {
+    open suspend fun getServerInfo(): ServerInfoResponse? {
         return try {
             val response = client.get("$serverUrl/System/Info/Public")
             if (response.status.isSuccess()) response.body() else null
@@ -97,7 +97,7 @@ class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
         }
     }
 
-    suspend fun pingServer(): Boolean {
+    open suspend fun pingServer(): Boolean {
         return try {
             val response = client.get("$serverUrl/System/Info/Public")
             response.status.isSuccess()
@@ -122,7 +122,7 @@ class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
         }
     }
 
-    suspend fun getLibraries(): List<JellyfinLibrary> {
+    open suspend fun getLibraries(): List<JellyfinLibrary> {
         if (ConnectivityState.offlineMode.value) return emptyList()
         val uid = userId ?: return emptyList()
 
@@ -147,7 +147,7 @@ class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
         }
     }
 
-    suspend fun getAllBooks(libraryId: String? = null, forceRefresh: Boolean = false): List<Book> {
+    open suspend fun getAllBooks(libraryId: String? = null, forceRefresh: Boolean = false): List<Book> {
         val uid = userId ?: return emptyList()
         val libraryIds = if (libraryId != null) listOf(libraryId) else selectedLibraryIds.value
         val cacheKey = ApiCache.booksKey(libraryIds)
@@ -223,7 +223,7 @@ class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
         return itemsResponse.Items.map { it.toAudioBook() }
     }
 
-    suspend fun getInProgressBooks(): List<Book> {
+    open suspend fun getInProgressBooks(): List<Book> {
         val uid = userId ?: return emptyList()
         val libraryIds = selectedLibraryIds.value
         val cacheKey = ApiCache.inProgressKey(libraryIds)
@@ -287,7 +287,7 @@ class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
         }
     }
 
-    suspend fun getRecentlyAddedBooks(): List<Book> {
+    open suspend fun getRecentlyAddedBooks(): List<Book> {
         val uid = userId ?: return emptyList()
         val libraryIds = selectedLibraryIds.value
         val cacheKey = ApiCache.recentKey(libraryIds)
@@ -354,7 +354,7 @@ class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
         }
     }
 
-    suspend fun getSuggestedBooks(): List<Book> {
+    open suspend fun getSuggestedBooks(): List<Book> {
         val uid = userId ?: return emptyList()
         val libraryIds = selectedLibraryIds.value
         val cacheKey = ApiCache.suggestedKey(libraryIds)
@@ -407,7 +407,7 @@ class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
         }
     }
 
-    suspend fun getBook(itemId: String): Book? {
+    open suspend fun getBook(itemId: String): Book? {
         val cacheKey = ApiCache.bookKey(itemId)
 
         if (ConnectivityState.offlineMode.value) {
@@ -482,7 +482,7 @@ class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
      * Fetch chapters from the AudiobookChapters plugin endpoint.
      * This plugin exposes chapters for audiobooks that Jellyfin's standard API doesn't return.
      */
-    suspend fun getAudiobookChapters(itemId: String): List<PluginChapter> {
+    open suspend fun getAudiobookChapters(itemId: String): List<PluginChapter> {
         return try {
             val response = client.get("$serverUrl/Inglenook/$itemId") {
                 header("X-Emby-Token", accessToken ?: "")
@@ -556,7 +556,7 @@ class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
     }
 
 
-    suspend fun getAuthors(forceRefresh: Boolean = false): List<Author> {
+    open suspend fun getAuthors(forceRefresh: Boolean = false): List<Author> {
         val uid = userId ?: return emptyList()
         val libraryIds = selectedLibraryIds.value
         val cacheKey = ApiCache.authorsKey(libraryIds)
@@ -692,7 +692,7 @@ class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
         return mergedByName.values.sortedBy { it.name }
     }
 
-    suspend fun getAuthor(authorId: String): Author? {
+    open suspend fun getAuthor(authorId: String): Author? {
         if (ConnectivityState.offlineMode.value) return null
         val uid = userId ?: return null
 
@@ -717,7 +717,7 @@ class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
         }
     }
 
-    suspend fun getBooksByAuthor(authorId: String): List<Book> {
+    open suspend fun getBooksByAuthor(authorId: String): List<Book> {
         if (ConnectivityState.offlineMode.value) return emptyList()
         val uid = userId ?: return emptyList()
 
@@ -767,7 +767,7 @@ class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
         }
     }
 
-    fun getImageUrl(imageId: String?, itemId: String? = null, imageType: String = "Primary"): String {
+    open fun getImageUrl(imageId: String?, itemId: String? = null, imageType: String = "Primary"): String {
         val id = itemId ?: imageId ?: return ""
         return "$serverUrl/Items/$id/Images/$imageType"
     }
@@ -775,7 +775,7 @@ class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
     /**
      * Get all series from audiobooks (aggregated from books with seriesName).
      */
-    suspend fun getAllSeries(): List<Series> {
+    open suspend fun getAllSeries(): List<Series> {
         val books = getAllBooks()
         return books
             .filter { it.seriesName != null }
@@ -797,7 +797,7 @@ class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
     /**
      * Get all books in a series by series name.
      */
-    suspend fun getBooksBySeries(seriesName: String): List<Book> {
+    open suspend fun getBooksBySeries(seriesName: String): List<Book> {
         val books = getAllBooks()
         return books
             .filter { it.seriesName == seriesName }
@@ -807,7 +807,7 @@ class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
     /**
      * Get series by a specific author.
      */
-    suspend fun getSeriesByAuthor(authorId: String): List<Series> {
+    open suspend fun getSeriesByAuthor(authorId: String): List<Series> {
         val books = getBooksByAuthor(authorId)
         return books
             .filter { it.seriesName != null }
@@ -825,7 +825,7 @@ class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
             .sortedBy { it.name }
     }
 
-    fun getAudioStreamUrl(
+    open fun getAudioStreamUrl(
         itemId: String,
         startPositionTicks: Long = 0L,
         useHls: Boolean = false,
@@ -852,7 +852,7 @@ class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
     /**
      * Get the download URL for a book. Uses audio stream for audiobooks, direct download for ebooks.
      */
-    fun getDownloadUrl(book: com.kf7mxe.inglenook.Book): String {
+    open fun getDownloadUrl(book: com.kf7mxe.inglenook.Book): String {
         return if (book.itemType == com.kf7mxe.inglenook.ItemType.Ebook) {
             "$serverUrl/Items/${book.id}/Download?api_key=$accessToken"
         } else {
@@ -860,7 +860,14 @@ class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
         }
     }
 
-    suspend fun search(query: String, limit: Int = 20): SearchResults {
+    /**
+     * Get the ebook download URL for a given book ID.
+     */
+    open fun getEbookDownloadUrl(bookId: String): String {
+        return "$serverUrl/Items/$bookId/Download"
+    }
+
+    open suspend fun search(query: String, limit: Int = 20): SearchResults {
         if (ConnectivityState.offlineMode.value) return SearchResults()
         val uid = userId ?: return SearchResults()
         val libraryIds = selectedLibraryIds.value
@@ -945,7 +952,7 @@ class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
         return SearchResults(books = books, authors = authors)
     }
 
-    suspend fun reportPlaybackStart(itemId: String, positionTicks: Long) {
+    open suspend fun reportPlaybackStart(itemId: String, positionTicks: Long) {
         try {
             client.post("$serverUrl/Sessions/Playing") {
                 header("X-Emby-Authorization", getAuthHeader())
@@ -957,7 +964,7 @@ class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
         }
     }
 
-    suspend fun reportPlaybackProgress(itemId: String, positionTicks: Long, isPaused: Boolean) {
+    open suspend fun reportPlaybackProgress(itemId: String, positionTicks: Long, isPaused: Boolean) {
         try {
             client.post("$serverUrl/Sessions/Playing/Progress") {
                 header("X-Emby-Authorization", getAuthHeader())
@@ -969,7 +976,7 @@ class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
         }
     }
 
-    suspend fun reportPlaybackStopped(itemId: String, positionTicks: Long) {
+    open suspend fun reportPlaybackStopped(itemId: String, positionTicks: Long) {
         try {
             client.post("$serverUrl/Sessions/Playing/Stopped") {
                 header("X-Emby-Authorization", getAuthHeader())

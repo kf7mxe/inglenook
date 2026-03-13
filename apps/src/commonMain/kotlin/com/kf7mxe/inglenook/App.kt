@@ -17,6 +17,8 @@ import com.lightningkite.kiteui.views.l2.applySafeInsets
 import com.lightningkite.kiteui.views.l2.coordinatorFrame
 import com.lightningkite.kiteui.views.l2.navigatorView
 import com.kf7mxe.inglenook.components.blurredImage
+import com.kf7mxe.inglenook.demo.DemoMode
+import com.kf7mxe.inglenook.demo.isDemoWebsite
 import com.kf7mxe.inglenook.components.connectivityDialog
 import com.kf7mxe.inglenook.components.nowPlayingPreview
 import com.kf7mxe.inglenook.components.offlineBanner
@@ -104,6 +106,13 @@ fun ViewWriter.app(navigator: PageNavigator, dialog: PageNavigator) {
 
     // Check if Jellyfin is configured, if not go to setup
     AppScope.launch {
+        // Auto-detect demo mode for web deployments
+        if (isDemoWebsite()) {
+            DemoMode.activate()
+            navigator.navigate(SplashPage())
+            return@launch
+        }
+
         val config = jellyfinServerConfig.value
         if (config == null) {
             navigator.navigate(JellyfinSetupPage())

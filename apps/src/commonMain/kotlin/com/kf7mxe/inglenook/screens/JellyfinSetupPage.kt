@@ -10,6 +10,7 @@ import com.lightningkite.kiteui.views.card
 import com.lightningkite.kiteui.views.direct.*
 import com.lightningkite.kiteui.views.expanding
 import com.lightningkite.kiteui.views.l2.icon
+import com.kf7mxe.inglenook.demo.DemoMode
 import com.kf7mxe.inglenook.jellyfin.JellyfinClient
 import com.kf7mxe.inglenook.jellyfin.addServer
 import com.kf7mxe.inglenook.jellyfin.jellyfinServers
@@ -113,6 +114,14 @@ class JellyfinSetupPage : Page, FullScreen {
                                 errorMessage.value = "Please enter a server URL"
                                 return@Action
                             }
+
+                            // Demo mode trigger for app store testers
+                            if (url.equals("appstoretester@inglenook.com", ignoreCase = true)) {
+                                DemoMode.activate()
+                                mainPageNavigator.navigate(HomePage())
+                                return@Action
+                            }
+
                             serverUrl.value = url
 
                             val client = JellyfinClient(url)

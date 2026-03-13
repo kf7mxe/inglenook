@@ -369,7 +369,7 @@ suspend fun openEbook(bookId: String, vw: ViewWriter) {
     if (com.lightningkite.kiteui.Platform.current == com.lightningkite.kiteui.Platform.Android) {
         val client = jellyfinClient.value
         if (client != null) {
-            val downloadUrl = "${client.serverUrl}/Items/$bookId/Download"
+            val downloadUrl = client.getEbookDownloadUrl(bookId)
             val authHeader = client.getAuthHeader()
             vw.ebookReader(bookId, downloadUrl, authHeader)
 //            vw.mainPageNavigator.navigate(EbookReaderPage(bookId))

@@ -71,6 +71,9 @@ object ConnectivityState {
     }
 
     fun initialize() {
+        // In demo mode, skip all connectivity checks — there's no real server
+        if (com.kf7mxe.inglenook.demo.DemoMode.isActive.value) return
+
         if (offlineMode.value) {
             if (manualOffline.value) {
                 // User chose offline — respect it, but check if server is reachable

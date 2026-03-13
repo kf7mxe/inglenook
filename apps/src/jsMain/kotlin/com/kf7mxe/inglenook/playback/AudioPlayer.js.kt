@@ -63,13 +63,19 @@ class JsAudioPlayer : AudioPlayer {
                 }
             }
 
-            // Error handling is done via the error event listener
+            // Handle load errors — stop playback so UI doesn't show stuck "playing" state
             addEventListener("error", { event ->
                 console.log("Audio error:", event)
+                println("AudioPlayer: Error loading audio from $mediaUrl")
+                PlaybackState.onPlaybackComplete()
             })
 
-            // Seek to start position
-            currentTime = startPositionTicks.toDouble() / 10_000_000.0 // Convert ticks to seconds
+            // Wait for metadata before seeking, then play
+            if (startPositionTicks > 0) {
+                addEventListener("loadedmetadata", {
+                    currentTime = startPositionTicks.toDouble() / 10_000_000.0
+                })
+            }
 
             // Set up Media Session API for browser media controls
             setupMediaSession(book)

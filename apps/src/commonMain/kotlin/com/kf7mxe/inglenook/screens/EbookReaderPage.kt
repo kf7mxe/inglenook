@@ -44,7 +44,7 @@ class EbookReaderPage(val bookId: String) : Page, FullScreen {
                 expanding.frame {
                     val client = jellyfinClient.value
                     if (client != null) {
-                        val downloadUrl = "${client.serverUrl}/Items/$bookId/Download"
+                        val downloadUrl = client.getEbookDownloadUrl(bookId)
                         val authHeader = client.getAuthHeader()
                         ebookReader(bookId, downloadUrl, authHeader)
                     }

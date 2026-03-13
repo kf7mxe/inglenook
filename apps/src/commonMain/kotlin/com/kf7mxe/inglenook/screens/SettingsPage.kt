@@ -15,6 +15,7 @@ import com.lightningkite.kiteui.views.l2.icon
 import com.lightningkite.kiteui.views.dynamicTheme
 import com.kf7mxe.inglenook.*
 import com.kf7mxe.inglenook.components.librarySelector
+import com.kf7mxe.inglenook.demo.DemoMode
 import com.kf7mxe.inglenook.storage.DangerSemantic
 import com.kf7mxe.inglenook.connectivity.ConnectivityState
 import com.kf7mxe.inglenook.theming.createTheme
@@ -38,66 +39,93 @@ class SettingsPage : Page {
 
     override fun ViewWriter.render() {
         scrolling.col {
-            // Jellyfin Servers section
+            // Jellyfin Servers section (or Demo Mode indicator)
             col {
                 h3 { content = "Jellyfin Servers" }
-                card.col {
-                    forEach(remember { jellyfinServers.value }) { server ->
-                        val isActive = activeServerId.value == server._id.toString()
 
-                        button {
-                            row {
-                                expanding.col {
-                                    text { content = server.displayName }
-                                    subtext { content = server.serverUrl }
-                                    subtext { content = "Logged in as ${server.username}" }
-                                }
-                                if (isActive) {
-                                    centered.icon(Icon.check, "Active")
-                                }
-                            }
-                            onClick {
-                                if (!isActive) {
-                                    switchToServer(server._id.toString())
-                                    mainPageNavigator.navigate(HomePage())
-                                }
-                            }
-                            if (isActive) {
-                                dynamicTheme { SelectedSemantic }
-                            }
-                        }
-
-                        // Remove button for each server
+                if (DemoMode.isActive.value) {
+                    // Demo mode indicator
+                    card.col {
                         row {
-                            expanding.space(1.0)
-                            button {
-                                row {
-                                    icon(Icon.close, "Remove")
-                                    text("Remove")
-                                }
-                                onClick {
-                                    removeServer(server._id.toString())
-                                    if (jellyfinServers.value.isEmpty()) {
-                                        mainPageNavigator.navigate(JellyfinSetupPage())
-                                    }
-                                }
-                                themeChoice += DangerSemantic
+                            expanding.col {
+                                text { content = "Demo Mode" }
+                                subtext { content = "Browsing public domain audiobooks" }
                             }
                         }
 
                         separator()
-                    }
 
-                    // Add server button
-                    button {
-                        row {
-                            icon(Icon.add, "Add")
-                            expanding.text("Add Server")
+                        button {
+                            row {
+                                icon(Icon.close, "Exit")
+                                expanding.text("Exit Demo Mode")
+                            }
+                            onClick {
+                                DemoMode.deactivate()
+                                mainPageNavigator.navigate(JellyfinSetupPage())
+                            }
+                            themeChoice += DangerSemantic
                         }
-                        onClick {
-                            mainPageNavigator.navigate(JellyfinSetupPage())
+                    }
+                } else {
+                    card.col {
+                        forEach(remember { jellyfinServers.value }) { server ->
+                            val isActive = activeServerId.value == server._id.toString()
+
+                            button {
+                                row {
+                                    expanding.col {
+                                        text { content = server.displayName }
+                                        subtext { content = server.serverUrl }
+                                        subtext { content = "Logged in as ${server.username}" }
+                                    }
+                                    if (isActive) {
+                                        centered.icon(Icon.check, "Active")
+                                    }
+                                }
+                                onClick {
+                                    if (!isActive) {
+                                        switchToServer(server._id.toString())
+                                        mainPageNavigator.navigate(HomePage())
+                                    }
+                                }
+                                if (isActive) {
+                                    dynamicTheme { SelectedSemantic }
+                                }
+                            }
+
+                            // Remove button for each server
+                            row {
+                                expanding.space(1.0)
+                                button {
+                                    row {
+                                        icon(Icon.close, "Remove")
+                                        text("Remove")
+                                    }
+                                    onClick {
+                                        removeServer(server._id.toString())
+                                        if (jellyfinServers.value.isEmpty()) {
+                                            mainPageNavigator.navigate(JellyfinSetupPage())
+                                        }
+                                    }
+                                    themeChoice += DangerSemantic
+                                }
+                            }
+
+                            separator()
                         }
-                        themeChoice += ImportantSemantic
+
+                        // Add server button
+                        button {
+                            row {
+                                icon(Icon.add, "Add")
+                                expanding.text("Add Server")
+                            }
+                            onClick {
+                                mainPageNavigator.navigate(JellyfinSetupPage())
+                            }
+                            themeChoice += ImportantSemantic
+                        }
                     }
                 }
             }

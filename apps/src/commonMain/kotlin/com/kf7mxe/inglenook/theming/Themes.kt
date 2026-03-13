@@ -58,6 +58,7 @@ fun Theme.Companion.cozy(accent: Color? = null): Theme {
         semanticOverrides = SemanticOverrides(
             OuterSemantic.override {
                 it.withBack(
+                    padding = Edges.ZERO,
                     cascading = false,
                     outlineWidth = 0.dp
                 )
@@ -186,11 +187,13 @@ fun Theme.Companion.autumnCabin(accent: Color? = null): Theme {
             OuterSemantic.override {
                 it.withoutBack(
                     cascading = false,
+                    padding = Edges.ZERO,
                     outlineWidth = 0.dp
                 )
             },
             DialogSemantic.override {
                 it.withBack(
+
                     cornerRadii =cornerRadii,
                     padding = Edges(1.rem,1.rem,1.rem,1.rem)
                 )
@@ -224,6 +227,7 @@ fun Theme.Companion.midnight(accent: Color? = null): Theme {
             OuterSemantic.override {
                 it.withoutBack(
                     cascading = false,
+                    padding = Edges.ZERO,
                     outlineWidth = 0.dp
                 )
             },
@@ -283,7 +287,9 @@ fun Theme.Companion.sunrise(accent: Color? = null): Theme {
             },
             OuterSemantic.override {
                 it.withoutBack(
+
                     cascading = false,
+                    padding = Edges.ZERO,
                     outlineWidth = 0.dp
                 )
             },
@@ -361,6 +367,7 @@ fun Theme.Companion.hackerman(accent: Color? = null): Theme {
             OuterSemantic.override {
                 it.withoutBack(
                     cascading = false,
+                    padding = Edges.ZERO,
                     outlineWidth = 0.dp
                 )
             },
@@ -409,6 +416,13 @@ fun Theme.Companion.clouds(accent: Color? = null): Theme {
                 it.withBack(
                     background = primaryFixed,
                     foreground = if (primaryFixed.perceivedBrightness > 0.4f) Color.black else Color.white,
+                )
+            },
+            OuterSemantic.override {
+                it.withoutBack(
+                    cascading = false,
+                    padding = Edges.ZERO,
+                    outlineWidth = 0.dp
                 )
             },
             SelectedSemantic.override {
@@ -468,6 +482,13 @@ fun Theme.Companion.obsidian(accent: Color? = null): Theme {
                     outline = primary
                 )
             },
+            OuterSemantic.override {
+                it.withoutBack(
+                    cascading = false,
+                    padding = Edges.ZERO,
+                    outlineWidth = 0.dp
+                )
+            },
             FieldSemantic.override {
                 it.withBack(
                     outlineWidth = 1.dp,
@@ -508,6 +529,13 @@ fun Theme.Companion.glassish(settings: ThemeSettings): Theme {
         padding = Edges(paddingValue),
         cornerRadii = CornerRadii.AdaptiveToSpacing(cornerRadius),
         semanticOverrides = SemanticOverrides(
+            OuterSemantic.override {
+                it.withoutBack(
+                    cascading = false,
+                    padding = Edges.ZERO,
+                    outlineWidth = 0.dp
+                )
+            },
             CardSemantic.override { theme ->
                 val cardOpacity = 0.20f
                 val bg = (settings.cardSemanticSettings?.backgroundColor?.toColorOrNull()
@@ -579,7 +607,8 @@ fun Theme.Companion.glassish(settings: ThemeSettings): Theme {
                     cascading = true,
                     background = it.outline.darken(5f).applyAlpha(0.99f),
                     )
-            }
+            },
+
         )
     )
 }
@@ -613,6 +642,13 @@ fun Theme.Companion.custom(settings: ThemeSettings): Theme {
         padding = Edges(paddingValue),
         cornerRadii = CornerRadii.AdaptiveToSpacing(cornerRadius),
         semanticOverrides = SemanticOverrides(
+            OuterSemantic.override {
+                it.withoutBack(
+                    cascading = false,
+                    padding = Edges.ZERO,
+                    outlineWidth = 0.dp
+                )
+            },
             CardSemantic.override { theme ->
                 val cardOpacity = settings.cardSemanticSettings?.opacity ?: 1f
                 val bg = (settings.cardSemanticSettings?.backgroundColor?.toColorOrNull()
