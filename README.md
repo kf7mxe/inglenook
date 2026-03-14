@@ -1,5 +1,7 @@
 # Inglenook
 
+![Inglenook Logo](apps/src/androidMain/ic_launcher-playstore.png)
+
 **A cozy audiobook and ebook client for Jellyfin.**
 
 *Inglenook* — a warm nook by the fireplace — captures the feeling of curling up with a good book. Escape on an adventure from the comfort of your favorite reading spot.
