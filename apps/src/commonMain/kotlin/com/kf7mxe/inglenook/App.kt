@@ -106,6 +106,9 @@ fun ViewWriter.app(navigator: PageNavigator, dialog: PageNavigator) {
 
     // Check if Jellyfin is configured, if not go to setup
     AppScope.launch {
+        // Restore demo mode from persistent storage if it was previously active
+        DemoMode.restoreIfNeeded()
+
         // Auto-detect demo mode for web deployments
         if (isDemoWebsite()) {
             DemoMode.activate()

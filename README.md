@@ -130,7 +130,16 @@ Inglenook currently uses an experimental build of KiteUI (`kf7mxe-experimental` 
 ### Phase 1 — Audiobook & Ebook Client (Complete)
 A polished, full-featured client for consuming audiobooks and ebooks from your Jellyfin library. Focus on a clean, enjoyable user experience with robust playback, offline support, and library management.
 
-### Phase 2 — Media Conversion
+### Phase 2 — Enhanced Library & Playback
+Deeper integration with Jellyfin and quality-of-life improvements for everyday use.
+
+- **Extras Folder Support** — A dedicated section on the book detail page for supplementary files (PDFs, maps, author notes, etc.) stored in an "extras" folder alongside the book. Requires updates to the [Inglenook Jellyfin Plugin](https://github.com/kf7mxe/inglenook-jellyfin-plugin) to expose extra files via the API.
+
+- **Smart Rewind on Resume** — A toggleable setting that automatically rewinds ~30 seconds when resuming playback after the app has been closed or backgrounded for an extended period, so you never lose your place.
+
+- **Bookshelf Syncing** — Sync user bookshelves to the Jellyfin server for accounts with the Inglenook plugin installed, enabling cross-device bookshelf persistence.
+
+### Phase 3 — Media Conversion
 Convert between audiobook and ebook formats:
 
 - **Audiobook to Ebook** — Transcribe audiobooks to text using speech-to-text models. A known challenge is handling the unique character and place names common in fiction. A planned approach involves using an LLM to detect likely transcription errors, then presenting an interface where users can review flagged names alongside short audio clips for verification.

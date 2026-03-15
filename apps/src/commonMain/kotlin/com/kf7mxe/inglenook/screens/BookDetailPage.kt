@@ -273,10 +273,10 @@ class BookDetailPage(val bookId: String) : Page {
                 }
 
                 // Bookshelf membership
-                val memberBookshelves = remember {
+                val memberBookshelves = rememberSuspending {
                     BookshelfRepository.getBookshelvesContainingBook(bookId)
                 }
-                shownWhen { memberBookshelves().isNotEmpty() }.col {
+                shownWhen { memberBookshelves()?.isNotEmpty() == true }.col {
                     h3 { content = "Bookshelves" }
                     scrollingHorizontally.row {
                         forEach(memberBookshelves) { shelf ->

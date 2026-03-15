@@ -498,6 +498,68 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
         }
     }
 
+    // --- Bookshelf API (Inglenook plugin) ---
+
+    open suspend fun getBookshelves(): List<BookshelfResponse> {
+        return try {
+            val response = client.get("$serverUrl/Inglenook/Bookshelves") {
+                header("X-Emby-Token", accessToken ?: "")
+            }
+            if (response.status.isSuccess()) {
+                response.body()
+            } else {
+                emptyList()
+            }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    open suspend fun createBookshelf(name: String): BookshelfResponse? {
+        return try {
+            val response = client.post("$serverUrl/Inglenook/Bookshelves") {
+                header("X-Emby-Token", accessToken ?: "")
+                contentType(ContentType.Application.Json)
+                setBody(CreateBookshelfRequest(Name = name))
+            }
+            if (response.status.isSuccess()) {
+                response.body()
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    open suspend fun updateBookshelf(id: String, name: String?, bookIds: List<String>?, coverImageUrl: String? = null): BookshelfResponse? {
+        return try {
+            val response = client.put("$serverUrl/Inglenook/Bookshelves/$id") {
+                header("X-Emby-Token", accessToken ?: "")
+                contentType(ContentType.Application.Json)
+                setBody(UpdateBookshelfRequest(Name = name, BookIds = bookIds, CoverImageUrl = coverImageUrl))
+            }
+            if (response.status.isSuccess()) {
+                response.body()
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    open suspend fun deleteBookshelf(id: String): Boolean {
+        return try {
+            val response = client.delete("$serverUrl/Inglenook/Bookshelves/$id") {
+                header("X-Emby-Token", accessToken ?: "")
+            }
+            response.status.isSuccess()
+        } catch (e: Exception) {
+            false
+        }
+    }
+
     /**
      * Try to find and parse a .cue file for chapter information.
      * Uses the Jellyfin API to:
@@ -1276,4 +1338,25 @@ data class QuickConnectAuthRequest(val Secret: String)
 data class SearchResults(
     val books: List<Book> = emptyList(),
     val authors: List<Author> = emptyList()
+)
+
+// Bookshelf DTOs (Inglenook plugin, PascalCase from C#)
+@Serializable
+data class BookshelfResponse(
+    val Id: String,
+    val Name: String,
+    val BookIds: List<String> = emptyList(),
+    val CoverImageUrl: String? = null,
+    val CreatedAt: String? = null,
+    val UpdatedAt: String? = null
+)
+
+@Serializable
+data class CreateBookshelfRequest(val Name: String)
+
+@Serializable
+data class UpdateBookshelfRequest(
+    val Name: String? = null,
+    val BookIds: List<String>? = null,
+    val CoverImageUrl: String? = null
 )

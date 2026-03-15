@@ -1,10 +1,13 @@
 package com.kf7mxe.inglenook.demo
 
 import com.kf7mxe.inglenook.*
+import com.kf7mxe.inglenook.jellyfin.BookshelfResponse
 import com.kf7mxe.inglenook.jellyfin.JellyfinClient
 import com.kf7mxe.inglenook.jellyfin.PluginChapter
 import com.kf7mxe.inglenook.jellyfin.SearchResults
 import com.kf7mxe.inglenook.jellyfin.ServerInfoResponse
+import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
 
 class DemoJellyfinClient : JellyfinClient(
     serverUrl = "https://demo.inglenook.app",
@@ -94,4 +97,40 @@ class DemoJellyfinClient : JellyfinClient(
     override suspend fun reportPlaybackStart(itemId: String, positionTicks: Long) { /* no-op */ }
     override suspend fun reportPlaybackProgress(itemId: String, positionTicks: Long, isPaused: Boolean) { /* no-op */ }
     override suspend fun reportPlaybackStopped(itemId: String, positionTicks: Long) { /* no-op */ }
+
+    // In-memory bookshelf storage for demo mode
+    private val demoBookshelves = mutableListOf<BookshelfResponse>()
+
+    @OptIn(ExperimentalUuidApi::class)
+    override suspend fun getBookshelves(): List<BookshelfResponse> = demoBookshelves.toList()
+
+    @OptIn(ExperimentalUuidApi::class)
+    override suspend fun createBookshelf(name: String): BookshelfResponse {
+        val bookshelf = BookshelfResponse(
+            Id = Uuid.random().toString(),
+            Name = name,
+            BookIds = emptyList()
+        )
+        demoBookshelves.add(bookshelf)
+        return bookshelf
+    }
+
+    override suspend fun updateBookshelf(id: String, name: String?, bookIds: List<String>?, coverImageUrl: String?): BookshelfResponse? {
+        val index = demoBookshelves.indexOfFirst { it.Id == id }
+        if (index == -1) return null
+        val existing = demoBookshelves[index]
+        val updated = existing.copy(
+            Name = name ?: existing.Name,
+            BookIds = bookIds ?: existing.BookIds,
+            CoverImageUrl = coverImageUrl ?: existing.CoverImageUrl
+        )
+        demoBookshelves[index] = updated
+        return updated
+    }
+
+    override suspend fun deleteBookshelf(id: String): Boolean {
+        val sizeBefore = demoBookshelves.size
+        demoBookshelves.removeAll { it.Id == id }
+        return demoBookshelves.size < sizeBefore
+    }
 }

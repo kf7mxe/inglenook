@@ -33,11 +33,13 @@ import com.lightningkite.kiteui.views.expanding
 import com.lightningkite.kiteui.views.forEach
 import com.lightningkite.kiteui.views.l2.dialog
 import com.lightningkite.kiteui.views.l2.icon
+import com.lightningkite.reactive.core.AppScope
 import com.lightningkite.reactive.core.Constant
 import com.lightningkite.reactive.core.Signal
 import com.lightningkite.reactive.core.mutableRememberSuspending
 import com.lightningkite.reactive.core.rememberSuspending
 import com.lightningkite.reactive.extensions.value
+import kotlinx.coroutines.launch
 import kotlin.uuid.ExperimentalUuidApi
 
 @Routable("bookshelf")
@@ -85,8 +87,10 @@ class BookshelfPage : Page {
                                 onClick {
                                     val name = newBookshelfName.value.trim()
                                     if (name.isNotEmpty()) {
-                                        BookshelfRepository.createBookshelf(name)
-                                        bookshelves.value = BookshelfRepository.getAllBookshelves()
+                                        AppScope.launch {
+                                            BookshelfRepository.createBookshelf(name)
+                                            bookshelves.value = BookshelfRepository.getAllBookshelves()
+                                        }
                                         newBookshelfName.value = ""
                                     }
                                     dismiss()
