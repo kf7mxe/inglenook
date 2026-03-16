@@ -10,6 +10,7 @@ import com.lightningkite.kiteui.views.l2.icon
 import com.lightningkite.kiteui.views.fieldTheme
 import com.lightningkite.kiteui.views.forEach
 import com.kf7mxe.inglenook.Bookmark
+import com.kf7mxe.inglenook.util.formatDuration
 import com.kf7mxe.inglenook.storage.DangerSemantic
 import com.kf7mxe.inglenook.edit
 import com.kf7mxe.inglenook.playback.PlaybackState
@@ -53,15 +54,7 @@ fun ViewWriter.bookmarksList(
                             }
                         }
                         // Timestamp
-                        val totalSeconds = bookmark.positionTicks / 10_000_000
-                        val hours = totalSeconds / 3600
-                        val minutes = (totalSeconds % 3600) / 60
-                        val seconds = totalSeconds % 60
-                        val timeStr = if (hours > 0) {
-                            "$hours:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}"
-                        } else {
-                            "$minutes:${seconds.toString().padStart(2, '0')}"
-                        }
+                        val timeStr = formatDuration(bookmark.positionTicks)
                         if (bookmark.note != null) {
                             subtext { content = timeStr }
                         } else {

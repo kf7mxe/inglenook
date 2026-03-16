@@ -9,6 +9,8 @@ import com.lightningkite.kiteui.views.direct.*
 import com.lightningkite.kiteui.views.expanding
 import com.lightningkite.kiteui.views.l2.icon
 import com.kf7mxe.inglenook.*
+import com.kf7mxe.inglenook.components.EmptyState
+import com.kf7mxe.inglenook.util.formatFileSize
 import com.kf7mxe.inglenook.storage.DangerSemantic
 import com.kf7mxe.inglenook.cache.fetchCoverImage
 import com.kf7mxe.inglenook.downloads.DownloadManager
@@ -117,13 +119,11 @@ class DownloadsPage : Page {
                 gap = 0.5.rem
                 h3 { content = "Downloaded Books" }
 
-                shownWhen { downloads().isEmpty() && activeDownloads().isEmpty() }.centered.col {
-                    padding = 2.rem
-                    gap = 0.5.rem
-                    icon(Icon.download.copy(width = 3.rem, height = 3.rem), "Downloads")
-                    text("No downloaded books")
-                    subtext("Download books to listen offline")
-                }
+                shownWhen { downloads().isEmpty() && activeDownloads().isEmpty() }.EmptyState(
+                    icon = Icon.download,
+                    title = "No downloaded books",
+                    description = "Download books to listen offline"
+                )
 
                 shownWhen { downloads().isNotEmpty() }.card.col {
                     gap = 0.rem
@@ -194,14 +194,4 @@ class DownloadsPage : Page {
     }
 }
 
-private fun formatFileSize(bytes: Long): String {
-    return when {
-        bytes < 1024 -> "$bytes B"
-        bytes < 1024 * 1024 -> "${bytes / 1024} KB"
-        bytes < 1024 * 1024 * 1024 -> "${bytes / (1024 * 1024)} MB"
-        else -> {
-            val gb = bytes.toDouble() / (1024 * 1024 * 1024)
-            "${(gb * 100).toLong() / 100.0} GB"
-        }
-    }
-}
+// formatFileSize moved to com.kf7mxe.inglenook.util.FormatUtils

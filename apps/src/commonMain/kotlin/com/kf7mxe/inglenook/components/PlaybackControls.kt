@@ -7,6 +7,8 @@ import com.lightningkite.kiteui.views.direct.*
 import com.lightningkite.kiteui.views.expanding
 import com.lightningkite.kiteui.views.l2.icon
 import com.kf7mxe.inglenook.*
+import com.kf7mxe.inglenook.util.formatDuration
+import com.kf7mxe.inglenook.util.formatDurationShort
 import com.kf7mxe.inglenook.playback.PlaybackState
 import com.kf7mxe.inglenook.storage.BookmarkRepository
 import com.kf7mxe.inglenook.storage.SeekBarSemantic
@@ -137,14 +139,7 @@ fun ViewWriter.PlaybackControls() {
                     val duration = PlaybackState.duration()
                     val remaining = duration - position
                     if (remaining > 0) {
-                        val remainingSeconds = remaining / 10_000_000
-                        val hours = remainingSeconds / 3600
-                        val minutes = (remainingSeconds % 3600) / 60
-                        if (hours > 0) {
-                            "${hours}h ${minutes}m left"
-                        } else {
-                            "${minutes}m left"
-                        }
+                        "${formatDurationShort(remaining)} left"
                     } else {
                         ""
                     }
@@ -243,17 +238,7 @@ fun ViewWriter.PlaybackControls() {
                             card.col {
                                 h3 { content = "Add Bookmark" }
                                 subtext {
-                                    val totalSeconds = position / 10_000_000
-                                    val hours = totalSeconds / 3600
-                                    val minutes = (totalSeconds % 3600) / 60
-                                    val seconds = totalSeconds % 60
-                                    content = "Position: " + if (hours > 0) {
-                                        "$hours:${minutes.toString().padStart(2, '0')}:${
-                                            seconds.toString().padStart(2, '0')
-                                        }"
-                                    } else {
-                                        "$minutes:${seconds.toString().padStart(2, '0')}"
-                                    }
+                                    content = "Position: ${formatDuration(position)}"
                                 }
                                 fieldTheme.textInput {
                                     hint = "Add a note (optional)..."

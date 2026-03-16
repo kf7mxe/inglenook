@@ -30,6 +30,9 @@ import com.kf7mxe.inglenook.playback.PlaybackState
 import com.kf7mxe.inglenook.storage.BookmarkRepository
 import com.kf7mxe.inglenook.storage.BookshelfRepository
 import com.kf7mxe.inglenook.storage.ImageSemantic
+import com.kf7mxe.inglenook.util.calculateProgressPercent
+import com.kf7mxe.inglenook.util.calculateProgressRatio
+import com.kf7mxe.inglenook.util.formatDurationShort
 import com.kf7mxe.inglenook.util.truncateDisplay
 import com.lightningkite.kiteui.Routable
 import com.lightningkite.kiteui.current
@@ -153,11 +156,7 @@ class BookDetailPage(val bookId: String) : Page {
                                 book()?.itemType == ItemType.AudioBook
                             }
                             ::content {
-                                val durationTicks = book()?.duration ?: 0L
-                                val totalSeconds = durationTicks / 10_000_000
-                                val hours = totalSeconds / 3600
-                                val minutes = (totalSeconds % 3600) / 60
-                                if (hours > 0) "${hours}h ${minutes}m" else "${minutes}m"
+                                formatDurationShort(book()?.duration ?: 0L)
                             }
                         }
 
@@ -177,7 +176,7 @@ class BookDetailPage(val bookId: String) : Page {
                                     val b = book()
                                     val position = b?.userData?.playbackPositionTicks ?: 0L
                                     val dur = b?.duration ?: 1L
-                                    if (dur > 0) (position.toFloat() / dur).coerceAtMost(1f) else 0f
+                                    calculateProgressRatio(position, dur)
                                 }
                             }
                             subtext {
@@ -185,9 +184,7 @@ class BookDetailPage(val bookId: String) : Page {
                                     val b = book()
                                     val position = b?.userData?.playbackPositionTicks ?: 0L
                                     val dur = b?.duration ?: 1L
-                                    val percent = if (dur > 0) ((position.toFloat() / dur) * 100).toInt()
-                                        .coerceAtMost(100) else 0
-                                    "$percent% complete"
+                                    "${calculateProgressPercent(position, dur)}% complete"
                                 }
                             }
                         }

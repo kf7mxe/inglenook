@@ -8,21 +8,19 @@ import com.lightningkite.kiteui.views.centered
 import com.lightningkite.kiteui.views.direct.*
 import com.lightningkite.kiteui.views.expanding
 import com.lightningkite.kiteui.views.l2.icon
-import com.kf7mxe.inglenook.ViewMode
 import com.kf7mxe.inglenook.book
-import com.kf7mxe.inglenook.dashboard
 import com.kf7mxe.inglenook.components.BookCard
 import com.kf7mxe.inglenook.components.BookListItem
+import com.kf7mxe.inglenook.components.CoverImage
+import com.kf7mxe.inglenook.components.EmptyState
+import com.kf7mxe.inglenook.components.GridListView
+import com.kf7mxe.inglenook.components.ViewModeToggleButton
 import com.kf7mxe.inglenook.components.connectionError
-import com.kf7mxe.inglenook.connectivity.ConnectivityState
-import com.kf7mxe.inglenook.cache.fetchCoverImage
 import com.kf7mxe.inglenook.components.inglenookActivityIndicator
+import com.kf7mxe.inglenook.connectivity.ConnectivityState
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
-import com.kf7mxe.inglenook.storage.ImageSemantic
-import com.kf7mxe.inglenook.viewMode
+import com.kf7mxe.inglenook.util.formatBookCount
 import com.lightningkite.kiteui.Routable
-import com.lightningkite.kiteui.views.l2.RecyclerViewPlacerVerticalGrid
-import com.lightningkite.kiteui.views.l2.children
 import com.lightningkite.reactive.context.invoke
 import com.lightningkite.reactive.core.Constant
 import com.lightningkite.reactive.core.Reactive
@@ -50,108 +48,61 @@ class AuthorDetailPage(val authorId: String) : Page {
             }
 
             // No books state
-            shownWhen { books.state().ready && books().isEmpty() && ConnectivityState.lastNetworkError() == null }.centered.col {
-                gap = 0.5.rem
-                icon(Icon.book.copy(width = 3.rem, height = 3.rem), "Books")
-                text("No books found")
-                subtext("This author has no audiobooks in your library")
-            }
-            // Author image
-            val cachedAuthorImage = rememberSuspending {
-                jellyfinClient().fetchCoverImage(author()?.imageId, authorId)
-            }
+            shownWhen { books.state().ready && books().isEmpty() && ConnectivityState.lastNetworkError() == null }.EmptyState(
+                icon = Icon.book,
+                title = "No books found",
+                description = "This author has no audiobooks in your library"
+            )
 
+            // Author image and info
             row {
-                sizeConstraints(width = 8.rem, height = 8.rem).frame {
-                    themed(ImageSemantic). image {
-                        this.rView::shown{
-                            author()?.imageId != null
-                        }
-                        ::source {cachedAuthorImage() }
-                        scaleType = ImageScaleType.Crop
-                    }
-                    centered.icon {
-                        ::shown{
-                            author()?.imageId == null
-                        }
-                        source = Icon.person.copy(width = 4.rem, height = 4.rem)
-                    }
-
-                }
+                CoverImage(
+                    imageId = { author()?.imageId },
+                    itemId = { authorId },
+                    fallbackIcon = Icon.person.copy(width = 4.rem, height = 4.rem),
+                    imageHeight = 8.rem,
+                    imageWidth = 8.rem,
+                    scaleType = ImageScaleType.Crop
+                )
                 col {
-
                     h2 { ::content { author()?.name ?: "Unknown Author" } }
 
-                    // Overview
                     shownWhen { author()?.overview != null }.sizeConstraints(height = 8.rem).scrolling.text {
                         ::content { author()?.overview ?: "" }
                     }
 
                     subtext {
-                        ::content { "${books().size} ${if (books().size == 1) "book" else "books"}" }
+                        ::content { formatBookCount(books().size) }
                     }
                 }
             }
-
 
             separator()
 
             // Books section
-                gap = 1.rem
+            gap = 1.rem
 
             // View mode toggle header
             row {
                 expanding.h3 { content = "Books" }
-                button {
-                    icon {
-                        ::source { if (viewMode() == ViewMode.Grid) Icon.menu else Icon.dashboard }
-                        description = "Toggle view"
+                ViewModeToggleButton()
+            }
+
+            gap = 1.rem
+            GridListView(
+                items = books,
+                keySelector = { it.id },
+                gridItem = { book ->
+                    BookCard(book) {
+                        mainPageNavigator.navigate(BookDetailPage(book.invoke().id))
                     }
-                    onClick {
-                        viewMode.value = if (viewMode.value == ViewMode.Grid) ViewMode.List else ViewMode.Grid
+                },
+                listItem = { book ->
+                    BookListItem(book) {
+                        mainPageNavigator.navigate(BookDetailPage(book.invoke().id))
                     }
                 }
-            }
-
-
-                // Grid view
-                    gap = 1.rem
-            expanding.swapView {
-                swapping(
-                    current = {
-                        viewMode()
-                    },
-                    views = { viewMode ->
-                        when (viewMode) {
-                            ViewMode.Grid -> {
-                                expanding.recyclerView {
-                                    ::placer{ RecyclerViewPlacerVerticalGrid(2) }
-                                    children(books, { it.id }) { book ->
-                                        BookCard(book) {
-                                            mainPageNavigator.navigate(BookDetailPage(book.invoke().id))
-                                        }
-                                    }
-
-                                }
-                            }
-
-                            ViewMode.List -> {
-                                expanding.recyclerView {
-                                    children(books, { it.id }) { book ->
-                                        BookListItem(book) {
-                                            mainPageNavigator.navigate(BookDetailPage(book.invoke().id))
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    })
-
-            }
-
-
-
-
+            )
         }
     }
 }

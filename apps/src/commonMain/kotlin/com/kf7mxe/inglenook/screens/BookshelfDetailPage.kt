@@ -16,7 +16,8 @@ import com.kf7mxe.inglenook.check
 import com.kf7mxe.inglenook.components.BookCard
 import com.kf7mxe.inglenook.components.BookListItem
 import com.kf7mxe.inglenook.components.inglenookActivityIndicator
-import com.kf7mxe.inglenook.dashboard
+import com.kf7mxe.inglenook.components.EmptyState
+import com.kf7mxe.inglenook.components.ViewModeToggleButton
 import com.kf7mxe.inglenook.edit
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.storage.BookshelfRepository
@@ -89,15 +90,7 @@ class BookshelfDetailPage(val bookshelfId: String) : Page {
                 }
 
                 // View mode toggle
-                button {
-                    icon {
-                        ::source { if (viewMode() == ViewMode.Grid) Icon.menu else Icon.dashboard }
-                        description = "Toggle view"
-                    }
-                    onClick {
-                        viewMode.set( if (viewMode.value == ViewMode.Grid) ViewMode.List else ViewMode.Grid)
-                    }
-                }
+                ViewModeToggleButton()
             }
 
             separator()
@@ -119,12 +112,11 @@ class BookshelfDetailPage(val bookshelfId: String) : Page {
                 // Content
                 shownWhen { books.state().ready }.frame {
                     // Empty state
-                    shownWhen { books()?.isEmpty() == true }.centered.col {
-                        gap = 1.rem
-                        icon(Icon.book.copy(width = 3.rem, height = 3.rem), "Books")
-                        text("No books in this bookshelf")
-                        subtext("Add books from the book detail page")
-                    }
+                    shownWhen { books()?.isEmpty() == true }.EmptyState(
+                        icon = Icon.book,
+                        title = "No books in this bookshelf",
+                        description = "Add books from the book detail page"
+                    )
 
 
                     col {

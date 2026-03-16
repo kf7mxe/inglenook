@@ -14,6 +14,7 @@ import com.lightningkite.kiteui.views.dynamicTheme
 import com.lightningkite.kiteui.views.forEachUpdating
 import com.lightningkite.reactive.context.invoke
 import com.lightningkite.reactive.core.Reactive
+import com.kf7mxe.inglenook.util.formatDuration
 import com.lightningkite.reactive.core.remember
 
 /**
@@ -65,19 +66,8 @@ fun ViewWriter.chaptersList(
                         }
                         // Show start time
                         subtext {
-
                             ::content {
-                                val totalSeconds = chapter().startPositionTicks / 10_000_000
-                                val hours = totalSeconds / 3600
-                                val minutes = (totalSeconds % 3600) / 60
-                                val seconds = totalSeconds % 60
-                                if (hours > 0) {
-                                    "$hours:${
-                                        minutes.toString().padStart(2, '0')
-                                    }:${seconds.toString().padStart(2, '0')}"
-                                } else {
-                                    "$minutes:${seconds.toString().padStart(2, '0')}"
-                                }
+                                formatDuration(chapter().startPositionTicks)
                             }
                         }
                     }
@@ -116,14 +106,4 @@ fun ViewWriter.chaptersList(
     }
 }
 
-fun formatDuration(ticks: Long): String {
-    val totalSeconds = ticks / 10_000_000
-    val hours = totalSeconds / 3600
-    val minutes = (totalSeconds % 3600) / 60
-    val seconds = totalSeconds % 60
-    return if (hours > 0) {
-        "$hours:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}"
-    } else {
-        "$minutes:${seconds.toString().padStart(2, '0')}"
-    }
-}
+// formatDuration moved to com.kf7mxe.inglenook.util.FormatUtils
