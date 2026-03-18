@@ -44,7 +44,6 @@ object ImageCache {
 
     suspend fun get(url: String): ImageSource? {
         if (url.isBlank()) return null
-        println("DEBUG url ${url}")
 
         val key = cacheKey(url)
 
@@ -53,7 +52,6 @@ object ImageCache {
 
         // L2: Check persistent cache
         val persisted = loadPersistedImage(key)
-        println("DEBUG persisted: $persisted")
         if (persisted != null) {
 
             mutex.withLock { putInMemoryUnsafe(key, persisted) }
@@ -65,7 +63,6 @@ object ImageCache {
         if (fetched != null) {
             mutex.withLock { putInMemoryUnsafe(key, fetched) }
         }
-        println("DEBUG fetched $fetched")
         return fetched
     }
 

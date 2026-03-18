@@ -29,9 +29,6 @@ fun ViewWriter.coverImage(
     scaleType: ImageScaleType = ImageScaleType.Crop
 ) {
     val cachedCover = rememberSuspending {
-        println("DEBUG imageId() ${imageId()}")
-        println("DEBUG itemId() ${itemId()}")
-        println("DEBUG jellyfinClient().fetchCoverImage(imageId(), itemId()) ${jellyfinClient().fetchCoverImage(imageId(), itemId())}")
         jellyfinClient().fetchCoverImage(imageId(), itemId())
     }
     val hasImage = rememberSuspending { imageId() != null && cachedCover() != null }

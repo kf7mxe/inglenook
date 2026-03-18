@@ -440,9 +440,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
 
             val item: JellyfinItem = response.body()
 
-            println("DEBUG item ${item}")
             var book = item.toAudioBook()
-            println("DEBUG book ${book}")
 
             // Fetch chapters from the AudiobookChapters plugin endpoint
             val pluginChapters = getAudiobookChapters(itemId)
@@ -863,6 +861,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
                 val coverBook = seriesBooks.firstOrNull { it.coverImageId != null }
                 Series(
                     id = seriesBooks.first().seriesId ?: seriesName, // Use seriesId if available, else name
+                    coverBookId = coverBook?.id,
                     name = seriesName,
                     imageId = coverBook?.coverImageId,
                     bookCount = seriesBooks.size,

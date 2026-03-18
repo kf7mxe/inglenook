@@ -32,7 +32,6 @@ fun ViewWriter.connectionError(onRetrySuccess: () -> Unit) {
             loop = true
             autoPlay = true
             colorTransform = { lottieColor ->
-                println("DEBUG lottieColor: $lottieColor")
                 if(lottieColor.layerIndex == 2) theme.background.closestColor()
                 else lottieColor.color
             }

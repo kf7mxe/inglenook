@@ -100,6 +100,7 @@ data class Series(
     val id: String,
     val name: String,
     val imageId: String? = null,
+    val coverBookId: String? = null,
     val bookCount: Int = 0,
     val overview: String? = null
 )

@@ -86,7 +86,7 @@ class LibraryPage : Page {
                     views = {currentTab ->
                         when(currentTab) {
                             BooksTab.Books -> with(BooksPage(bookSearchQuery,bookSelectedFilter,bookTypeFilter)) { render() }
-                            BooksTab.Authors -> with(AuthorsPage(authorSearchQuery)) { render() }
+                            BooksTab.Authors -> with(AuthorsPage(authorSearchQuery, bookTypeFilter)) { render() }
                             BooksTab.Series -> with(SeriesPage(seriesSearchQuery)) { render() }
                         }
 

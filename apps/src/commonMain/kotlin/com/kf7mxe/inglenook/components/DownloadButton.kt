@@ -59,7 +59,6 @@ fun ViewWriter.DownloadButton(bookReactive: Reactive<Book?>) {
             }
             shownWhen {
                 val test = downloadStatus()?.status == DownloadStatus.Downloading
-                println("DEBUG is active progress: $test")
                 test
             }.unpadded.centered.sizeConstraints(width = 2.5.rem, height = 2.5.rem).lottie(
                 source = LottieRaw(LottieAnimations.downloading),

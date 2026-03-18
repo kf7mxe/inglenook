@@ -9,6 +9,7 @@ import com.lightningkite.kiteui.views.direct.*
 import com.lightningkite.kiteui.views.expanding
 import com.lightningkite.kiteui.views.l2.icon
 import com.kf7mxe.inglenook.Author
+import com.kf7mxe.inglenook.ItemType
 import com.kf7mxe.inglenook.components.coverImage
 import com.kf7mxe.inglenook.components.EmptyState
 import com.kf7mxe.inglenook.components.gridListView
@@ -18,6 +19,8 @@ import com.kf7mxe.inglenook.components.inglenookActivityIndicator
 import com.kf7mxe.inglenook.connectivity.ConnectivityState
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.lightningkite.kiteui.Routable
+import com.lightningkite.kiteui.views.card
+import com.lightningkite.kiteui.views.dynamicTheme
 import com.lightningkite.kiteui.views.fieldTheme
 import com.lightningkite.reactive.context.invoke
 import com.lightningkite.reactive.core.Signal
@@ -27,21 +30,20 @@ import com.lightningkite.reactive.core.remember
 import com.lightningkite.reactive.core.rememberSuspending
 
 @Routable("AuthorsPage")
-class AuthorsPage(val searchQuery: Signal<String> = Signal("")) : Page {
+class AuthorsPage(val searchQuery: Signal<String> = Signal(""),
+                  val bookTypeFilter: Signal<ItemType?> = Signal(null)
+    ) : Page {
     override val title: Reactive<String> = Constant("Authors")
 
     override fun ViewWriter.render() {
-        val authors = rememberSuspending {
+        val filteredAuthors: Reactive<List<Author>> = rememberSuspending {
             ConnectivityState.offlineMode()
-            jellyfinClient()?.getAuthors() ?: emptyList()
-        }
-
-        val filteredAuthors: Reactive<List<Author>> = remember {
+            val books = jellyfinClient()?.getAllBooks() ?: emptyList()
             val query = searchQuery().lowercase().trim()
-            if (query.isEmpty()) return@remember authors()
-            return@remember authors().filter { author ->
-                author.name.lowercase().contains(query)
-            }
+            val authorsWithBookType = books.filter {  bookTypeFilter()?.let{bookTypeFilter -> it.itemType == bookTypeFilter }?:true }.map {it.authors}.flatten().distinctBy { it.id }
+            if (query.isEmpty()) return@rememberSuspending authorsWithBookType
+            println("DEBUG book type filter ${bookTypeFilter()}")
+            return@rememberSuspending authorsWithBookType.filter { it.name.lowercase().contains(query.lowercase()) }
         }
 
         col {
@@ -54,26 +56,41 @@ class AuthorsPage(val searchQuery: Signal<String> = Signal("")) : Page {
                     keyboardHints = KeyboardHints(KeyboardCase.None, KeyboardType.Text)
                     content bind searchQuery
                 }
+                card.button {
+                    text("All")
+                    onClick { bookTypeFilter.value = null }
+                    dynamicTheme { if (bookTypeFilter() == null) ImportantSemantic else null }
+                }
+                card.button {
+                    text("Audio")
+                    onClick { bookTypeFilter.value = ItemType.AudioBook }
+                    dynamicTheme { if (bookTypeFilter() == ItemType.AudioBook) ImportantSemantic else null }
+                }
+                card.button {
+                    text("Ebooks")
+                    onClick { bookTypeFilter.value = ItemType.Ebook }
+                    dynamicTheme { if (bookTypeFilter() == ItemType.Ebook) ImportantSemantic else null }
+                }
                 viewModeToggleButton()
             }
 
             // Loading state
-            shownWhen { !authors.state().ready }.centered.inglenookActivityIndicator()
+            shownWhen { !filteredAuthors.state().ready }.centered.inglenookActivityIndicator()
 
             // Connection error state
-            shownWhen { authors.state().ready && authors().isEmpty() && ConnectivityState.lastNetworkError() != null }.connectionError {
+            shownWhen { filteredAuthors.state().ready && filteredAuthors().isEmpty() && ConnectivityState.lastNetworkError() != null }.connectionError {
                 mainPageNavigator.navigate(LibraryPage())
             }
 
             // Empty state
-            shownWhen { authors.state().ready && authors().isEmpty() && ConnectivityState.lastNetworkError() == null }.EmptyState(
+            shownWhen { filteredAuthors.state().ready && filteredAuthors().isEmpty() && ConnectivityState.lastNetworkError() == null }.EmptyState(
                 icon = Icon.person,
                 title = "No authors found",
                 description = "Your audiobook library has no authors"
             )
 
             // No search results
-            shownWhen { authors.state().ready && authors().isNotEmpty() && filteredAuthors().isEmpty() }.centered.col {
+            shownWhen { filteredAuthors.state().ready && filteredAuthors().isNotEmpty() && filteredAuthors().isEmpty() }.centered.col {
                 icon(Icon.search.copy(width = 3.rem, height = 3.rem), "Search")
                 text("No results found")
                 subtext { ::content { "No authors match \"${searchQuery()}\"" } }
@@ -115,6 +132,7 @@ fun ViewWriter.authorCard(author: Reactive<Author>, onClick: suspend () -> Unit)
             centered.text {
                 ::content { author().name }
                 ellipsis = true
+                lineClamp = 2
             }
         }
         this.onClick { onClick() }
@@ -140,11 +158,14 @@ fun ViewWriter.authorListItem(author: Reactive<Author>, onClick: suspend () -> U
                 centered.text {
                     ::content { author().name }
                     ellipsis = true
+                    lineClamp = 2
                 }
                 subtext {
                     ::shown { author().overview != null }
                     ::content { author().overview ?: "" }
                     ellipsis = true
+                    lineClamp = 2
+
                 }
             }
 

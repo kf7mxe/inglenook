@@ -142,7 +142,6 @@ fun ViewWriter.app(navigator: PageNavigator, dialog: PageNavigator) {
                 val settings = persistedThemeSettings()
                 val preset = persistedThemePreset()
                 val wallpaperPath = settings.wallpaperPath
-                println("DEBUG wallpaperPath ${wallpaperPath}")
                 if (wallpaperPath != null) {
                     val parentDir = wallpaperPath.split("/").first()
                     val fileName = wallpaperPath.split("/").last()

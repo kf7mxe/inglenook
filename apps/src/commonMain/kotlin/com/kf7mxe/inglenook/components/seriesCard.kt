@@ -22,7 +22,7 @@ fun ViewWriter.seriesCard(
             // Cover image
             centered.coverImage(
                 imageId = { series().imageId },
-                itemId = { series().id },
+                itemId = { series().coverBookId },
                 fallbackIcon = Icon.book,
                 imageHeight = 12.rem,
                 imageWidth = 9.rem,
