@@ -7,14 +7,13 @@ import com.lightningkite.kiteui.views.ViewWriter
 import com.lightningkite.kiteui.views.centered
 import com.lightningkite.kiteui.views.direct.*
 import com.lightningkite.kiteui.views.expanding
-import com.lightningkite.kiteui.views.l2.icon
 import com.kf7mxe.inglenook.book
 import com.kf7mxe.inglenook.components.BookCard
 import com.kf7mxe.inglenook.components.BookListItem
-import com.kf7mxe.inglenook.components.CoverImage
+import com.kf7mxe.inglenook.components.coverImage
 import com.kf7mxe.inglenook.components.EmptyState
-import com.kf7mxe.inglenook.components.GridListView
-import com.kf7mxe.inglenook.components.ViewModeToggleButton
+import com.kf7mxe.inglenook.components.gridListView
+import com.kf7mxe.inglenook.components.viewModeToggleButton
 import com.kf7mxe.inglenook.components.connectionError
 import com.kf7mxe.inglenook.components.inglenookActivityIndicator
 import com.kf7mxe.inglenook.connectivity.ConnectivityState
@@ -56,7 +55,7 @@ class AuthorDetailPage(val authorId: String) : Page {
 
             // Author image and info
             row {
-                CoverImage(
+                coverImage(
                     imageId = { author()?.imageId },
                     itemId = { authorId },
                     fallbackIcon = Icon.person.copy(width = 4.rem, height = 4.rem),
@@ -85,11 +84,11 @@ class AuthorDetailPage(val authorId: String) : Page {
             // View mode toggle header
             row {
                 expanding.h3 { content = "Books" }
-                ViewModeToggleButton()
+                viewModeToggleButton()
             }
 
             gap = 1.rem
-            GridListView(
+            gridListView(
                 items = books,
                 keySelector = { it.id },
                 gridItem = { book ->

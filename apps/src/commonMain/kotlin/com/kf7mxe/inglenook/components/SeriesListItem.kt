@@ -19,7 +19,7 @@ fun ViewWriter.SeriesListItem(
     expanding.button {
         row {
             // Thumbnail
-            CoverImage(
+            coverImage(
                 imageId = { series().imageId },
                 itemId = { series().id },
                 fallbackIcon = Icon.book,

@@ -12,27 +12,19 @@ import com.kf7mxe.inglenook.util.formatDurationShort
 import com.kf7mxe.inglenook.playback.PlaybackState
 import com.kf7mxe.inglenook.storage.BookmarkRepository
 import com.kf7mxe.inglenook.storage.SeekBarSemantic
-import com.lightningkite.kiteui.views.atEnd
 import com.lightningkite.kiteui.views.buttonTheme
 import com.lightningkite.kiteui.views.card
-import com.lightningkite.kiteui.views.dynamicTheme
 import com.lightningkite.kiteui.views.fieldTheme
-import com.lightningkite.kiteui.views.forEach
-import com.lightningkite.kiteui.views.forEachById
 import com.lightningkite.kiteui.views.important
-import com.lightningkite.kiteui.views.l2.toast
-import com.lightningkite.reactive.context.invoke
 import com.lightningkite.reactive.core.Signal
 import com.lightningkite.reactive.core.remember
-import com.lightningkite.reactive.core.rememberSuspending
 import kotlinx.coroutines.launch
-import kotlinx.datetime.Clock
 import kotlin.time.ExperimentalTime
 
 private const val SEEK_SYNC_THRESHOLD_MS = 50L
 
 @OptIn(ExperimentalTime::class)
-fun ViewWriter.PlaybackControls() {
+fun ViewWriter.playbackControls() {
     // Create a signal for the seek bar that syncs with PlaybackState
     val seekRatio =
         Signal(if (PlaybackState.duration.value > 0) PlaybackState.positionTicks.value.toFloat() / PlaybackState.duration.value else 0f)

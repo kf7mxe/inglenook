@@ -515,6 +515,22 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
         }
     }
 
+    open suspend fun bookshelfEndpointAvailable(): Boolean {
+        return try {
+            val response = client.get("$serverUrl/Inglenook/Bookshelves") {
+                header("X-Emby-Token", accessToken ?: "")
+            }
+            if (response.status.isSuccess()) {
+                response.body()
+            } else {
+               false
+            }
+        }
+        catch (e: Exception) {
+            false
+        }
+    }
+
     open suspend fun createBookshelf(name: String): BookshelfResponse? {
         return try {
             val response = client.post("$serverUrl/Inglenook/Bookshelves") {

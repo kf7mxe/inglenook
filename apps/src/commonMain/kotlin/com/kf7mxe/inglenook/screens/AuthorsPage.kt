@@ -9,11 +9,10 @@ import com.lightningkite.kiteui.views.direct.*
 import com.lightningkite.kiteui.views.expanding
 import com.lightningkite.kiteui.views.l2.icon
 import com.kf7mxe.inglenook.Author
-import com.kf7mxe.inglenook.book
-import com.kf7mxe.inglenook.components.CoverImage
+import com.kf7mxe.inglenook.components.coverImage
 import com.kf7mxe.inglenook.components.EmptyState
-import com.kf7mxe.inglenook.components.GridListView
-import com.kf7mxe.inglenook.components.ViewModeToggleButton
+import com.kf7mxe.inglenook.components.gridListView
+import com.kf7mxe.inglenook.components.viewModeToggleButton
 import com.kf7mxe.inglenook.components.connectionError
 import com.kf7mxe.inglenook.components.inglenookActivityIndicator
 import com.kf7mxe.inglenook.connectivity.ConnectivityState
@@ -55,7 +54,7 @@ class AuthorsPage(val searchQuery: Signal<String> = Signal("")) : Page {
                     keyboardHints = KeyboardHints(KeyboardCase.None, KeyboardType.Text)
                     content bind searchQuery
                 }
-                ViewModeToggleButton()
+                viewModeToggleButton()
             }
 
             // Loading state
@@ -80,16 +79,16 @@ class AuthorsPage(val searchQuery: Signal<String> = Signal("")) : Page {
                 subtext { ::content { "No authors match \"${searchQuery()}\"" } }
             }
 
-            GridListView(
+            gridListView(
                 items = filteredAuthors,
                 keySelector = { it.id },
                 gridItem = { author ->
-                    AuthorCard(author) {
+                    authorCard(author) {
                         mainPageNavigator.navigate(AuthorDetailPage(author().id))
                     }
                 },
                 listItem = { author ->
-                    AuthorListItem(author) {
+                    authorListItem(author) {
                         mainPageNavigator.navigate(AuthorDetailPage(author().id))
                     }
                 }
@@ -99,12 +98,11 @@ class AuthorsPage(val searchQuery: Signal<String> = Signal("")) : Page {
 }
 
 // Author card component
-fun ViewWriter.AuthorCard(author: Reactive<Author>, onClick: suspend () -> Unit) {
+fun ViewWriter.authorCard(author: Reactive<Author>, onClick: suspend () -> Unit) {
     button {
         col {
             // Author image/avatar
-            frame {
-                CoverImage(
+            centered.coverImage(
                     imageId = { author().imageId },
                     itemId = { author().id },
                     fallbackIcon = Icon.person.copy(width = 3.rem, height = 3.rem),
@@ -112,7 +110,6 @@ fun ViewWriter.AuthorCard(author: Reactive<Author>, onClick: suspend () -> Unit)
                     imageWidth = 6.rem,
                     scaleType = ImageScaleType.Crop
                 )
-            }
 
             // Name
             centered.text {
@@ -125,11 +122,11 @@ fun ViewWriter.AuthorCard(author: Reactive<Author>, onClick: suspend () -> Unit)
 }
 
 // Author list item component
-fun ViewWriter.AuthorListItem(author: Reactive<Author>, onClick: suspend () -> Unit) {
+fun ViewWriter.authorListItem(author: Reactive<Author>, onClick: suspend () -> Unit) {
     button {
         row {
             // Thumbnail
-            CoverImage(
+            centered.coverImage(
                 imageId = { author().imageId },
                 itemId = { author().id },
                 fallbackIcon = Icon.person.copy(width = 2.rem, height = 2.rem),
@@ -139,8 +136,8 @@ fun ViewWriter.AuthorListItem(author: Reactive<Author>, onClick: suspend () -> U
             )
 
             // Author info
-            expanding.col {
-                text {
+            centered.col {
+                centered.text {
                     ::content { author().name }
                     ellipsis = true
                 }

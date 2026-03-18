@@ -6,6 +6,9 @@ import com.kf7mxe.inglenook.jellyfin.BookshelfResponse
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.jellyfin.serverScopedProperty
 import com.lightningkite.kiteui.reactive.PersistentProperty
+import io.ktor.client.request.get
+import io.ktor.client.request.header
+import io.ktor.http.isSuccess
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 import kotlin.uuid.ExperimentalUuidApi
@@ -20,6 +23,14 @@ object BookshelfRepository {
 
     private val migrated: PersistentProperty<Boolean>
         get() = serverScopedProperty("bookshelvesMigrated", false)
+
+    /** Checks whether the Inglenook bookshelf endpoint is reachable by trying to query bookshelves. */
+    suspend fun bookshelfEndpointAvailable(): Boolean {
+        if (!isOnline()) return false
+        val client = jellyfinClient.value ?: return false
+
+     return client.bookshelfEndpointAvailable()
+    }
 
     private fun isOnline(): Boolean =
         !ConnectivityState.offlineMode.value && jellyfinClient.value != null

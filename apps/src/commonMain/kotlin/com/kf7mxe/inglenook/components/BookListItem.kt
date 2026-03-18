@@ -57,7 +57,7 @@ fun ViewWriter.BookListItem(
         expanding.button {
             row {
                 // Thumbnail
-                CoverImage(
+                coverImage(
                     imageId = { book().coverImageId },
                     itemId = { book().id },
                     fallbackIcon = Icon.book
@@ -85,7 +85,7 @@ fun ViewWriter.BookListItem(
                             }
                         }
                     }
-                    BookStatusIndicator(book)
+                    bookStatusIndicator(book)
                 }
 
                 centered.icon(Icon.chevronRight, "View")

@@ -8,8 +8,6 @@ import com.lightningkite.kiteui.views.centered
 import com.lightningkite.kiteui.views.direct.*
 import com.lightningkite.kiteui.views.expanding
 import com.lightningkite.kiteui.views.l2.icon
-import com.kf7mxe.inglenook.Book
-import com.kf7mxe.inglenook.Bookshelf
 import com.kf7mxe.inglenook.ViewMode
 import com.kf7mxe.inglenook.book
 import com.kf7mxe.inglenook.check
@@ -17,11 +15,10 @@ import com.kf7mxe.inglenook.components.BookCard
 import com.kf7mxe.inglenook.components.BookListItem
 import com.kf7mxe.inglenook.components.inglenookActivityIndicator
 import com.kf7mxe.inglenook.components.EmptyState
-import com.kf7mxe.inglenook.components.ViewModeToggleButton
+import com.kf7mxe.inglenook.components.viewModeToggleButton
 import com.kf7mxe.inglenook.edit
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.storage.BookshelfRepository
-import com.kf7mxe.inglenook.viewMode
 import com.lightningkite.kiteui.Routable
 import com.lightningkite.kiteui.views.danger
 import com.lightningkite.kiteui.views.l2.RecyclerViewPlacerVerticalGrid
@@ -90,7 +87,7 @@ class BookshelfDetailPage(val bookshelfId: String) : Page {
                 }
 
                 // View mode toggle
-                ViewModeToggleButton()
+                viewModeToggleButton()
             }
 
             separator()

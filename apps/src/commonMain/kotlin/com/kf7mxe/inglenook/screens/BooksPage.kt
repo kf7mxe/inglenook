@@ -6,8 +6,8 @@ import com.kf7mxe.inglenook.book
 import com.kf7mxe.inglenook.components.BookCard
 import com.kf7mxe.inglenook.components.BookListItem
 import com.kf7mxe.inglenook.components.EmptyState
-import com.kf7mxe.inglenook.components.GridListView
-import com.kf7mxe.inglenook.components.ViewModeToggleButton
+import com.kf7mxe.inglenook.components.gridListView
+import com.kf7mxe.inglenook.components.viewModeToggleButton
 import com.kf7mxe.inglenook.components.connectionError
 import com.kf7mxe.inglenook.components.inglenookActivityIndicator
 import com.kf7mxe.inglenook.connectivity.ConnectivityState
@@ -102,7 +102,7 @@ class BooksPage(
                     dynamicTheme { if (bookTypeFilter() == ItemType.Ebook) ImportantSemantic else null }
                 }
 
-                ViewModeToggleButton()
+                viewModeToggleButton()
             }
 
             shownWhen { !books.state().ready }.inglenookActivityIndicator()
@@ -129,7 +129,7 @@ class BooksPage(
             }
 
             // Books grid/list
-            GridListView(
+            gridListView(
                 items = filteredBooks,
                 keySelector = { it.id },
                 gridItem = { book ->

@@ -10,15 +10,17 @@ import com.kf7mxe.inglenook.book
 import com.kf7mxe.inglenook.util.formatBookCount
 import com.lightningkite.reactive.core.Reactive
 import com.lightningkite.reactive.context.invoke
+import kotlinx.coroutines.launch
 
-fun ViewWriter.SeriesCard(
+fun ViewWriter.seriesCard(
     series: Reactive<Series>,
     onClick: suspend () -> Unit
 ) {
     centered.card.button {
+
         col {
             // Cover image
-            centered.CoverImage(
+            centered.coverImage(
                 imageId = { series().imageId },
                 itemId = { series().id },
                 fallbackIcon = Icon.book,

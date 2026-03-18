@@ -13,7 +13,6 @@ import com.kf7mxe.inglenook.pause
 import com.kf7mxe.inglenook.playArrow
 import com.kf7mxe.inglenook.playback.PlaybackState
 import com.kf7mxe.inglenook.screens.openEbook
-import com.lightningkite.kiteui.views.l2.icon
 import com.lightningkite.reactive.core.Reactive
 import com.lightningkite.reactive.context.invoke
 
@@ -28,7 +27,7 @@ fun ViewWriter.BookCard(
             padding = 0.rem
             col {
                 centered.frame {
-                    CoverImage(
+                    coverImage(
                         imageId = { book().coverImageId },
                         itemId = { book().id },
                         fallbackIcon = Icon.book,
@@ -56,7 +55,7 @@ fun ViewWriter.BookCard(
                         ellipsis = true
                         lineClamp = 2
                     }
-                    BookStatusIndicator(book)
+                    bookStatusIndicator(book)
                 }
                 this.onClick { onClick() }
             }

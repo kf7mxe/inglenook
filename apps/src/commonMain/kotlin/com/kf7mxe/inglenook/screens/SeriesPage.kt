@@ -9,10 +9,10 @@ import com.lightningkite.kiteui.views.direct.*
 import com.lightningkite.kiteui.views.expanding
 import com.kf7mxe.inglenook.book
 import com.kf7mxe.inglenook.components.EmptyState
-import com.kf7mxe.inglenook.components.GridListView
-import com.kf7mxe.inglenook.components.SeriesCard
+import com.kf7mxe.inglenook.components.gridListView
+import com.kf7mxe.inglenook.components.seriesCard
 import com.kf7mxe.inglenook.components.SeriesListItem
-import com.kf7mxe.inglenook.components.ViewModeToggleButton
+import com.kf7mxe.inglenook.components.viewModeToggleButton
 import com.kf7mxe.inglenook.components.connectionError
 import com.kf7mxe.inglenook.components.inglenookActivityIndicator
 import com.kf7mxe.inglenook.connectivity.ConnectivityState
@@ -54,7 +54,7 @@ class SeriesPage(val searchQuery: Signal<String> = Signal("")) : Page {
                     hint = "Search series..."
                     content bind searchQuery
                 }
-                ViewModeToggleButton()
+                viewModeToggleButton()
             }
 
             // Loading state
@@ -73,11 +73,11 @@ class SeriesPage(val searchQuery: Signal<String> = Signal("")) : Page {
             )
 
             // Series grid/list
-            GridListView(
+            gridListView(
                 items = filteredSeries,
                 keySelector = { it.id },
                 gridItem = { seriesReactive ->
-                    SeriesCard(seriesReactive) {
+                    seriesCard(seriesReactive) {
                         mainPageNavigator.navigate(SeriesDetailPage(seriesReactive().name))
                     }
                 },

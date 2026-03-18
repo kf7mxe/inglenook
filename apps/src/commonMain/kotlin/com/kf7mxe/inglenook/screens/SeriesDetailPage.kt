@@ -13,7 +13,7 @@ import com.kf7mxe.inglenook.cache.ImageCache
 import com.kf7mxe.inglenook.components.BookCard
 import com.kf7mxe.inglenook.components.BookListItem
 import com.kf7mxe.inglenook.components.EmptyState
-import com.kf7mxe.inglenook.components.GridListView
+import com.kf7mxe.inglenook.components.gridListView
 import com.kf7mxe.inglenook.components.connectionError
 import com.kf7mxe.inglenook.components.inglenookActivityIndicator
 import com.kf7mxe.inglenook.connectivity.ConnectivityState
@@ -93,7 +93,7 @@ class SeriesDetailPage(val seriesName: String) : Page {
             )
 
             // Books grid/list
-            GridListView(
+            gridListView(
                 items = books,
                 keySelector = { it.id },
                 gridItem = { bookReactive ->
