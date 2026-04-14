@@ -3,8 +3,8 @@ package com.kf7mxe.inglenook.screens
 import com.kf7mxe.inglenook.Book
 import com.kf7mxe.inglenook.ItemType
 import com.kf7mxe.inglenook.book
-import com.kf7mxe.inglenook.components.BookCard
-import com.kf7mxe.inglenook.components.BookListItem
+import com.kf7mxe.inglenook.components.bookCard
+import com.kf7mxe.inglenook.components.bookListItem
 import com.kf7mxe.inglenook.components.EmptyState
 import com.kf7mxe.inglenook.components.gridListView
 import com.kf7mxe.inglenook.components.viewModeToggleButton
@@ -133,12 +133,12 @@ class BooksPage(
                 items = filteredBooks,
                 keySelector = { it.id },
                 gridItem = { book ->
-                    BookCard(book) {
+                    bookCard(book) {
                         mainPageNavigator.navigate(BookDetailPage(book.invoke().id))
                     }
                 },
                 listItem = { book ->
-                    BookListItem(book) {
+                    bookListItem(book) {
                         mainPageNavigator.navigate(BookDetailPage(book.invoke().id))
                     }
                 }

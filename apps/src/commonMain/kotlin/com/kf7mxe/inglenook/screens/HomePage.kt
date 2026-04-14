@@ -10,7 +10,7 @@ import com.lightningkite.kiteui.views.card
 import com.lightningkite.kiteui.views.expanding
 import com.lightningkite.kiteui.views.l2.icon
 import com.kf7mxe.inglenook.book
-import com.kf7mxe.inglenook.components.BookCard
+import com.kf7mxe.inglenook.components.bookCard
 import com.kf7mxe.inglenook.connectivity.ConnectivityState
 import com.kf7mxe.inglenook.downloads.DownloadManager
 import com.kf7mxe.inglenook.downloads.toAudioBook
@@ -85,7 +85,7 @@ class HomePage : Page {
 
                     scrollingHorizontally.row {
                         forEachUpdating(downloadedBooks) { book ->
-                            BookCard(book) {
+                            bookCard(book) {
                                 mainPageNavigator.navigate(BookDetailPage(book.invoke().id))
                             }
                         }
@@ -120,7 +120,7 @@ class HomePage : Page {
                             inProgressBooks().isNotEmpty()
                         }
                         forEachUpdating(inProgressBooks) { book ->
-                            BookCard(book) {
+                            bookCard(book) {
                                 mainPageNavigator.navigate(BookDetailPage(book.invoke().id))
                             }
                         }
@@ -147,7 +147,7 @@ class HomePage : Page {
                             recommendedBooks().isNotEmpty()
                         }
                         forEachUpdating(recommendedBooks) { book ->
-                            BookCard(book) {
+                            bookCard(book) {
                                 mainPageNavigator.navigate(BookDetailPage(book.invoke().id))
                             }
                         }
@@ -172,7 +172,7 @@ class HomePage : Page {
 
                     scrollingHorizontally.padded.row {
                         forEachUpdating(recentlyAddedBooks) { book ->
-                            BookCard(book) {
+                            bookCard(book) {
                                 mainPageNavigator.navigate(BookDetailPage(book.invoke().id))
                             }
                         }

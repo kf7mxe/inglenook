@@ -23,6 +23,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlin.time.Duration.Companion.milliseconds
 
 @Routable("/splash")
 class SplashPage : Page, FullScreen {
@@ -35,7 +36,7 @@ class SplashPage : Page, FullScreen {
         AppScope.launch {
             val client = jellyfinClient.value
             if (client == null) {
-                mainPageNavigator.navigate(HomePage())
+                mainPageNavigator.reset(HomePage())
                 return@launch
             }
 
@@ -43,7 +44,7 @@ class SplashPage : Page, FullScreen {
 
 
             // Warm critical HomePage data with 30s timeout
-            withTimeoutOrNull(30_000L) {
+            withTimeoutOrNull(30_000L.milliseconds) {
                 // 1. Fire off all network requests in parallel
                 val inProgress = async {
                     try { client.getInProgressBooks() } catch (_: Exception) { emptyList() }
@@ -79,7 +80,7 @@ class SplashPage : Page, FullScreen {
 
 
             CacheRefresher.start()
-            mainPageNavigator.navigate(HomePage())
+            mainPageNavigator.reset(HomePage())
             AppScope.launch {
                 try { client.getAuthors() } catch (_: Exception) { /* best effort */ }
             }

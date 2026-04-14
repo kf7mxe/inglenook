@@ -94,6 +94,16 @@ fun accentColorsForPreset(preset: ThemePreset): List<Pair<String, String>> = whe
         "#1976D2" to "Blue",
         "#388E3C" to "Green"
     )
+    ThemePreset.NeumorphismDark -> listOf(
+        "#6200EE" to "Purple",
+        "#03DAC6" to "Teal",
+        "#018786" to "Dark Teal",
+        "#BB86FC" to "Lavender",
+        "#3700B3" to "Deep Purple",
+        "#CF6679" to "Pink",
+        "#1976D2" to "Blue",
+        "#388E3C" to "Green"
+    )
     ThemePreset.Hackerman -> listOf(
         "#00FF00" to "Matrix",
         "#00FFFF" to "Cyan",
@@ -342,7 +352,8 @@ class ThemeSettingsPage : Page {
                                 ThemePreset.AutumnCabin -> "Orange warm vibes"
                                 ThemePreset.Midnight -> "Dark and minimal"
                                 ThemePreset.Sunrise -> "Warm light tones"
-                                ThemePreset.NeumorphismLight -> "Neumorphism"
+                                ThemePreset.NeumorphismLight -> "Neumorphism Light"
+                                ThemePreset.NeumorphismDark -> "Neumorphism Dark"
                                 ThemePreset.Hackerman -> "Terminal vibes"
                                 ThemePreset.Clouds -> "Soft and rounded"
                                 ThemePreset.Obsidian -> "Dark with accent"

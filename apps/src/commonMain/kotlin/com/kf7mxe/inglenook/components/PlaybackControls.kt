@@ -24,7 +24,7 @@ import kotlin.time.ExperimentalTime
 private const val SEEK_SYNC_THRESHOLD_MS = 50L
 
 @OptIn(ExperimentalTime::class)
-fun ViewWriter.playbackControls() {
+fun ViewWriter. playbackControls() {
     // Create a signal for the seek bar that syncs with PlaybackState
     val seekRatio =
         Signal(if (PlaybackState.duration.value > 0) PlaybackState.positionTicks.value.toFloat() / PlaybackState.duration.value else 0f)
@@ -85,7 +85,7 @@ fun ViewWriter.playbackControls() {
             }
 
             shownWhen { !PlaybackState.isBuffering() }.col {
-                SeekBarSemantic.onNext.padded.slider {
+                slider {
                     min = 0f
                     max = 1f
                     value bind seekRatio

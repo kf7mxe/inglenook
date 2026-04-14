@@ -17,7 +17,7 @@ import com.lightningkite.kiteui.views.card
 import com.lightningkite.reactive.core.Reactive
 import com.lightningkite.reactive.context.invoke
 
-fun ViewWriter.BookListItem(
+fun ViewWriter.bookListItem(
     book: Reactive<Book>,
     onPlayClick: (suspend (Book) -> Unit)? = null,
     onClick: suspend () -> Unit
@@ -40,7 +40,7 @@ fun ViewWriter.BookListItem(
                 onClick {
                     if (book().itemType == ItemType.Ebook) {
                         val currentBook = book.invoke()
-                        openEbook(currentBook.id, this@BookListItem)
+                        openEbook(currentBook.id, this@bookListItem)
                     } else {
                         if (book() == PlaybackState.currentBook && PlaybackState.isPlaying()) {
                             PlaybackState.pause()

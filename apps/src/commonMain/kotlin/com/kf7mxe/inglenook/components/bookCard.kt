@@ -16,12 +16,12 @@ import com.kf7mxe.inglenook.screens.openEbook
 import com.lightningkite.reactive.core.Reactive
 import com.lightningkite.reactive.context.invoke
 
-fun ViewWriter.BookCard(
+fun ViewWriter.bookCard(
     book: Reactive<Book>,
     onPlayClick: (suspend (Book) -> Unit)? = null,
     onClick: suspend () -> Unit
 ) {
-    centered.card.sizeConstraints(width = 14.rem, height = 22.rem).col {
+    centered.card.sizeConstraints(width = 14.rem, height = 24.rem).col {
         // Cover image with click
         button {
             padding = 0.rem
@@ -32,7 +32,7 @@ fun ViewWriter.BookCard(
                         itemId = { book().id },
                         fallbackIcon = Icon.book,
                         imageHeight = 12.rem,
-                        imageWidth = 14.rem,
+                        imageWidth = 12.rem,
                         scaleType = ImageScaleType.Fit
                     )
                 }

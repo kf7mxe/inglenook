@@ -10,8 +10,8 @@ import com.lightningkite.kiteui.views.expanding
 import com.kf7mxe.inglenook.Book
 import com.kf7mxe.inglenook.book
 import com.kf7mxe.inglenook.cache.ImageCache
-import com.kf7mxe.inglenook.components.BookCard
-import com.kf7mxe.inglenook.components.BookListItem
+import com.kf7mxe.inglenook.components.bookCard
+import com.kf7mxe.inglenook.components.bookListItem
 import com.kf7mxe.inglenook.components.EmptyState
 import com.kf7mxe.inglenook.components.gridListView
 import com.kf7mxe.inglenook.components.connectionError
@@ -97,7 +97,7 @@ class SeriesDetailPage(val seriesName: String) : Page {
                 items = books,
                 keySelector = { it.id },
                 gridItem = { bookReactive ->
-                    BookCard(
+                    bookCard(
                         book = bookReactive,
                         onPlayClick = { book ->
                             val startPosition = book.userData?.playbackPositionTicks ?: 0L
@@ -109,7 +109,7 @@ class SeriesDetailPage(val seriesName: String) : Page {
                     )
                 },
                 listItem = { bookReactive ->
-                    BookListItem(
+                    bookListItem(
                         book = bookReactive,
                         onPlayClick = { book ->
                             val startPosition = book.userData?.playbackPositionTicks ?: 0L

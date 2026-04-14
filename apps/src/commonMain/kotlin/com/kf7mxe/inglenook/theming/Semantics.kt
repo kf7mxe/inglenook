@@ -35,7 +35,8 @@ data object BadgeSemantic : Semantic("badge") {
 
 data object ImageSemantic : Semantic("imageSemantic") {
     override fun default(theme: Theme): ThemeAndBack = theme.copy(id="imageSemantic",
-        cornerRadii = Fixed(0.rem),
+        cornerRadii = CornerRadii.RatioOfSpacing(1f),
+
 //        padding = Edges.ZERO
         ).withBackNoPadding
 }

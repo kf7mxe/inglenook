@@ -10,11 +10,12 @@ import com.lightningkite.kiteui.views.expanding
 import com.lightningkite.kiteui.views.l2.icon
 import com.kf7mxe.inglenook.*
 import com.kf7mxe.inglenook.cache.fetchCoverImage
-import com.kf7mxe.inglenook.components.DownloadButton
+import com.kf7mxe.inglenook.components.downloadButton
 import com.kf7mxe.inglenook.components.connectionError
 import com.kf7mxe.inglenook.connectivity.ConnectivityState
 import com.lightningkite.reactive.context.invoke
 import com.kf7mxe.inglenook.components.BookshelfPickerDialog
+import com.kf7mxe.inglenook.components.IdentifyDialog
 import com.kf7mxe.inglenook.components.bookmarksList
 import com.kf7mxe.inglenook.components.chaptersList
 import com.kf7mxe.inglenook.ebook.ebookReader
@@ -30,6 +31,7 @@ import com.kf7mxe.inglenook.util.formatDurationShort
 import com.kf7mxe.inglenook.util.truncateDisplay
 import com.lightningkite.kiteui.Routable
 import com.lightningkite.kiteui.current
+import com.lightningkite.kiteui.views.buttonTheme
 import com.lightningkite.kiteui.views.forEach
 import com.lightningkite.kiteui.views.card
 import com.lightningkite.reactive.core.Signal
@@ -209,16 +211,52 @@ class BookDetailPage(val bookId: String) : Page {
                         }
                         themeChoice += ImportantSemantic
                     }
+                    buttonTheme.downloadButton(book)
 
-                    DownloadButton(book)
+                    buttonTheme.menuButton {
+                        icon(Icon.moreVert, "More")
+                        opensMenu {
+                            col {
 
-                    bookshelfButton(bookId)
+                                bookshelfButton(bookId)
+                                // Identify button (search remote metadata providers)
+                                buttonTheme.button {
+                                    row {
+                                        centered.icon(Icon.search, "Identify")
+                                        centered.text { content = "Identify" }
+                                    }
+                                    onClick {
+                                        val currentTitle = book()?.title ?: ""
+                                        coordinatorFrame?.bottomSheet(
+                                            partialRatio = 0.85f,
+                                            startState = BottomSheetState.PARTIALLY_EXPANDED
+                                        ) { control ->
+                                            unpadded.IdentifyDialog(
+                                                bookId = bookId,
+                                                bookTitle = currentTitle,
+                                                onApplied = {
+                                                    // Refresh book data after metadata is applied
+                                                    control.close()
+                                                    mainPageNavigator.navigate(BookDetailPage(bookId))
+                                                },
+                                                onDismiss = {
+                                                    control.close()
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                        }
+                    }
+
+
+
                 }
 
                 // Action buttons for ebooks
-                shownWhen {
-                    println("DEBUG book()?.itemType ${book()?.itemType}")
-                    book()?.itemType == ItemType.Ebook }.col {
+                shownWhen { book()?.itemType == ItemType.Ebook }.col {
                     // Read button - opens in-app reader
                     row {
                         expanding.button {
@@ -231,9 +269,42 @@ class BookDetailPage(val bookId: String) : Page {
                             }
                             themeChoice += ImportantSemantic
                         }
-                        DownloadButton(book)
+                        downloadButton(book)
 
-                        bookshelfButton(bookId)
+                        buttonTheme.menuButton {
+                            icon(Icon.moreVert, "More")
+                            opensMenu {
+                                col {
+                                    bookshelfButton(bookId)
+                                    // Identify button (search remote metadata providers)
+                                    buttonTheme.button {
+                                        row {
+                                            centered.icon(Icon.search, "Identify")
+                                            centered.text { content = "Identify" }
+                                        }
+                                        onClick {
+                                            val currentTitle = book()?.title ?: ""
+                                            coordinatorFrame?.bottomSheet(
+                                                partialRatio = 0.85f,
+                                                startState = BottomSheetState.PARTIALLY_EXPANDED
+                                            ) { control ->
+                                                unpadded.IdentifyDialog(
+                                                    bookId = bookId,
+                                                    bookTitle = currentTitle,
+                                                    onApplied = {
+                                                        control.close()
+                                                        mainPageNavigator.navigate(BookDetailPage(bookId))
+                                                    },
+                                                    onDismiss = {
+                                                        control.close()
+                                                    }
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     }
 
 
@@ -256,6 +327,7 @@ class BookDetailPage(val bookId: String) : Page {
                         }
                     }
                 }
+
 
                 // Bookshelf membership
                 val memberBookshelves = rememberSuspending {
@@ -363,8 +435,11 @@ suspend fun openEbook(bookId: String, vw: ViewWriter) {
 }
 
 private fun ViewWriter.bookshelfButton(bookId: String) {
-    button {
-        icon(Icon.collectionsBookmark, "Add to Bookshelf")
+    buttonTheme.button {
+        row {
+            icon(Icon.collectionsBookmark, "Add to Bookshelf")
+            text("Add to Bookshelf")
+        }
         onClick {
             coordinatorFrame?.bottomSheet(
                 partialRatio = 0.75f,

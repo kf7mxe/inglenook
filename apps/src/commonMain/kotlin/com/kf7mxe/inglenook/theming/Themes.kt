@@ -12,6 +12,7 @@ import com.kf7mxe.inglenook.storage.UnSelectedTab
 import com.lightningkite.kiteui.models.CornerRadii
 import com.lightningkite.kiteui.models.CornerRadii.Fixed
 import com.lightningkite.kiteui.models.Dimension
+import com.lightningkite.kiteui.views.nav
 import kotlin.math.abs
 import kotlin.math.absoluteValue
 
@@ -36,6 +37,7 @@ fun createTheme(preset: ThemePreset, settings: ThemeSettings = ThemeSettings()):
         ThemePreset.Midnight -> Theme.midnight(primaryColor)
         ThemePreset.Sunrise -> Theme.sunrise(primaryColor)
         ThemePreset.NeumorphismLight -> Theme.neomorphismLight(primaryColor ?: Color.fromHex(0xFF6200EE.toInt()))
+        ThemePreset.NeumorphismDark -> Theme.neomorphismDark(primaryColor ?: Color.fromHex(0xFF6200EE.toInt()))
         ThemePreset.Hackerman -> Theme.hackerman(primaryColor)
         ThemePreset.Clouds -> Theme.clouds(primaryColor)
         ThemePreset.Obsidian -> Theme.obsidian(primaryColor)
@@ -343,6 +345,55 @@ fun Theme.Companion.neomorphismLight(accent: Color = Color.fromHex(0xFF6200EE.to
         gap = 1.rem,
     )
 }
+
+val lightShadowColor = Color.white.applyAlpha(0.08f)
+val darkShadowColor = Color.black.applyAlpha(0.4f)
+val shadowDistance: Dimension = 8.dp
+val shadowBlur: Dimension = 16.dp
+val convexShadows = Shadow.neumorphicConvex(
+    distance = shadowDistance,
+    blur = shadowBlur,
+    lightColor = lightShadowColor,
+    darkColor = darkShadowColor
+)
+
+fun Theme.Companion.neomorphismDark(accent: Color = Color.fromHex(0xFF6200EE.toInt())): Theme {
+    return Theme.neumorphism(
+        id = "neomorphism-dark-${accent.toInt()}",
+        baseColor =  Color.gray(0.25f),
+        accentColor = accent,
+        accentForeground =  if (accent.perceivedBrightness < 0.6f) Color.white else Color.black,
+        lightShadowColor = Color.white.applyAlpha(0.08f),
+        darkShadowColor = Color.black.applyAlpha(0.4f),
+        shadowDistance =  4.dp,
+        shadowBlur = 8.dp,
+        title = FontAndStyle(systemDefaultFont),
+        body = FontAndStyle(systemDefaultFont),
+        cornerRadii = CornerRadii.RatioOfSpacing(1f) ,
+        gap = 1.rem,
+        semanticOverrides = SemanticOverrides(
+            NavSemantic.override {
+
+                it.withBack(
+                    padding = Edges(1.rem),
+//                    shadows =convexShadows
+                    cornerRadii = CornerRadii.Fixed(1.rem) ,
+                    shadows= convexShadows
+                )
+                },
+            BarSemantic.override {
+                it.withBack(
+                    padding = Edges(1.rem),
+//                    shadows =convexShadows
+                    cornerRadii = CornerRadii.Fixed(1.rem) ,
+                    shadows= convexShadows
+                )
+            }
+        )
+    )
+}
+
+
 
 // Hackerman theme - Terminal/monochrome style
 fun Theme.Companion.hackerman(accent: Color? = null): Theme {

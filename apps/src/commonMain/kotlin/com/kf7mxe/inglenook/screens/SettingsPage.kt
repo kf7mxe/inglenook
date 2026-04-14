@@ -134,11 +134,7 @@ class SettingsPage : Page {
 
             // Theme section
             col {
-
-                    expanding.h3 { content = "Theme" }
-
-
-
+                h3 { content = "Theme" }
                 text{
                     ::content {
                         "Current Theme: ${currentThemePreset().displayName}"

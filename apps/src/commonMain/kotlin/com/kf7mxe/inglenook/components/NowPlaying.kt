@@ -146,7 +146,7 @@ fun ViewWriter.nowPlaying(onClose: () -> Unit = {}) {
                 }
 
                 centered.sizeConstraints(maxWidth = 16.rem, maxHeight = 16.rem).frame {
-                    themed(ImageSemantic).sizeConstraints(maxWidth = 16.rem, maxHeight = 16.rem).image {
+                    themed(ImageSemantic).image {
                         rView::shown{
                             PlaybackState.currentBook() != null
                         }

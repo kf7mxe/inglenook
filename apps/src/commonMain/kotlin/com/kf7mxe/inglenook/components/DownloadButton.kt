@@ -6,11 +6,11 @@ import com.lightningkite.kiteui.views.centered
 import com.lightningkite.kiteui.views.direct.*
 import com.kf7mxe.inglenook.*
 import com.kf7mxe.inglenook.downloads.DownloadManager
-import com.kf7mxe.inglenook.playback.PlaybackState.currentBook
 import com.lightningkite.kiteui.lottie.models.LottieRaw
 import com.lightningkite.kiteui.lottie.views.direct.LottieView
 import com.lightningkite.kiteui.lottie.views.direct.lottie
 import com.lightningkite.kiteui.reactive.Action
+import com.lightningkite.kiteui.views.buttonTheme
 import com.lightningkite.reactive.core.Reactive
 import com.lightningkite.reactive.context.invoke
 import com.lightningkite.reactive.core.remember
@@ -19,8 +19,8 @@ import com.lightningkite.reactive.core.remember
  * A button that shows download status and allows downloading books for offline playback.
  * Reactive overload - accepts a Reactive<Book?> for use in pages where book data is loaded reactively.
  */
-fun ViewWriter.DownloadButton(bookReactive: Reactive<Book?>) {
-    unpadded.button {
+fun ViewWriter.downloadButton(bookReactive: Reactive<Book?>) {
+    buttonTheme.button {
         var downloadAnimations: LottieView? = null
         unpadded.centered.row {
             gap = 0.5.rem
@@ -129,7 +129,7 @@ fun ViewWriter.DownloadButton(bookReactive: Reactive<Book?>) {
 /**
  * A button that shows download status and allows downloading books for offline playback.
  */
-fun ViewWriter.DownloadButton(book: Book) {
+fun ViewWriter.downloadButton(book: Book) {
     button {
         centered.row {
             gap = 0.5.rem

@@ -20,7 +20,7 @@ class LibrarySelectionPage : Page, FullScreen {
             padding = 2.rem
             gap = 1.rem
 
-            sizedBox(SizeConstraints(maxWidth = 28.rem)).col {
+            sizedBox(SizeConstraints(maxWidth = 28.rem)).scrolling.col {
                 gap = 1.5.rem
 
                 centered.col {

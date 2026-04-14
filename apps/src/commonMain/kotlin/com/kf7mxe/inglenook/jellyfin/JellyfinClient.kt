@@ -574,6 +574,79 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
         }
     }
 
+    // --- Remote Search / Identify API (Inglenook plugin) ---
+
+    /**
+     * Searches remote metadata providers (Audnexus, Google Books) for book metadata.
+     */
+    open suspend fun searchRemoteMetadata(
+        query: String,
+        itemId: String? = null,
+        provider: String? = null
+    ): RemoteSearchResponseDto {
+        return try {
+            val response = client.post("$serverUrl/Inglenook/Search/Remote") {
+                header("X-Emby-Token", accessToken ?: "")
+                contentType(ContentType.Application.Json)
+                setBody(RemoteSearchRequestDto(
+                    Query = query,
+                    ItemId = itemId,
+                    Provider = provider
+                ))
+            }
+            if (response.status.isSuccess()) {
+                response.body()
+            } else {
+                RemoteSearchResponseDto()
+            }
+        } catch (e: Exception) {
+            handleNetworkException(e, RemoteSearchResponseDto())
+        }
+    }
+
+    /**
+     * Applies metadata from a remote provider result to a Jellyfin item.
+     */
+    open suspend fun applyRemoteMetadata(
+        itemId: String,
+        provider: String,
+        providerId: String,
+        replaceExisting: Boolean = false
+    ): Boolean {
+        return try {
+            val response = client.post("$serverUrl/Inglenook/$itemId/Metadata") {
+                header("X-Emby-Token", accessToken ?: "")
+                contentType(ContentType.Application.Json)
+                setBody(ApplyMetadataRequestDto(
+                    Provider = provider,
+                    ProviderId = providerId,
+                    ReplaceExisting = replaceExisting
+                ))
+            }
+            response.status.isSuccess()
+        } catch (e: Exception) {
+            handleNetworkException(e, false)
+        }
+    }
+
+    /**
+     * Gets extended metadata for an item (provider IDs, people, etc.).
+     */
+    open suspend fun getItemMetadata(itemId: String): ItemMetadataDto? {
+        return try {
+            val response = client.get("$serverUrl/Inglenook/$itemId/Metadata") {
+                header("X-Emby-Token", accessToken ?: "")
+            }
+            if (response.status.isSuccess()) {
+                response.body()
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            handleNetworkException(e, null)
+        }
+    }
+
     /**
      * Try to find and parse a .cue file for chapter information.
      * Uses the Jellyfin API to:
@@ -1374,4 +1447,66 @@ data class UpdateBookshelfRequest(
     val Name: String? = null,
     val BookIds: List<String>? = null,
     val CoverImageUrl: String? = null
+)
+
+// Remote Search / Identify DTOs (Inglenook plugin, PascalCase from C#)
+@Serializable
+data class RemoteSearchRequestDto(
+    val Query: String,
+    val ItemId: String? = null,
+    val Provider: String? = null
+)
+
+@Serializable
+data class RemoteSearchResultDto(
+    val Provider: String = "",
+    val ProviderId: String = "",
+    val Title: String = "",
+    val Authors: List<String> = emptyList(),
+    val Narrators: List<String> = emptyList(),
+    val Description: String? = null,
+    val ImageUrl: String? = null,
+    val Year: Int? = null,
+    val Publisher: String? = null,
+    val SeriesName: String? = null,
+    val SeriesPosition: String? = null,
+    val Rating: Float? = null,
+    val Genres: List<String> = emptyList(),
+    val Tags: List<String> = emptyList(),
+    val Isbn: String? = null,
+    val Asin: String? = null,
+    val Language: String? = null,
+    val RuntimeMinutes: Int? = null
+)
+
+@Serializable
+data class RemoteSearchResponseDto(
+    val Results: List<RemoteSearchResultDto> = emptyList(),
+    val Warning: String? = null
+)
+
+@Serializable
+data class ApplyMetadataRequestDto(
+    val Provider: String,
+    val ProviderId: String,
+    val ReplaceExisting: Boolean = false
+)
+
+@Serializable
+data class ItemMetadataDto(
+    val Name: String? = null,
+    val Overview: String? = null,
+    val ProductionYear: Int? = null,
+    val CommunityRating: Float? = null,
+    val Genres: List<String>? = null,
+    val Tags: List<String>? = null,
+    val ProviderIds: Map<String, String> = emptyMap(),
+    val People: List<ItemPersonDto> = emptyList()
+)
+
+@Serializable
+data class ItemPersonDto(
+    val Name: String,
+    val Type: String? = null,
+    val Role: String? = null
 )

@@ -192,6 +192,7 @@ enum class ThemePreset(val displayName: String, val allowsCustomization: Boolean
     Midnight("Midnight", true),    // Dark theme
     Sunrise("Sunrise", true),      // Warm orange
     NeumorphismLight("Neumorphism Light", true),
+    NeumorphismDark("Neumorphism Dark", true),
     Hackerman("Hackerman", true),  // Terminal/monochrome style
     Clouds("Clouds", true),        // Soft rounded style
     Obsidian("Obsidian", true),    // Dark with gradients

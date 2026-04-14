@@ -8,8 +8,8 @@ import com.lightningkite.kiteui.views.centered
 import com.lightningkite.kiteui.views.direct.*
 import com.lightningkite.kiteui.views.expanding
 import com.kf7mxe.inglenook.book
-import com.kf7mxe.inglenook.components.BookCard
-import com.kf7mxe.inglenook.components.BookListItem
+import com.kf7mxe.inglenook.components.bookCard
+import com.kf7mxe.inglenook.components.bookListItem
 import com.kf7mxe.inglenook.components.coverImage
 import com.kf7mxe.inglenook.components.EmptyState
 import com.kf7mxe.inglenook.components.gridListView
@@ -92,12 +92,12 @@ class AuthorDetailPage(val authorId: String) : Page {
                 items = books,
                 keySelector = { it.id },
                 gridItem = { book ->
-                    BookCard(book) {
+                    bookCard(book) {
                         mainPageNavigator.navigate(BookDetailPage(book.invoke().id))
                     }
                 },
                 listItem = { book ->
-                    BookListItem(book) {
+                    bookListItem(book) {
                         mainPageNavigator.navigate(BookDetailPage(book.invoke().id))
                     }
                 }

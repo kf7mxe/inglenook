@@ -11,8 +11,8 @@ import com.lightningkite.kiteui.views.l2.icon
 import com.kf7mxe.inglenook.ViewMode
 import com.kf7mxe.inglenook.book
 import com.kf7mxe.inglenook.check
-import com.kf7mxe.inglenook.components.BookCard
-import com.kf7mxe.inglenook.components.BookListItem
+import com.kf7mxe.inglenook.components.bookCard
+import com.kf7mxe.inglenook.components.bookListItem
 import com.kf7mxe.inglenook.components.inglenookActivityIndicator
 import com.kf7mxe.inglenook.components.EmptyState
 import com.kf7mxe.inglenook.components.viewModeToggleButton
@@ -133,7 +133,7 @@ class BookshelfDetailPage(val bookshelfId: String) : Page {
                                                 ::placer{ RecyclerViewPlacerVerticalGrid(3) }
                                                 children(books, { it.id }) { book ->
                                                     col {
-                                                        BookCard(book) {
+                                                        bookCard(book) {
                                                             mainPageNavigator.navigate(BookDetailPage(book.invoke().id))
                                                         }
                                                             shownWhen { isEditing() }.centered.button {
@@ -160,7 +160,7 @@ class BookshelfDetailPage(val bookshelfId: String) : Page {
                                                                 }
                                                             }
                                                         }
-                                                        BookListItem(book) {
+                                                        bookListItem(book) {
                                                             mainPageNavigator.navigate(BookDetailPage(book.invoke().id))
                                                         }
                                                     }
