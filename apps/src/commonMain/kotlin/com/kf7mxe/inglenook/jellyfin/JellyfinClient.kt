@@ -1275,10 +1275,20 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
             Artists?.isNotEmpty() == true -> Artists.map { AuthorInfo(name = it, id = null) }
             else -> emptyList()
         }
-        val authorNames = authorInfos.mapNotNull { authorInfo -> authorInfo.id?.let { Author(
-            id = it,
-            name = authorInfo.name,
-        )} }
+        val authorNames: List<Author> = when {
+            authorPeople.isNotEmpty() -> authorPeople.mapNotNull { person ->
+                person.Id?.let {
+                    Author(id = it, name = normalizeAuthorName(person.Name), imageId = person.PrimaryImageTag)
+                }
+            }
+            AlbumArtists?.isNotEmpty() == true -> AlbumArtists.mapNotNull {
+                it.Id?.let { id -> Author(id = id, name = it.Name) }
+            }
+            ArtistItems?.isNotEmpty() == true -> ArtistItems.mapNotNull {
+                it.Id?.let { id -> Author(id = id, name = it.Name) }
+            }
+            else -> emptyList()
+        }
 
         // Determine item type from Jellyfin Type field
         val itemType = if (Type == "Book") ItemType.Ebook else ItemType.AudioBook
@@ -1420,7 +1430,8 @@ data class JellyfinPerson(
     val Name: String,
     val Id: String? = null,
     val Type: String? = null,
-    val Role: String? = null
+    val Role: String? = null,
+    val PrimaryImageTag: String? = null
 )
 
 @Serializable

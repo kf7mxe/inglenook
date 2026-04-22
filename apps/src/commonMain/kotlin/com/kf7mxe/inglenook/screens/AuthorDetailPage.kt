@@ -20,6 +20,7 @@ import com.kf7mxe.inglenook.connectivity.ConnectivityState
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.util.formatBookCount
 import com.lightningkite.kiteui.Routable
+import com.lightningkite.kiteui.views.maxHeight
 import com.lightningkite.reactive.context.invoke
 import com.lightningkite.reactive.core.Constant
 import com.lightningkite.reactive.core.Reactive
@@ -72,7 +73,7 @@ class AuthorDetailPage(val authorId: String) : Page {
                 col {
                     h2 { ::content { author()?.name ?: "Unknown Author" } }
 
-                    shownWhen { author()?.overview != null }.sizeConstraints(height = 8.rem).scrolling.text {
+                    shownWhen { author()?.overview != null }.maxHeight(height = 9.rem).scrolling.text {
                         ::content { author()?.overview ?: "" }
                     }
 

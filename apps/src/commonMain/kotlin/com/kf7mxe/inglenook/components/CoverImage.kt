@@ -12,6 +12,7 @@ import com.lightningkite.kiteui.views.ViewWriter
 import com.lightningkite.kiteui.views.centered
 import com.lightningkite.kiteui.views.direct.*
 import com.lightningkite.kiteui.views.l2.icon
+import com.lightningkite.kiteui.views.maxHeight
 import com.lightningkite.reactive.context.invoke
 import com.lightningkite.reactive.core.rememberSuspending
 
@@ -39,7 +40,7 @@ fun ViewWriter.coverImage(
         hasImage
     }
 
-    sizeConstraints(height = imageHeight, width = imageWidth).frame {
+    maxHeight(imageHeight).frame {
         themed(ImageSemantic).image {
             this.rView::shown { hasImage() == true }
             ::source { cachedCover() }
