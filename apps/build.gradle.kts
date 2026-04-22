@@ -199,15 +199,15 @@ configure<KiteUiPluginExtension> {
 }
 
 
-configurations.all {
-    resolutionStrategy {
-//        force("0.3.13-traxexperimental-199")
-        force("com.lightningkite.kiteui:library:0.3.13-kf7mxeexperimental-325-local")
+    configurations.all {
+        resolutionStrategy {
+    //        force("0.3.13-traxexperimental-199")
+            force("com.lightningkite.kiteui:library:0.3.13-kf7mxeexperimental-325-local")
 
-        // If you also need to force lottie or other modules, do it like this:
-        force("com.lightningkite.kiteui:library-lottie:0.3.13-kf7mxeexperimental-325-local")        // If there are other modules like library-jvmssr, force those too:
+            // If you also need to force lottie or other modules, do it like this:
+            force("com.lightningkite.kiteui:library-lottie:0.3.13-kf7mxeexperimental-325-local")        // If there are other modules like library-jvmssr, force those too:
+        }
     }
-}
 
 
 // Create symlink for Kotlin/JS source maps to resolve correctly

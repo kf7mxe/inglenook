@@ -223,6 +223,22 @@ class SettingsPage : Page {
             }
 
 
+            // Playback section
+            col {
+                h3 { content = "Playback" }
+                card.col {
+                    row {
+                        expanding.col {
+                            text("Auto-resume on open")
+                            subtext("Continue playing where you left off when the app opens")
+                        }
+                        switch {
+                            checked bind autoResumeOnOpen
+                        }
+                    }
+                }
+            }
+
             // Diagnostics section
             col {
                 h3 { content = "Diagnostics" }

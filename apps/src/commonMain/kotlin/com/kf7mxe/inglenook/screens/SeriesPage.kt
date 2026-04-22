@@ -17,6 +17,7 @@ import com.kf7mxe.inglenook.components.connectionError
 import com.kf7mxe.inglenook.components.inglenookActivityIndicator
 import com.kf7mxe.inglenook.connectivity.ConnectivityState
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
+import com.kf7mxe.inglenook.lastItemViewedScrollToOnBack
 import com.lightningkite.kiteui.Routable
 import com.lightningkite.kiteui.views.fieldTheme
 import com.lightningkite.reactive.context.invoke
@@ -39,9 +40,9 @@ class SeriesPage(val searchQuery: Signal<String> = Signal("")) : Page {
         val filteredSeries = remember {
             val query = searchQuery().lowercase()
             if (query.isBlank()) {
-                allSeries()
+                allSeries().sortedBy { it.name.lowercase() }
             } else {
-                allSeries().filter { it.name.lowercase().contains(query) }
+                allSeries().filter { it.name.lowercase().contains(query) }.sortedBy { it.name.lowercase() }
             }
         }
 
@@ -78,11 +79,13 @@ class SeriesPage(val searchQuery: Signal<String> = Signal("")) : Page {
                 keySelector = { it.id },
                 gridItem = { seriesReactive ->
                     seriesCard(seriesReactive) {
+                        lastItemViewedScrollToOnBack.set(seriesReactive().id)
                         mainPageNavigator.navigate(SeriesDetailPage(seriesReactive().name))
                     }
                 },
                 listItem = { seriesReactive ->
                     SeriesListItem(seriesReactive) {
+                        lastItemViewedScrollToOnBack.set(seriesReactive().id)
                         mainPageNavigator.navigate(SeriesDetailPage(seriesReactive().name))
                     }
                 }

@@ -21,15 +21,15 @@ object DownloadManager {
     }
 
     fun getDownload(bookId: String): DownloadedBook? {
-        return storedDownloads.value.find { it._id == bookId }
+        return storedDownloads.value.find { it.id == bookId }
     }
 
     fun isDownloaded(bookId: String): Boolean {
-        return storedDownloads.value.any { it._id == bookId }
+        return storedDownloads.value.any { it.id == bookId }
     }
 
     fun getLocalFilePath(bookId: String): String? {
-        return storedDownloads.value.find { it._id == bookId }?.localFilePath
+        return storedDownloads.value.find { it.id == bookId }?.localFilePath
     }
 
     suspend fun downloadBook(book: Book) {
@@ -89,13 +89,13 @@ object DownloadManager {
     }
 
     suspend fun deleteDownload(bookId: String) {
-        val download = storedDownloads.value.find { it._id == bookId }
+        val download = storedDownloads.value.find { it.id == bookId }
         if (download != null) {
             // Delete the file using platform-specific implementation
             PlatformDownloader.deleteFile(download.localFilePath)
 
             // Remove from stored downloads
-            storedDownloads.value = storedDownloads.value.filter { it._id != bookId }
+            storedDownloads.value = storedDownloads.value.filter { it.id != bookId }
         }
     }
 
@@ -116,15 +116,15 @@ object DownloadManager {
         storedDownloads.value = storedDownloads.value + downloadedBook
 
         // Update active downloads to completed status
-        activeDownloads.value = activeDownloads.value + (downloadedBook._id to DownloadProgress(
-            bookId = downloadedBook._id,
+        activeDownloads.value = activeDownloads.value + (downloadedBook.id to DownloadProgress(
+            bookId = downloadedBook.id,
             bytesDownloaded = downloadedBook.fileSize,
             totalBytes = downloadedBook.fileSize,
             status = DownloadStatus.Completed
         ))
 
         // Remove from active downloads
-        activeDownloads.value = activeDownloads.value - downloadedBook._id
+        activeDownloads.value = activeDownloads.value - downloadedBook.id
     }
 
     /**
@@ -156,7 +156,7 @@ object DownloadManager {
 }
 
 fun DownloadedBook.toAudioBook(): Book = Book(
-    id = _id,
+    id = id,
     title = title,
     authors = authors,
     coverImageId = coverImageId,

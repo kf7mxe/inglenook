@@ -21,6 +21,7 @@ import com.kf7mxe.inglenook.components.chaptersList
 import com.kf7mxe.inglenook.ebook.ebookReader
 import com.lightningkite.kiteui.views.l2.coordinatorFrame
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
+import com.kf7mxe.inglenook.jellyfin.jellyfinServerConfig
 import com.kf7mxe.inglenook.playback.PlaybackState
 import com.kf7mxe.inglenook.storage.BookmarkRepository
 import com.kf7mxe.inglenook.storage.BookshelfRepository
@@ -213,13 +214,13 @@ class BookDetailPage(val bookId: String) : Page {
                     }
                     buttonTheme.downloadButton(book)
 
-                    buttonTheme.menuButton {
+                    shownWhen {
+                        println("DEBUG jellyfinServerConfig.value?.canEditCollection ${jellyfinServerConfig.value?.canEditCollection}")
+                        jellyfinServerConfig.value?.canEditCollection == true }.buttonTheme.menuButton {
                         icon(Icon.moreVert, "More")
                         opensMenu {
                             col {
-
                                 bookshelfButton(bookId)
-                                // Identify button (search remote metadata providers)
                                 buttonTheme.button {
                                     row {
                                         centered.icon(Icon.search, "Identify")
@@ -235,7 +236,6 @@ class BookDetailPage(val bookId: String) : Page {
                                                 bookId = bookId,
                                                 bookTitle = currentTitle,
                                                 onApplied = {
-                                                    // Refresh book data after metadata is applied
                                                     control.close()
                                                     mainPageNavigator.navigate(BookDetailPage(bookId))
                                                 },
@@ -247,11 +247,19 @@ class BookDetailPage(val bookId: String) : Page {
                                     }
                                 }
                             }
-
                         }
                     }
-
-
+                    shownWhen { jellyfinServerConfig.value?.canEditCollection != true }.buttonTheme.button {
+                        icon(Icon.collectionsBookmark, "Add to Bookshelf")
+                        onClick {
+                            coordinatorFrame?.bottomSheet(
+                                partialRatio = 0.75f,
+                                startState = BottomSheetState.PARTIALLY_EXPANDED
+                            ) { control ->
+                                unpadded.BookshelfPickerDialog(bookId) { control.close() }
+                            }
+                        }
+                    }
 
                 }
 
@@ -271,12 +279,11 @@ class BookDetailPage(val bookId: String) : Page {
                         }
                         downloadButton(book)
 
-                        buttonTheme.menuButton {
+                        shownWhen { jellyfinServerConfig.value?.canEditCollection == true }.buttonTheme.menuButton {
                             icon(Icon.moreVert, "More")
                             opensMenu {
                                 col {
                                     bookshelfButton(bookId)
-                                    // Identify button (search remote metadata providers)
                                     buttonTheme.button {
                                         row {
                                             centered.icon(Icon.search, "Identify")
@@ -302,6 +309,17 @@ class BookDetailPage(val bookId: String) : Page {
                                             }
                                         }
                                     }
+                                }
+                            }
+                        }
+                        shownWhen { jellyfinServerConfig.value?.canEditCollection != true }.buttonTheme.button {
+                            icon(Icon.collectionsBookmark, "Add to Bookshelf")
+                            onClick {
+                                coordinatorFrame?.bottomSheet(
+                                    partialRatio = 0.75f,
+                                    startState = BottomSheetState.PARTIALLY_EXPANDED
+                                ) { control ->
+                                    unpadded.BookshelfPickerDialog(bookId) { control.close() }
                                 }
                             }
                         }

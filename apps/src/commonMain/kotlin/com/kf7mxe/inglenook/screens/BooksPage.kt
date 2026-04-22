@@ -12,6 +12,7 @@ import com.kf7mxe.inglenook.components.connectionError
 import com.kf7mxe.inglenook.components.inglenookActivityIndicator
 import com.kf7mxe.inglenook.connectivity.ConnectivityState
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
+import com.kf7mxe.inglenook.lastItemViewedScrollToOnBack
 import com.lightningkite.kiteui.models.Edges
 import com.lightningkite.kiteui.models.Icon
 import com.lightningkite.kiteui.models.ImportantSemantic
@@ -27,6 +28,7 @@ import com.lightningkite.kiteui.views.direct.*
 import com.lightningkite.kiteui.views.*
 import com.lightningkite.kiteui.views.l2.icon
 import com.lightningkite.reactive.context.invoke
+import com.lightningkite.reactive.context.reactive
 import com.lightningkite.reactive.core.Constant
 import com.lightningkite.reactive.core.Reactive
 import com.lightningkite.reactive.core.Signal
@@ -41,6 +43,7 @@ class BooksPage(
     val bookTypeFilter: Signal<ItemType?> = Signal(null)
 ) : Page {
     override val title get() = Constant("Books")
+
 
     @OptIn(ExperimentalUuidApi::class)
     override fun ViewWriter.render() {
@@ -71,11 +74,15 @@ class BooksPage(
                 result = result.filter { it.itemType == typeFilter }
             }
 
-            result
+            result.sortedBy { it.title.lowercase() }
         }
 
         col {
             paddingByEdge = Edges(1.rem, 0.rem, 1.rem, 0.rem)
+
+            reactive{
+                println("DEBUG lastLookedAtBook ${lastItemViewedScrollToOnBack()}")
+            }
 
             // Search bar and view toggle
             row {
@@ -134,11 +141,13 @@ class BooksPage(
                 keySelector = { it.id },
                 gridItem = { book ->
                     bookCard(book) {
+                        lastItemViewedScrollToOnBack.set(book().id)
                         mainPageNavigator.navigate(BookDetailPage(book.invoke().id))
                     }
                 },
                 listItem = { book ->
                     bookListItem(book) {
+                        lastItemViewedScrollToOnBack.set(book().id)
                         mainPageNavigator.navigate(BookDetailPage(book.invoke().id))
                     }
                 }

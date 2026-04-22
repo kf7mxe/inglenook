@@ -138,7 +138,7 @@ class DownloadsPage : Page {
                                 sizedBox(SizeConstraints(width = 3.rem, height = 4.5.rem)).frame {
                                     if (download.coverImageId != null) {
                                         val cachedCover = rememberSuspending {
-                                            jellyfinClient.value.fetchCoverImage(download.coverImageId, download._id)
+                                            jellyfinClient.value.fetchCoverImage(download.coverImageId, download.id)
                                         }
                                         themed(ImageSemantic).image {
                                             ::source { cachedCover() }
@@ -169,7 +169,7 @@ class DownloadsPage : Page {
                                 button {
                                     icon(Icon.delete, "Delete")
                                     action = Action("Delete download") {
-                                        DownloadManager.deleteDownload(download._id)
+                                        DownloadManager.deleteDownload(download.id)
                                         loadDownloads()
                                     }
                                     themeChoice += DangerSemantic
@@ -178,7 +178,7 @@ class DownloadsPage : Page {
                             onClick {
                                 if (download.itemType == ItemType.Ebook) {
                                     // Navigate to book detail page to open reader
-                                    mainPageNavigator.navigate(BookDetailPage(download._id))
+                                    mainPageNavigator.navigate(BookDetailPage(download.id))
                                 } else {
                                     // Play the downloaded audiobook
                                     val book = download.toAudioBook()

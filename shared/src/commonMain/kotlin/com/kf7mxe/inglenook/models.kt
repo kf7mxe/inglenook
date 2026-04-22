@@ -1,7 +1,7 @@
 package com.kf7mxe.inglenook
 
 import com.lightningkite.services.data.*
-import com.lightningkite.services.database.HasId
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlin.time.Clock
 import kotlin.time.Instant
@@ -17,7 +17,8 @@ data class JellyfinServerConfig(
     val accessToken: String,
     val deviceId: String,
     val serverId: String? = null,
-    val serverName: String? = null
+    val serverName: String? = null,
+    @SerialName("isAdmin") val canEditCollection: Boolean = false
 ) {
     /** Stable key for scoping per-server persistent data. */
     val storageKey: String get() = _id.toString()
@@ -39,7 +40,7 @@ enum class ItemType {
 // Audio Book representation from Jellyfin (also used for Ebooks)
 @Serializable
 data class Book(
-    val id: String,
+    override val id: String,
     val title: String,
     val sortTitle: String? = null,
     val authors: List<Author> = emptyList(),
@@ -58,7 +59,11 @@ data class Book(
     val libraryId: String? = null,
     val itemType: ItemType = ItemType.AudioBook, // Distinguishes audiobooks from ebooks
     val fileExtension: String? = null // Original file extension from Jellyfin Path (e.g. ".m4b", ".epub")
-)
+) : HasId
+
+interface HasId {
+    val id: String
+}
 
 // Chapter information
 @Serializable
@@ -81,11 +86,11 @@ data class UserData(
 // Author/Person representation
 @Serializable
 data class Author(
-    val id: String,
+    override val id: String,
     val name: String,
     val imageId: String? = null,
     val overview: String? = null
-)
+) : HasId
 
 // Author info stored with audiobook (name + optional id for linking)
 @Serializable
@@ -97,13 +102,13 @@ data class AuthorInfo(
 // Series representation
 @Serializable
 data class Series(
-    val id: String,
+    override val id: String,
     val name: String,
     val imageId: String? = null,
     val coverBookId: String? = null,
     val bookCount: Int = 0,
     val overview: String? = null
-)
+): HasId
 
 // Library/Collection
 @Serializable
@@ -118,30 +123,30 @@ data class JellyfinLibrary(
 @GenerateDataClassPaths
 @Serializable
 data class Bookshelf(
-    override val _id: Uuid = Uuid.random(),
+    val _id: Uuid = Uuid.random(),
     val name: String,
     val bookIds: List<String> = emptyList(),
     val coverImageUrl: String? = null,
     val createdAt: Instant = Clock.System.now(),
     val updatedAt: Instant = Clock.System.now()
-) : HasId<Uuid>
+)
 
 // Local playback progress (stored on device for offline tracking)
 @GenerateDataClassPaths
 @Serializable
 data class PlaybackProgress(
-    override val _id: String, // bookId
+    val _id: String, // bookId
     val positionTicks: Long = 0L,
     val lastPlayed: Instant = Clock.System.now(),
     val duration: Long = 0L,
     val synced: Boolean = false // Whether synced to Jellyfin
-) : HasId<String>
+)
 
 // Downloaded book information
 @GenerateDataClassPaths
 @Serializable
 data class DownloadedBook(
-    override val _id: String, // bookId
+    override val id: String, // bookId
     val title: String,
     val authors: List<Author> = emptyList(),
     val localFilePath: String,
@@ -152,7 +157,7 @@ data class DownloadedBook(
     val duration: Long = 0L,
     val chapters: List<Chapter> = emptyList(),
     val itemType: ItemType = ItemType.AudioBook
-) : HasId<String>
+): HasId
 
 // Download progress tracking
 @Serializable
@@ -176,13 +181,13 @@ enum class DownloadStatus {
 @GenerateDataClassPaths
 @Serializable
 data class Bookmark(
-    override val _id: Uuid = Uuid.random(),
+    val _id: Uuid = Uuid.random(),
     val bookId: String,
     val positionTicks: Long,
     val note: String? = null,
     val chapterName: String? = null, // For display purposes
     val createdAt: Instant = Clock.System.now()
-) : HasId<Uuid>
+)
 
 // Theme preset enumeration
 @Serializable

@@ -75,6 +75,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
 
         // Get server info for name
         val serverInfo = getServerInfo()
+        val canEditCollection = try { getCanEditCollection() } catch (e: Exception) { false }
 
         return JellyfinServerConfig(
             _id = Uuid.random(),
@@ -84,7 +85,8 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
             accessToken = authResponse.AccessToken,
             deviceId = deviceId,
             serverId = serverInfo?.Id,
-            serverName = serverInfo?.ServerName
+            serverName = serverInfo?.ServerName,
+            canEditCollection = canEditCollection
         )
     }
 
@@ -303,7 +305,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
             ApiCache.getOrPut(cacheKey, ApiCache.SHORT_TTL, onError = ::reportNetworkError) {
             // If specific libraries are selected, query each and merge
             if (libraryIds.isNotEmpty()) {
-                val allBooks = mutableListOf<Book>()
+                val perLibraryResults = mutableListOf<List<Book>>()
                 var lastError: Exception? = null
                 var anySucceeded = false
                 for (libId in libraryIds) {
@@ -321,7 +323,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
                         }
                         if (response.status.isSuccess()) {
                             val items: List<JellyfinItem> = response.body()
-                            allBooks.addAll(items.map { it.toAudioBook() })
+                            perLibraryResults.add(items.map { it.toAudioBook() })
                             anySucceeded = true
                         }
                     } catch (e: Exception) {
@@ -329,7 +331,14 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
                     }
                 }
                 if (!anySucceeded && lastError != null) throw lastError
-                allBooks.distinctBy { it.id }.take(20)
+                val interleaved = mutableListOf<Book>()
+                val maxSize = perLibraryResults.maxOfOrNull { it.size } ?: 0
+                for (i in 0 until maxSize) {
+                    for (libBooks in perLibraryResults) {
+                        if (i < libBooks.size) interleaved.add(libBooks[i])
+                    }
+                }
+                interleaved.distinctBy { it.id }.take(20)
             } else {
                 // No specific libraries - get all recent
                 val url = buildString {
@@ -483,7 +492,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
     open suspend fun getAudiobookChapters(itemId: String): List<PluginChapter> {
         return try {
             val response = client.get("$serverUrl/Inglenook/$itemId") {
-                header("X-Emby-Token", accessToken ?: "")
+                header("X-Emby-Authorization", getAuthHeader())
             }
             if (response.status.isSuccess()) {
                 response.body()
@@ -501,7 +510,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
     open suspend fun getBookshelves(): List<BookshelfResponse> {
         return try {
             val response = client.get("$serverUrl/Inglenook/Bookshelves") {
-                header("X-Emby-Token", accessToken ?: "")
+                header("X-Emby-Authorization", getAuthHeader())
             }
             if (response.status.isSuccess()) {
                 response.body()
@@ -516,15 +525,10 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
     open suspend fun bookshelfEndpointAvailable(): Boolean {
         return try {
             val response = client.get("$serverUrl/Inglenook/Bookshelves") {
-                header("X-Emby-Token", accessToken ?: "")
+                header("X-Emby-Authorization", getAuthHeader())
             }
-            if (response.status.isSuccess()) {
-                response.body()
-            } else {
-               false
-            }
-        }
-        catch (e: Exception) {
+            response.status.isSuccess()
+        } catch (e: Exception) {
             false
         }
     }
@@ -532,7 +536,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
     open suspend fun createBookshelf(name: String): BookshelfResponse? {
         return try {
             val response = client.post("$serverUrl/Inglenook/Bookshelves") {
-                header("X-Emby-Token", accessToken ?: "")
+                header("X-Emby-Authorization", getAuthHeader())
                 contentType(ContentType.Application.Json)
                 setBody(CreateBookshelfRequest(Name = name))
             }
@@ -549,7 +553,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
     open suspend fun updateBookshelf(id: String, name: String?, bookIds: List<String>?, coverImageUrl: String? = null): BookshelfResponse? {
         return try {
             val response = client.put("$serverUrl/Inglenook/Bookshelves/$id") {
-                header("X-Emby-Token", accessToken ?: "")
+                header("X-Emby-Authorization", getAuthHeader())
                 contentType(ContentType.Application.Json)
                 setBody(UpdateBookshelfRequest(Name = name, BookIds = bookIds, CoverImageUrl = coverImageUrl))
             }
@@ -566,7 +570,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
     open suspend fun deleteBookshelf(id: String): Boolean {
         return try {
             val response = client.delete("$serverUrl/Inglenook/Bookshelves/$id") {
-                header("X-Emby-Token", accessToken ?: "")
+                header("X-Emby-Authorization", getAuthHeader())
             }
             response.status.isSuccess()
         } catch (e: Exception) {
@@ -586,7 +590,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
     ): RemoteSearchResponseDto {
         return try {
             val response = client.post("$serverUrl/Inglenook/Search/Remote") {
-                header("X-Emby-Token", accessToken ?: "")
+                header("X-Emby-Authorization", getAuthHeader())
                 contentType(ContentType.Application.Json)
                 setBody(RemoteSearchRequestDto(
                     Query = query,
@@ -615,7 +619,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
     ): Boolean {
         return try {
             val response = client.post("$serverUrl/Inglenook/$itemId/Metadata") {
-                header("X-Emby-Token", accessToken ?: "")
+                header("X-Emby-Authorization", getAuthHeader())
                 contentType(ContentType.Application.Json)
                 setBody(ApplyMetadataRequestDto(
                     Provider = provider,
@@ -635,7 +639,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
     open suspend fun getItemMetadata(itemId: String): ItemMetadataDto? {
         return try {
             val response = client.get("$serverUrl/Inglenook/$itemId/Metadata") {
-                header("X-Emby-Token", accessToken ?: "")
+                header("X-Emby-Authorization", getAuthHeader())
             }
             if (response.status.isSuccess()) {
                 response.body()
@@ -917,7 +921,10 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
     }
 
     open fun getImageUrl(imageId: String?, itemId: String? = null, imageType: String = "Primary"): String {
+        println("DEBUG getImageUrl ${imageId}")
+        println("DEBUG getImageUrl ${itemId}")
         val id = itemId ?: imageId ?: return ""
+        println("DEBUG id ${id}")
         return "$serverUrl/Items/$id/Images/$imageType"
     }
 
@@ -1197,6 +1204,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
 
         // Get server info for name
         val serverInfo = getServerInfo()
+        val canEditCollection = try { getCanEditCollection() } catch (e: Exception) { false }
 
         return JellyfinServerConfig(
             _id = Uuid.random(),
@@ -1206,7 +1214,8 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
             accessToken = authResponse.AccessToken,
             deviceId = deviceId,
             serverId = serverInfo?.Id,
-            serverName = serverInfo?.ServerName
+            serverName = serverInfo?.ServerName,
+            canEditCollection = canEditCollection
         )
     }
 
@@ -1225,6 +1234,28 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
                 false
             }
         } catch (e: Exception) {
+            false
+        }
+    }
+
+    open suspend fun getCanEditCollection(): Boolean {
+        return try {
+            val response = client.get("$serverUrl/Users/Me") {
+                header("X-Emby-Authorization", getAuthHeader())
+            }
+            println("DEBUG getCanEditCollection: status=${response.status}")
+            if (!response.status.isSuccess()) return false
+            val rawBody = response.bodyAsText()
+            println("DEBUG getCanEditCollection: body=$rawBody")
+            val user = json.decodeFromString<JellyfinUserInfoResponse>(rawBody)
+            val policy = user.Policy
+            println("DEBUG getCanEditCollection: policy=$policy")
+            if (policy == null) return false
+            val result = policy.IsAdministrator || policy.EnableCollectionManagement || policy.EnableMediaManagement
+            println("DEBUG getCanEditCollection: result=$result")
+            result
+        } catch (e: Exception) {
+            println("DEBUG getCanEditCollection: exception=$e")
             false
         }
     }
@@ -1510,3 +1541,13 @@ data class ItemPersonDto(
     val Type: String? = null,
     val Role: String? = null
 )
+
+@Serializable
+data class JellyfinUserPolicy(
+    val IsAdministrator: Boolean = false,
+    val EnableCollectionManagement: Boolean = false,
+    val EnableMediaManagement: Boolean = false,
+)
+
+@Serializable
+data class JellyfinUserInfoResponse(val Policy: JellyfinUserPolicy? = null)

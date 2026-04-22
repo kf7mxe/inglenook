@@ -242,7 +242,7 @@ class DownloadService : Service() {
 
                 // Download complete
                 val downloadedBook = DownloadedBook(
-                    _id = book.id,
+                    id = book.id,
                     title = book.title,
                     authors = book.authors,
                     localFilePath = outputFile.absolutePath,

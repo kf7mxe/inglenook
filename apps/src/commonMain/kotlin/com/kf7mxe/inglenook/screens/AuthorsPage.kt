@@ -18,6 +18,7 @@ import com.kf7mxe.inglenook.components.connectionError
 import com.kf7mxe.inglenook.components.inglenookActivityIndicator
 import com.kf7mxe.inglenook.connectivity.ConnectivityState
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
+import com.kf7mxe.inglenook.lastItemViewedScrollToOnBack
 import com.lightningkite.kiteui.Routable
 import com.lightningkite.kiteui.views.card
 import com.lightningkite.kiteui.views.dynamicTheme
@@ -26,8 +27,8 @@ import com.lightningkite.reactive.context.invoke
 import com.lightningkite.reactive.core.Signal
 import com.lightningkite.reactive.core.Constant
 import com.lightningkite.reactive.core.Reactive
-import com.lightningkite.reactive.core.remember
 import com.lightningkite.reactive.core.rememberSuspending
+import kotlinx.coroutines.launch
 
 @Routable("AuthorsPage")
 class AuthorsPage(val searchQuery: Signal<String> = Signal(""),
@@ -41,9 +42,9 @@ class AuthorsPage(val searchQuery: Signal<String> = Signal(""),
             val books = jellyfinClient()?.getAllBooks() ?: emptyList()
             val query = searchQuery().lowercase().trim()
             val authorsWithBookType = books.filter {  bookTypeFilter()?.let{bookTypeFilter -> it.itemType == bookTypeFilter }?:true }.map {it.authors}.flatten().distinctBy { it.id }
-            if (query.isEmpty()) return@rememberSuspending authorsWithBookType
+            if (query.isEmpty()) return@rememberSuspending authorsWithBookType.sortedBy { it.name.lowercase() }
             println("DEBUG book type filter ${bookTypeFilter()}")
-            return@rememberSuspending authorsWithBookType.filter { it.name.lowercase().contains(query.lowercase()) }
+            return@rememberSuspending authorsWithBookType.filter { it.name.lowercase().contains(query.lowercase()) }.sortedBy { it.name.lowercase() }
         }
 
         col {
@@ -101,11 +102,13 @@ class AuthorsPage(val searchQuery: Signal<String> = Signal(""),
                 keySelector = { it.id },
                 gridItem = { author ->
                     authorCard(author) {
+                        lastItemViewedScrollToOnBack.set(author().id)
                         mainPageNavigator.navigate(AuthorDetailPage(author().id))
                     }
                 },
                 listItem = { author ->
                     authorListItem(author) {
+                        lastItemViewedScrollToOnBack.set(author().id)
                         mainPageNavigator.navigate(AuthorDetailPage(author().id))
                     }
                 }
@@ -119,6 +122,10 @@ fun ViewWriter.authorCard(author: Reactive<Author>, onClick: suspend () -> Unit)
     button {
         col {
             // Author image/avatar
+            launch {
+                println("DEBUG author card author().image id ${author().imageId}")
+                println("DEBUG author card author().id ${author().id}")
+            }
             centered.coverImage(
                     imageId = { author().imageId },
                     itemId = { author().id },

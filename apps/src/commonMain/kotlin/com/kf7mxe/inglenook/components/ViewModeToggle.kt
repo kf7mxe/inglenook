@@ -1,15 +1,21 @@
 package com.kf7mxe.inglenook.components
 
+import com.kf7mxe.inglenook.HasId
 import com.kf7mxe.inglenook.ViewMode
 import com.kf7mxe.inglenook.dashboard
+import com.kf7mxe.inglenook.lastItemViewedScrollToOnBack
 import com.kf7mxe.inglenook.viewMode
+import com.lightningkite.kiteui.models.Align
 import com.lightningkite.kiteui.models.Icon
 import com.lightningkite.kiteui.views.ViewWriter
 import com.lightningkite.kiteui.views.direct.*
 import com.lightningkite.kiteui.views.expanding
 import com.lightningkite.kiteui.views.l2.RecyclerViewPlacerVerticalGrid
 import com.lightningkite.kiteui.views.l2.children
+import com.lightningkite.reactive.context.invoke
 import com.lightningkite.reactive.core.Reactive
+import com.lightningkite.reactive.core.remember
+import kotlinx.coroutines.launch
 
 /**
  * Reusable view mode toggle button (grid <-> list).
@@ -41,10 +47,18 @@ fun <T : Any> ViewWriter.gridListView(
         swapping(
             current = { viewMode() },
             views = { mode ->
+                val scrollTo = remember {
+                    if(lastItemViewedScrollToOnBack() == null) return@remember 0
+                    items().indexOfFirst {(it as HasId) .id == lastItemViewedScrollToOnBack() }.takeIf { it != -1 } ?: return@remember 0
+                }
+
                 when (mode) {
                     ViewMode.Grid -> {
                         expanding.recyclerView {
                             ::placer { RecyclerViewPlacerVerticalGrid(gridColumns) }
+                            launch {
+                                scrollToIndex(scrollTo(), Align.Center,false)
+                            }
                             children(items, keySelector) { item ->
                                 gridItem(item)
                             }
@@ -52,6 +66,9 @@ fun <T : Any> ViewWriter.gridListView(
                     }
                     ViewMode.List -> {
                         expanding.recyclerView {
+                            launch {
+                                scrollToIndex(scrollTo(), Align.Center,false)
+                            }
                             children(items, keySelector) { item ->
                                 listItem(item)
                             }
@@ -62,3 +79,4 @@ fun <T : Any> ViewWriter.gridListView(
         )
     }
 }
+

@@ -30,8 +30,6 @@ import com.kf7mxe.inglenook.storage.SelectedTab
 import com.kf7mxe.inglenook.storage.UnSelectedTab
 import com.kf7mxe.inglenook.storage.readImageFromStorage
 import com.kf7mxe.inglenook.theming.createTheme
-import com.lightningkite.kiteui.lottie.models.LottieRaw
-import com.lightningkite.kiteui.lottie.models.LottieSource
 import com.lightningkite.kiteui.navigation.bindToPlatform
 import com.lightningkite.kiteui.navigation.dialogPageNavigator
 import com.lightningkite.kiteui.navigation.pageNavigator
@@ -51,16 +49,19 @@ import com.kf7mxe.inglenook.util.extractDominantColors
 import com.kf7mxe.inglenook.util.loadResizedImagePixels
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
-import com.lightningkite.kiteui.lottie.views.direct.lottie
 
 // Persistent theme settings - survives app restart
 val persistedThemePreset = PersistentProperty<ThemePreset>("themePreset", ThemePreset.Cozy)
 val persistedThemeSettings = PersistentProperty<ThemeSettings>("themeSettings", ThemeSettings())
 
+val currentScrollIndex = PersistentProperty<String>("scrollIndexTestKey","")
+
+
 // Initialize theme from persisted settings
 val appTheme = Signal<Theme>(createTheme(persistedThemePreset.value, persistedThemeSettings.value))
 
 val diagnosticsEnabled = PersistentProperty("diagnosticsEnabled", false)
+val autoResumeOnOpen = PersistentProperty("autoResumeOnOpen", false)
 
 val bookToShowBlurredBackgroundCoverOf = Signal<Book?>(null)
 
@@ -68,6 +69,8 @@ val bookToShowBlurredBackgroundCoverOf = Signal<Book?>(null)
 val currentThemePreset get() = persistedThemePreset
 
 val viewMode = PersistentProperty("viewMode", ViewMode.Grid)
+
+val lastItemViewedScrollToOnBack = Signal<String?>(null)
 
 
 // View mode for book lists
@@ -102,6 +105,9 @@ fun ViewWriter.app(navigator: PageNavigator, dialog: PageNavigator) {
     // Restore last played book so the now-playing preview shows on relaunch
     launch {
         PlaybackState.restoreLastPlayed()
+        if (autoResumeOnOpen.value && PlaybackState.currentBook.value != null && !PlaybackState.isPlaying.value) {
+            PlaybackState.resume()
+        }
     }
 
     // Check if Jellyfin is configured, if not go to setup

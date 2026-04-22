@@ -64,6 +64,14 @@ fun ViewWriter.nowPlayingPreview() {
                         ::content { PlaybackState.currentBook()?.authors?.map { it.name }?.joinToString(", ") ?: "" }
                         ellipsis = true
                     }
+                    sizeConstraints(height = 0.5.rem).progressBar {
+                        ::shown { PlaybackState.duration() > 0L }
+                        ::ratio {
+                            val duration = PlaybackState.duration()
+                            if (duration > 0) (PlaybackState.positionTicks().toFloat() / duration).coerceIn(0f, 1f)
+                            else 0f
+                        }
+                    }
                 }
             }
             onClick {
@@ -79,7 +87,7 @@ fun ViewWriter.nowPlayingPreview() {
         }
 
         button {
-            icon(Icon.reverseThirtySeconds, "Skip back")
+            centered.icon(Icon.reverseThirtySeconds, "Skip back")
             onClick { PlaybackState.skipBackward() }
         }
 

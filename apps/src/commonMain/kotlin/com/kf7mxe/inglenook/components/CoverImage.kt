@@ -29,9 +29,15 @@ fun ViewWriter.coverImage(
     scaleType: ImageScaleType = ImageScaleType.Crop
 ) {
     val cachedCover = rememberSuspending {
-        jellyfinClient().fetchCoverImage(imageId(), itemId())
+        val test = jellyfinClient().fetchCoverImage(imageId(), itemId())
+        println("DEBUG test ${test}")
+        test
     }
-    val hasImage = rememberSuspending { imageId() != null && cachedCover() != null }
+    val hasImage = rememberSuspending {
+        val hasImage = imageId() != null && cachedCover() != null
+        println("DEBUG hasImage ${hasImage}")
+        hasImage
+    }
 
     sizeConstraints(height = imageHeight, width = imageWidth).frame {
         themed(ImageSemantic).image {

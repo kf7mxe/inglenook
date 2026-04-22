@@ -6,7 +6,9 @@ import com.kf7mxe.inglenook.JellyfinServerConfig
 import com.kf7mxe.inglenook.cache.ApiCache
 import com.kf7mxe.inglenook.playback.PlaybackState
 import com.lightningkite.kiteui.reactive.PersistentProperty
+import com.lightningkite.reactive.core.AppScope
 import com.lightningkite.reactive.core.Signal
+import kotlinx.coroutines.launch
 import kotlin.uuid.ExperimentalUuidApi
 
 // --- Multi-server storage ---
@@ -36,6 +38,7 @@ val jellyfinClient: Signal<JellyfinClient?> = Signal<JellyfinClient?>(null).also
             userId = config.userId,
             deviceId = config.deviceId
         )
+        refreshCanEditCollection(config)
     }
 }
 
@@ -75,6 +78,24 @@ fun addServer(config: JellyfinServerConfig) {
     switchToServer(config._id.toString())
 }
 
+/** Refreshes canEditCollection for the active server config and persists the result. */
+private fun refreshCanEditCollection(config: JellyfinServerConfig) {
+    AppScope.launch {
+        try {
+            val canEditCollection = jellyfinClient.value?.getCanEditCollection() ?: return@launch
+            if (canEditCollection != config.canEditCollection) {
+                val updated = config.copy(canEditCollection = canEditCollection)
+                jellyfinServers.value = jellyfinServers.value.map {
+                    if (it._id == updated._id) updated else it
+                }
+                jellyfinServerConfig.value = updated
+            }
+        } catch (e: Exception) {
+            println("DEBUG refreshCanEditCollection: exception=$e")
+        }
+    }
+}
+
 /** Switch the active server. Stops playback, clears cache, reinitializes client. */
 fun switchToServer(serverId: String) {
     val config = jellyfinServers.value.find { it._id.toString() == serverId } ?: return
@@ -96,6 +117,8 @@ fun switchToServer(serverId: String) {
         userId = config.userId,
         deviceId = config.deviceId
     )
+
+    refreshCanEditCollection(config)
 }
 
 /** Remove a server from the list. If it's the active server, switch to another or clear. */

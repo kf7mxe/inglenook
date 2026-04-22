@@ -114,6 +114,7 @@ fun Theme.Companion.cozy(accent: Color? = null): Theme {
                 )
             },
             NavSemantic.override { it.withBack(
+                cascading = false,
                 gap=0.5.rem,
                 cornerRadii = CornerRadii.PerCorner(1.rem,true,true,false,false)) },
             UnselectedSemantic.override {
@@ -156,6 +157,7 @@ fun Theme.Companion.autumnCabin(accent: Color? = null): Theme {
                 cornerRadii = CornerRadii.PerCorner(1.rem,true,true,true,true),
             ) },
             NavSemantic.override { it.withBack(
+                cascading = false,
                 gap=0.5.rem,
                 cornerRadii = CornerRadii.PerCorner(1.rem,true,true,false,false)) },
             MainContentSemantic.override { it.withoutBack(
@@ -303,6 +305,7 @@ fun Theme.Companion.sunrise(accent: Color? = null): Theme {
                 cornerRadii = CornerRadii.PerCorner(1.rem,true,true,true,true),
             ) },
             NavSemantic.override { it.withBack(
+                cascading = false,
                 gap=0.5.rem,
                 cornerRadii = CornerRadii.PerCorner(1.rem,true,true,true,true)) },            MainContentSemantic.override { it.withBack },
             ImportantSemantic.override {
@@ -375,6 +378,7 @@ fun Theme.Companion.neomorphismDark(accent: Color = Color.fromHex(0xFF6200EE.toI
             NavSemantic.override {
 
                 it.withBack(
+                    cascading = false,
                     padding = Edges(1.rem),
 //                    shadows =convexShadows
                     cornerRadii = CornerRadii.Fixed(1.rem) ,
