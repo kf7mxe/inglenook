@@ -53,8 +53,10 @@ class PlaybackService : MediaSessionService() {
                 // Add listener for playback events
                 player.addListener(object : Player.Listener {
                     override fun onPlaybackStateChanged(playbackState: Int) {
-                        if (playbackState == Player.STATE_ENDED) {
-                            PlaybackState.onPlaybackComplete()
+                        when (playbackState) {
+                            Player.STATE_BUFFERING -> PlaybackState.isBuffering.value = true
+                            Player.STATE_READY -> PlaybackState.isBuffering.value = false
+                            Player.STATE_ENDED -> PlaybackState.onPlaybackComplete()
                         }
                     }
 

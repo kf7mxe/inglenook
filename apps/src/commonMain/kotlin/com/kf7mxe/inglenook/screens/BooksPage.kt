@@ -78,7 +78,6 @@ class BooksPage(
         }
 
         col {
-            paddingByEdge = Edges(1.rem, 0.rem, 1.rem, 0.rem)
 
             reactive{
                 println("DEBUG lastLookedAtBook ${lastItemViewedScrollToOnBack()}")

@@ -277,14 +277,17 @@ object PlaybackState {
     private fun startProgressSync() {
         progressSyncJob?.cancel()
         progressSyncJob = AppScope.launch {
-            // Fast initial sync to clear buffering state and show real position
+            // Wait for position to actually advance past the start point.
+            // Checking pos > 0 alone is wrong for resumed books: the player reports
+            // the seek position immediately even while still buffering.
+            val startPos = positionTicks.value
             for (i in 0 until 10) {
                 delay(BUFFERING_CHECK_INTERVAL_MS)
                 val book = currentBook.value
                 if (book != null && isPlaying.value) {
                     audioPlayer?.let { player ->
                         val pos = player.getCurrentPosition()
-                        if (pos > 0) {
+                        if (pos > startPos) {
                             positionTicks.value = pos
                             if (isBuffering.value) {
                                 isBuffering.value = false

@@ -93,9 +93,14 @@ fun ViewWriter.nowPlayingPreview() {
 
         // Play/Pause button
         button {
-            centered.icon {
-                ::source { if (PlaybackState.isPlaying()) Icon.pause else Icon.playArrow }
-                ::description { if (PlaybackState.isPlaying()) "Pause" else "Play" }
+            centered.col {
+                shownWhen { PlaybackState.isBuffering() }.centered.row {
+                    sizeConstraints(width = 1.5.rem, height = 1.5.rem).inglenookActivityIndicator()
+                }
+                shownWhen { !PlaybackState.isBuffering() }.icon {
+                    ::source { if (PlaybackState.isPlaying()) Icon.pause else Icon.playArrow }
+                    ::description { if (PlaybackState.isPlaying()) "Pause" else "Play" }
+                }
             }
             onClick {
                 if (PlaybackState.isPlaying.value) {

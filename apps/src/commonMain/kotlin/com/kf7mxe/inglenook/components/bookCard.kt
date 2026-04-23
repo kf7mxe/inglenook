@@ -24,7 +24,7 @@ fun ViewWriter.bookCard(
     centered.card.sizeConstraints(width = 14.rem, height = 24.rem).col {
         // Cover image with click
         button {
-            padding = 0.rem
+//            padding = 0.rem
             col {
                 centered.frame {
                     coverImage(

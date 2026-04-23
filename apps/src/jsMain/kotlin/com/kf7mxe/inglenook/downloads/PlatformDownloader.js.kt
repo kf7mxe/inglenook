@@ -168,7 +168,7 @@ actual object PlatformDownloader {
             ))
 
             return DownloadedBook(
-                _id = book.id,
+                id = book.id,
                 title = book.title,
                 authors = book.authors,
                 localFilePath = "indexeddb://${book.id}", // Virtual path indicating IndexedDB storage

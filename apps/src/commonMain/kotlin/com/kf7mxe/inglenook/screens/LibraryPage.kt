@@ -51,9 +51,8 @@ class LibraryPage : Page {
 
         col {
             // Tab buttons
-            paddingByEdge = Edges(0.rem,1.rem,0.rem,0.rem)
+            paddingByEdge = Edges(1.rem,1.rem,1.rem,0.rem)
             row {
-                paddingByEdge = Edges(1.rem,0.rem,1.rem,0.rem)
                 expanding.card.button {
                     centered.text("Books")
                     onClick { currentTab.set(BooksTab.Books) }

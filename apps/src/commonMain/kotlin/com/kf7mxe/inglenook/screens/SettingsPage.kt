@@ -94,13 +94,13 @@ class SettingsPage : Page {
                                 }
                             }
 
-                            // Remove button for each server
+                            // Logout/Remove button for each server
                             row {
                                 expanding.space(1.0)
                                 button {
                                     row {
-                                        icon(Icon.close, "Remove")
-                                        text("Remove")
+                                        icon(if (isActive) Icon.logout else Icon.close, if (isActive) "Log Out" else "Remove")
+                                        text(if (isActive) "Log Out" else "Remove")
                                     }
                                     onClick {
                                         removeServer(server._id.toString())
