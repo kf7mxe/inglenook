@@ -11,14 +11,23 @@ import com.lightningkite.kiteui.views.expanding
 import com.lightningkite.kiteui.views.l2.icon
 import com.kf7mxe.inglenook.book
 import com.kf7mxe.inglenook.components.bookCard
+import com.kf7mxe.inglenook.components.featuredBookCard
+import com.lightningkite.kiteui.views.l2.children
 import com.kf7mxe.inglenook.connectivity.ConnectivityState
 import com.kf7mxe.inglenook.downloads.DownloadManager
 import com.kf7mxe.inglenook.downloads.toAudioBook
 import com.kf7mxe.inglenook.components.connectionError
 import com.kf7mxe.inglenook.components.inglenookActivityIndicator
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
+import com.kf7mxe.inglenook.storage.CircleIndicator
 import com.lightningkite.kiteui.Routable
+import com.lightningkite.kiteui.models.CornerRadii.Fixed
+import com.lightningkite.kiteui.views.atBottomCenter
+import com.lightningkite.kiteui.views.dynamicTheme
+import com.lightningkite.kiteui.views.forEachById
 import com.lightningkite.kiteui.views.forEachUpdating
+import com.lightningkite.kiteui.views.l2.Recycler2
+import com.lightningkite.kiteui.views.maxHeight
 import com.lightningkite.reactive.context.invoke
 import com.lightningkite.reactive.core.Constant
 import com.lightningkite.reactive.core.remember
@@ -40,6 +49,10 @@ class HomePage : Page {
         val recentlyAddedBooks = rememberSuspending {
             ConnectivityState.offlineMode()
             jellyfinClient()?.getRecentlyAddedBooks() ?: emptyList()
+        }
+
+        val featuredBooks = remember{
+            inProgressBooks().shuffled().take(2) + recentlyAddedBooks().shuffled().take(1) + recommendedBooks().shuffled().take(1)
         }
 
         val downloadedBooks = remember {
@@ -104,24 +117,62 @@ class HomePage : Page {
 
                 // Continue Listening Section
                 col {
-                    ::shown { inProgressBooks().isNotEmpty() || !inProgressBooks.state().ready }
-                    padded.row {
-                        expanding.h3 { content = "Continue Listening" }
-                        link {
-                            text("See All")
-                            to = { LibraryPage() }
-                        }
-                    }
+                    ::shown { featuredBooks().isNotEmpty() || !featuredBooks.state().ready }
+                    shownWhen { !featuredBooks.state().ready }.inglenookActivityIndicator()
 
-                    shownWhen { !inProgressBooks.state().ready }.inglenookActivityIndicator()
+                         shownWhen { featuredBooks().isNotEmpty() }.maxHeight(38.5.rem).padded.frame{
+                             var viewPager: Recycler2? = null
+                             viewPager {
+                                 viewPager = this
+                                 children(featuredBooks, { it.id }) { book ->
+                                     featuredBookCard(book) {
+                                         mainPageNavigator.navigate(BookDetailPage(book.invoke().id))
+                                     }
+                                 }
+                             }
+                             atBottomCenter.col {
+                                 row {
+                                     forEachById(featuredBooks, { it.id }) {
+                                         sizeConstraints(width = 1.rem, height = 1.rem).frame {
+                                             dynamicTheme {
+                                                 featuredBooks().indexOf(it())
+                                                 if (viewPager?.centerIndex() == featuredBooks().indexOf(it())) CircleIndicator + ImportantSemantic
+                                                 else CircleIndicator
+                                             }
+                                         }
+                                     }
+                                 }
+                                 space()
+                             }
+                         }
+                }
 
-                    scrollingHorizontally.padded.row {
-                        ::shown {
-                            inProgressBooks().isNotEmpty()
+
+
+                // Main content sections (shown online, or offline with cached data)
+                unpadded.col {
+
+                    // Continue Listening Section
+                    col {
+                        ::shown { inProgressBooks().isNotEmpty() || !inProgressBooks.state().ready }
+                        padded.row {
+                            expanding.h3 { content = "Continue Listening" }
+                            link {
+                                text("See All")
+                                to = { LibraryPage() }
+                            }
                         }
-                        forEachUpdating(inProgressBooks) { book ->
-                            bookCard(book) {
-                                mainPageNavigator.navigate(BookDetailPage(book.invoke().id))
+
+                        shownWhen { !inProgressBooks.state().ready }.inglenookActivityIndicator()
+
+                        scrollingHorizontally.padded.row {
+                            ::shown {
+                                inProgressBooks().isNotEmpty()
+                            }
+                            forEachUpdating(inProgressBooks) { book ->
+                                bookCard(book) {
+                                    mainPageNavigator.navigate(BookDetailPage(book.invoke().id))
+                                }
                             }
                         }
                     }

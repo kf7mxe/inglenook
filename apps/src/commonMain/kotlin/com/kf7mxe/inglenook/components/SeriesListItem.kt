@@ -24,7 +24,6 @@ fun ViewWriter.SeriesListItem(
                 itemId = { series().id },
                 fallbackIcon = Icon.book,
                 imageHeight = 7.rem,
-                imageWidth = 5.rem,
                 scaleType = ImageScaleType.Crop
             )
 

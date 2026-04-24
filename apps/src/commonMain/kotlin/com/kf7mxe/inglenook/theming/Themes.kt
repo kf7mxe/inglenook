@@ -55,7 +55,7 @@ fun Theme.Companion.cozy(accent: Color? = null): Theme {
         background = Color.fromHexString("#F0E2C6"),
         outline = accent?: Color.fromHexString("#7B8266"),
         outlineWidth = 2.px,
-        elevation = 0.dp,
+        elevation = 2.dp,
         gap = 0.75.rem,
         semanticOverrides = SemanticOverrides(
             OuterSemantic.override {
@@ -67,7 +67,7 @@ fun Theme.Companion.cozy(accent: Color? = null): Theme {
             },
             CardSemantic.override {
                 it.withBack(
-                    background = it.background.closestColor().lighten(0.08f),
+//                    background = it.background.closestColor().darken(0.05f),
                     outlineWidth = 1.dp,
                     outline = it.outline.closestColor().lighten(0.1f)
                 )
@@ -107,6 +107,7 @@ fun Theme.Companion.cozy(accent: Color? = null): Theme {
                     outlineWidth = 0.dp
                 )
             },
+
             DialogSemantic.override {
                 it.withBack(
                     cornerRadii = CornerRadii.Fixed(1.rem),

@@ -67,7 +67,6 @@ class AuthorDetailPage(val authorId: String) : Page {
                     itemId = { authorId },
                     fallbackIcon = Icon.person.copy(width = 4.rem, height = 4.rem),
                     imageHeight = 8.rem,
-                    imageWidth = 8.rem,
                     scaleType = ImageScaleType.Crop
                 )
                 col {

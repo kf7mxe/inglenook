@@ -131,7 +131,6 @@ fun ViewWriter.authorCard(author: Reactive<Author>, onClick: suspend () -> Unit)
                     itemId = { author().id },
                     fallbackIcon = Icon.person.copy(width = 3.rem, height = 3.rem),
                     imageHeight = 6.rem,
-                    imageWidth = 6.rem,
                     scaleType = ImageScaleType.Crop
                 )
 
@@ -156,7 +155,6 @@ fun ViewWriter.authorListItem(author: Reactive<Author>, onClick: suspend () -> U
                 itemId = { author().id },
                 fallbackIcon = Icon.person.copy(width = 2.rem, height = 2.rem),
                 imageHeight = 4.rem,
-                imageWidth = 4.rem,
                 scaleType = ImageScaleType.Crop
             )
 

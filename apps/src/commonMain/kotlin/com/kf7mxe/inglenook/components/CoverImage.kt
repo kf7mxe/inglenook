@@ -26,7 +26,6 @@ fun ViewWriter.coverImage(
     itemId: suspend () -> String?,
     fallbackIcon: Icon = Icon.book,
     imageHeight: Dimension = 7.rem,
-    imageWidth: Dimension = 5.rem,
     scaleType: ImageScaleType = ImageScaleType.Crop
 ) {
     val cachedCover = rememberSuspending {
@@ -40,7 +39,7 @@ fun ViewWriter.coverImage(
         hasImage
     }
 
-    maxHeight(imageHeight).frame {
+    sizeConstraints(height = imageHeight).frame {
         themed(ImageSemantic).image {
             this.rView::shown { hasImage() == true }
             ::source { cachedCover() }

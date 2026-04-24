@@ -25,7 +25,6 @@ fun ViewWriter.seriesCard(
                 itemId = { series().coverBookId },
                 fallbackIcon = Icon.book,
                 imageHeight = 12.rem,
-                imageWidth = 9.rem,
                 scaleType = ImageScaleType.Crop
             )
 

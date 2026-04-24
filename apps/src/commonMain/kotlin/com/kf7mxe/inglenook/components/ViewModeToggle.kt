@@ -11,6 +11,7 @@ import com.lightningkite.kiteui.views.ViewWriter
 import com.lightningkite.kiteui.views.card
 import com.lightningkite.kiteui.views.direct.*
 import com.lightningkite.kiteui.views.expanding
+import com.lightningkite.kiteui.views.important
 import com.lightningkite.kiteui.views.l2.RecyclerViewPlacerVerticalGrid
 import com.lightningkite.kiteui.views.l2.children
 import com.lightningkite.reactive.context.invoke
@@ -55,16 +56,16 @@ fun <T : Any> ViewWriter.gridListView(
 
                 when (mode) {
                     ViewMode.Grid -> {
-                        expanding.recyclerView {
-                            ::placer { RecyclerViewPlacerVerticalGrid(gridColumns) }
-                            launch {
-                                scrollToIndex(scrollTo(), Align.Center,false)
-                            }
-                            children(items, keySelector) { item ->
-                                gridItem(item)
+                            expanding.recyclerView {
+                                ::placer { RecyclerViewPlacerVerticalGrid(gridColumns) }
+                                launch {
+                                    scrollToIndex(scrollTo(), Align.Center, false)
+                                }
+                                children(items, keySelector) { item ->
+                                    gridItem(item)
+                                }
                             }
                         }
-                    }
                     ViewMode.List -> {
                         expanding.recyclerView {
                             launch {
