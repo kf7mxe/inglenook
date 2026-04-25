@@ -191,18 +191,18 @@ data class Bookmark(
 
 // Theme preset enumeration
 @Serializable
-enum class ThemePreset(val displayName: String, val allowsCustomization: Boolean = true) {
-    Cozy("Cozy", true),           // Forest green, warm background
-    AutumnCabin("Autumn Cabin", true),          // Blue tones
-    Midnight("Midnight", true),    // Dark theme
-    Sunrise("Sunrise", true),      // Warm orange
-    NeumorphismLight("Neumorphism Light", true),
-    NeumorphismDark("Neumorphism Dark", true),
-    Hackerman("Hackerman", true),  // Terminal/monochrome style
-    Clouds("Clouds", true),        // Soft rounded style
-    Obsidian("Obsidian", true),    // Dark with gradients
-    Glassish("Glassish", true),    // Glass transparency
-    Custom("Custom", true) // Fully user customizable
+enum class ThemePreset(val displayName: String, val showBookBackgroundColor: Boolean = true, val allowsCustomization: Boolean = true) {
+    Cozy("Cozy", true,true),           // Forest green, warm background
+    AutumnCabin("Autumn Cabin", true,true),          // Blue tones
+    Midnight("Midnight", false,true),    // Dark theme
+    Sunrise("Sunrise", true,true),      // Warm orange
+    NeumorphismLight("Neumorphism Light", false,true),
+    NeumorphismDark("Neumorphism Dark", false,true),
+    Hackerman("Hackerman", false,true),  // Terminal/monochrome style
+    Clouds("Clouds", false,true),        // Soft rounded style
+    Obsidian("Obsidian", false,true),    // Dark with gradients
+    Glassish("Glassish", false,true),    // Glass transparency
+    Custom("Custom",  false,true) // Fully user customizable
 }
 
 // Theme settings for customization

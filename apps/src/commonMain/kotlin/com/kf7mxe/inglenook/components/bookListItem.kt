@@ -19,7 +19,6 @@ import com.lightningkite.reactive.context.invoke
 
 fun ViewWriter.bookListItem(
     book: Reactive<Book>,
-    onPlayClick: (suspend (Book) -> Unit)? = null,
     onClick: suspend () -> Unit
 ) {
     card.row {

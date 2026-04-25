@@ -59,6 +59,7 @@ fun <T : Any> ViewWriter.gridListView(
                             expanding.recyclerView {
                                 ::placer { RecyclerViewPlacerVerticalGrid(gridColumns) }
                                 launch {
+                                    if(lastItemViewedScrollToOnBack() == null) return@launch
                                     scrollToIndex(scrollTo(), Align.Center, false)
                                 }
                                 children(items, keySelector) { item ->
@@ -69,6 +70,7 @@ fun <T : Any> ViewWriter.gridListView(
                     ViewMode.List -> {
                         expanding.recyclerView {
                             launch {
+                                if(lastItemViewedScrollToOnBack() == null) return@launch
                                 scrollToIndex(scrollTo(), Align.Center,false)
                             }
                             children(items, keySelector) { item ->

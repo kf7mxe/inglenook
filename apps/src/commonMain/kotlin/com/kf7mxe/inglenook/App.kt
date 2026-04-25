@@ -20,6 +20,8 @@ import com.kf7mxe.inglenook.components.blurredImage
 import com.kf7mxe.inglenook.demo.DemoMode
 import com.kf7mxe.inglenook.demo.isDemoWebsite
 import com.kf7mxe.inglenook.components.connectivityDialog
+import com.kf7mxe.inglenook.components.getDominantColor
+import com.kf7mxe.inglenook.components.getSemanticForBookBackground
 import com.kf7mxe.inglenook.components.nowPlayingPreview
 import com.kf7mxe.inglenook.components.offlineBanner
 import com.kf7mxe.inglenook.connectivity.ConnectivityState
@@ -47,6 +49,8 @@ import com.lightningkite.reactive.core.rememberSuspending
 import com.kf7mxe.inglenook.util.assignThemeColors
 import com.kf7mxe.inglenook.util.extractDominantColors
 import com.kf7mxe.inglenook.util.loadResizedImagePixels
+import com.lightningkite.reactive.context.invoke
+import com.lightningkite.reactive.context.reactive
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 
@@ -105,7 +109,9 @@ fun ViewWriter.app(navigator: PageNavigator, dialog: PageNavigator) {
     // Restore last played book so the now-playing preview shows on relaunch
     launch {
         PlaybackState.restoreLastPlayed()
+        println("DEBUG sumeOnOpen.value ${autoResumeOnOpen.value}")
         if (autoResumeOnOpen.value && PlaybackState.currentBook.value != null && !PlaybackState.isPlaying.value) {
+            println("DEBUG auto reusme ")
             PlaybackState.resume()
         }
     }
@@ -219,12 +225,30 @@ fun ViewWriter.app(navigator: PageNavigator, dialog: PageNavigator) {
                     wallpaper() != null
                 }
             }
+            col {
+//                    themeChoice = ThemeDerivation.None
+                    val coverDominantColor = rememberSuspending {
+                        if(mainPageNavigator.currentPage() !is BookDetailPage){
+                            return@rememberSuspending null
+                        }
+                        bookToShowBlurredBackgroundCoverOf()?.let{book->
+                            getDominantColor(book)
+                        }
+                    }
+                    dynamicTheme {
+                        getSemanticForBookBackground(coverDominantColor(),appTheme().background.closestColor(),
+                            OuterSemantic)
+                    }
+            }
+
             blurredImage(PlaybackState.currentBook, remember {
                 PlaybackState.currentBook() != null && persistedThemeSettings().showPlayingBookCoverAsWallpaper
             })
             blurredImage(bookToShowBlurredBackgroundCoverOf, remember {
                 mainPageNavigator.currentPage() is BookDetailPage && persistedThemeSettings().showPlayingBookCoverOnNowPlayingAndBookDetail
             })
+
+
 
             col {
                 gap = 0.0.rem
@@ -272,6 +296,7 @@ fun ViewWriter.app(navigator: PageNavigator, dialog: PageNavigator) {
 
                 // Main content area with coordinator frame for bottom sheet
                 MainContentSemantic.onNext.expanding.navigatorView(navigator)
+
 
                 // Bottom navigation bar
                 beforeNextElementSetup {

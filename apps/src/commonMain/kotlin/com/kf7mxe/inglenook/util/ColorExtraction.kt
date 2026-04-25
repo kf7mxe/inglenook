@@ -158,7 +158,7 @@ fun extractDominantColors(
  * Vibrancy score that considers both saturation and brightness.
  * Very dark or very light colors score low even if technically saturated.
  */
-private fun RgbColor.vibrancy(): Float {
+internal fun RgbColor.vibrancy(): Float {
     val lum = luminance()
     // Penalize colors that are too dark or too light to look vibrant
     val brightnessFactor = 1f - (2f * abs(lum - 0.5f)).coerceIn(0f, 1f)
@@ -169,6 +169,9 @@ private fun RgbColor.vibrancy(): Float {
  * Assigns extracted colors to theme roles.
  * Returns Triple(backgroundColor, primaryColor, accentColor) as hex strings.
  */
+fun mostProminentColor(colors: List<RgbColor>): RgbColor? =
+    colors.maxByOrNull { it.vibrancy() }
+
 fun assignThemeColors(colors: List<RgbColor>): Triple<String, String, String> {
     if (colors.isEmpty()) return Triple("#1a1a2e", "#6366f1", "#3b3b4d")
 

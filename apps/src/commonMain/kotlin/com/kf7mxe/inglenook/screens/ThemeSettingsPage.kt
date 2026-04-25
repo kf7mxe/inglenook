@@ -284,6 +284,7 @@ class ThemeSettingsPage : Page {
             importantBgColor, importantFgColor,
             selectedBgColor, selectedOutlineColor,
             cardBgColor, cardOutlineColor,
+            showPlayingBookCoverOnNowPlayingAndBookDetail
         )
         val reactiveFloatSignals = listOf(
             baseOpacity, opacityStep, outlineOpacity,
@@ -291,6 +292,7 @@ class ThemeSettingsPage : Page {
             imageCornerRadius, imagePadding, imageOutlineWidth,
             selectedOutlineWidth, cardOutlineWidth,
             importantOpacity, selectedOpacity, cardOpacity,
+
         )
         for (signal in reactiveSignals) {
             signal.addListener { debouncedApplyTheme() }
@@ -489,6 +491,12 @@ class ThemeSettingsPage : Page {
                         checkbox {
                             checked bind showPlayingBookCoverOnNowPlayingAndBookDetail
                         }
+
+                        reactive {
+                            showPlayingBookCoverOnNowPlayingAndBookDetail()
+                            applyTheme()
+                        }
+
                         col {
                             text { content = "Show Book Cover Background" }
                             subtext { content = "Show cover image behind content on now playing bottom and sheet and book detail"

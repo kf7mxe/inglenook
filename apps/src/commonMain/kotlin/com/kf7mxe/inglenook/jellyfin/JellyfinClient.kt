@@ -921,10 +921,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
     }
 
     open fun getImageUrl(imageId: String?, itemId: String? = null, imageType: String = "Primary"): String {
-        println("DEBUG getImageUrl ${imageId}")
-        println("DEBUG getImageUrl ${itemId}")
         val id = itemId ?: imageId ?: return ""
-        println("DEBUG id ${id}")
         return "$serverUrl/Items/$id/Images/$imageType"
     }
 

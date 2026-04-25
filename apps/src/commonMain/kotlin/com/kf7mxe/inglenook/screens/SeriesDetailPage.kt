@@ -99,10 +99,6 @@ class SeriesDetailPage(val seriesName: String) : Page {
                 gridItem = { bookReactive ->
                     bookCard(
                         book = bookReactive,
-                        onPlayClick = { book ->
-                            val startPosition = book.userData?.playbackPositionTicks ?: 0L
-                            PlaybackState.play(book, startPosition)
-                        },
                         onClick = {
                             mainPageNavigator.navigate(BookDetailPage(bookReactive().id))
                         }
@@ -111,10 +107,6 @@ class SeriesDetailPage(val seriesName: String) : Page {
                 listItem = { bookReactive ->
                     bookListItem(
                         book = bookReactive,
-                        onPlayClick = { book ->
-                            val startPosition = book.userData?.playbackPositionTicks ?: 0L
-                            PlaybackState.play(book, startPosition)
-                        },
                         onClick = {
                             mainPageNavigator.navigate(BookDetailPage(bookReactive().id))
                         }

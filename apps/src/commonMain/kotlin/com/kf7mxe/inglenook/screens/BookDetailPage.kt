@@ -18,6 +18,8 @@ import com.kf7mxe.inglenook.components.BookshelfPickerDialog
 import com.kf7mxe.inglenook.components.IdentifyDialog
 import com.kf7mxe.inglenook.components.bookmarksList
 import com.kf7mxe.inglenook.components.chaptersList
+import com.kf7mxe.inglenook.components.getDominantColor
+import com.kf7mxe.inglenook.components.getSemanticForBookBackground
 import com.kf7mxe.inglenook.ebook.ebookReader
 import com.lightningkite.kiteui.views.l2.coordinatorFrame
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
@@ -35,6 +37,7 @@ import com.lightningkite.kiteui.current
 import com.lightningkite.kiteui.views.buttonTheme
 import com.lightningkite.kiteui.views.forEach
 import com.lightningkite.kiteui.views.card
+import com.lightningkite.kiteui.views.dynamicTheme
 import com.lightningkite.reactive.core.Signal
 import com.lightningkite.reactive.core.Reactive
 import com.lightningkite.reactive.core.remember
@@ -65,6 +68,7 @@ class BookDetailPage(val bookId: String) : Page {
         // Scrollable content
         padded.expanding.scrolling.col {
             paddingByEdge = Edges(0.rem,1.rem)
+
             // Connection error state (book failed to load due to network)
             shownWhen { book.state().ready && book() == null && ConnectivityState.lastNetworkError() != null }.expanding.connectionError {
                 mainPageNavigator.navigate(BookDetailPage(bookId))

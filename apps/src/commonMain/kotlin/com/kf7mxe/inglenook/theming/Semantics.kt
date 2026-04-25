@@ -1,5 +1,6 @@
 package com.kf7mxe.inglenook.storage
 
+import com.kf7mxe.inglenook.toHexString
 import com.lightningkite.kiteui.models.Paint
 import com.lightningkite.kiteui.models.Semantic
 import com.lightningkite.kiteui.models.Theme
@@ -17,14 +18,19 @@ data object BoldSemantic : Semantic("bld") {
     ).withoutBack
 }
 
-data class Background(val pad: Boolean = false, val background: (Theme) -> Paint) : Semantic("mnbck") {
-    override fun default(theme: Theme): ThemeAndBack =
-        theme.copy(
-            id = key,
-            background = background(theme)
-        ).let {
-            if (pad) it.withBack else it.withBackNoPadding
+data object BackgroundSetToSpecificColor {
+    val internal = HashMap<Color, Semantic>()
+    operator fun get(color: Color) = internal.getOrPut(color) {
+        object : Semantic("BackgroundSetToSpecificColor-${color.toInt()}") {
+            override fun default(theme: Theme): ThemeAndBack {
+                return theme.copy(
+                    id = key,
+                    background = color,
+                    outline = color.darken(0.5f)
+                ).withBack
+            }
         }
+    }
 }
 
 data object BadgeSemantic : Semantic("badge") {
@@ -91,4 +97,18 @@ data object CircleIndicator : Semantic("circleIndicator") {
         id="viewPagerIndicator",
         cornerRadii = Fixed(10.rem),
     ).withBack
+}
+
+data object SelectedBackgroundSetToSpecificColor {
+    val internal = HashMap<Color, Semantic>()
+    operator fun get(color: Color) = internal.getOrPut(color) {
+        object : Semantic("selected-bg-${color.toHexString()}") {
+            override fun default(theme: Theme): ThemeAndBack {
+                return theme.copy(
+                    id = "selected-background-whisp-colored-${color.toInt()}",
+                    background = color
+                ).withBack
+            }
+        }
+    }
 }

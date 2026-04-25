@@ -79,6 +79,7 @@ class AndroidAudioPlayer : AudioPlayer {
     }
 
     override fun resume() {
+        println("DEBUG resume android audio player")
         mediaController?.play()
             ?: PlaybackService.getInstance()?.resume()
     }

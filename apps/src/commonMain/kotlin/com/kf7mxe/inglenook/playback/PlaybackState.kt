@@ -81,6 +81,7 @@ object PlaybackState {
     }
 
     suspend fun restoreLastPlayed() {
+        println("DEBUG restoring lastPlayed")
         if (currentBook.value != null) return // Already have an active book
         val book = persistedLastBook.value ?: return
         currentBook.value = book
@@ -92,6 +93,7 @@ object PlaybackState {
     }
 
     suspend fun play(book: Book, startPosition: Long = 0L) {
+        println("DEBUG playback play")
         currentBook.set(book)
         duration.value = book.duration
         positionTicks.value = startPosition
@@ -124,6 +126,7 @@ object PlaybackState {
     }
 
     fun pause() {
+        println("DEBUG PlayBackState pause")
         audioPlayer?.pause()
         isPlaying.value = false
         stopProgressSync()
@@ -141,6 +144,7 @@ object PlaybackState {
     }
 
     suspend fun resume() {
+        println("DEBUG resumming ")
         if (audioPlayer == null) {
             val book = currentBook.value
             if (book != null) {

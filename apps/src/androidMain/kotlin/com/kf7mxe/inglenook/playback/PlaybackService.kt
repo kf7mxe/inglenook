@@ -155,6 +155,7 @@ class PlaybackService : MediaSessionService() {
     // Public methods for controlling playback from the app
 
     fun playBook(book: Book, startPositionTicks: Long, localFilePath: String? = null) {
+        println("DEBUG playBook Playback service")
         val player = exoPlayer ?: return
 
         // Use local file if available (offline playback), otherwise stream from server
@@ -199,6 +200,7 @@ class PlaybackService : MediaSessionService() {
     }
 
     fun resume() {
+        println("DEBUG playback service ")
         exoPlayer?.play()
     }
 

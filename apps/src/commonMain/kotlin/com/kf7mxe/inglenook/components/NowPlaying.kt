@@ -95,15 +95,15 @@ fun ViewWriter.nowPlayingPreview() {
         button {
             centered.col {
                 shownWhen { PlaybackState.isBuffering() }.centered.row {
-                    sizeConstraints(width = 1.5.rem, height = 1.5.rem).inglenookActivityIndicator()
+                    sizeConstraints(width = 1.5.rem, height = 1.5.rem).activityIndicator {  }
                 }
-                shownWhen { !PlaybackState.isBuffering() }.icon {
+                shownWhen { !PlaybackState.isBuffering() }.centered.icon {
                     ::source { if (PlaybackState.isPlaying()) Icon.pause else Icon.playArrow }
                     ::description { if (PlaybackState.isPlaying()) "Pause" else "Play" }
                 }
             }
             onClick {
-                if (PlaybackState.isPlaying.value) {
+                if (PlaybackState.isPlaying()) {
                     PlaybackState.pause()
                 } else {
                     PlaybackState.resume()
@@ -144,6 +144,17 @@ fun ViewWriter.nowPlaying(onClose: () -> Unit = {}) {
 
     NowPlayingSemantic.onNext.frame {
         // Blurred background layer (only when enabled in theme settings)
+
+        val coverDominantColor = rememberSuspending {
+            PlaybackState.currentBook()?.let{book->
+                getDominantColor(book)
+            }
+        }
+        dynamicTheme {
+            getSemanticForBookBackground(coverDominantColor(),appTheme().background.closestColor(),
+                NowPlayingSemantic)
+        }
+
         blurredImage(PlaybackState.currentBook, rememberSuspending {
             persistedThemeSettings().showPlayingBookCoverOnNowPlayingAndBookDetail
         })

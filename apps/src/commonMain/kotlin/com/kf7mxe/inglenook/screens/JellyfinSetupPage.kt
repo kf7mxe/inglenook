@@ -27,6 +27,10 @@ import com.lightningkite.reactive.core.Constant
 import com.kf7mxe.inglenook.FullScreen
 import com.kf7mxe.inglenook.components.inglenookActivityIndicator
 import com.kf7mxe.inglenook.jellyfin.hasSeenDiagnosticsPrompt
+import com.lightningkite.kiteui.exceptions.PlainTextException
+import com.lightningkite.kiteui.setClipboardText
+import com.lightningkite.kiteui.views.l2.toast
+import com.lightningkite.reactive.context.invoke
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Job
@@ -262,11 +266,21 @@ class JellyfinSetupPage : Page, FullScreen {
                             padding = 1.rem
 
                             text { content = "Enter this code on your Jellyfin server:" }
-
-                            h1 {
-                                ::content { quickConnectCode() ?: "" }
-                                themeChoice += ThemeDerivation {
-                                    it.copy("qc-code", font = it.font.copy(size = 2.5.rem)).withBack
+                            card.row {
+                                expanding.h1 {
+                                    ::content { quickConnectCode() ?: "" }
+                                    themeChoice += ThemeDerivation {
+                                        it.copy("qc-code", font = it.font.copy(size = 2.5.rem)).withoutBack
+                                    }
+                                }
+                                button{
+                                    icon(Icon.copy,"copy")
+                                    onClick {
+                                        quickConnectCode()?.let{code->
+                                            context.setClipboardText(code)
+                                            toast("Copied to clipboard")
+                                        }?: throw Exception("Clipboard text could not be copied.")
+                                    }
                                 }
                             }
 
@@ -282,12 +296,14 @@ class JellyfinSetupPage : Page, FullScreen {
                                     stopPolling()
                                     quickConnectCode.value = null
                                     quickConnectSecret.value = null
+                                    loginMethod.set(LoginMethod.UsernamePassword)
                                 }
                             }
                         }
 
                         // Get Code button
-                        shownWhen { quickConnectCode() == null || !isPolling() }.button {
+                        shownWhen { quickConnectCode() == null || !isPolling() }.
+                        button {
                             centered.text("Get Code")
                             action = Action("Get Code") {
                                 errorMessage.value = null
@@ -310,10 +326,12 @@ class JellyfinSetupPage : Page, FullScreen {
                                 isPolling.value = true
 
                                 pollingJob = AppScope.launch {
+                                    println("DEBUG pollingJob")
                                     var attempts = 0
                                     val maxAttempts = 60
 
                                     while (isPolling.value && attempts < maxAttempts) {
+                                        println("DEBUG in polling loop ${isPolling()} attempt ${attempts / maxAttempts} ")
                                         delay(5000)
                                         attempts++
 
@@ -333,6 +351,7 @@ class JellyfinSetupPage : Page, FullScreen {
                                                 return@launch
                                             }
                                         } catch (e: Exception) {
+                                            println("DEBUG e Exception: ${e.message}")
                                             // Continue polling on error
                                         }
                                     }
