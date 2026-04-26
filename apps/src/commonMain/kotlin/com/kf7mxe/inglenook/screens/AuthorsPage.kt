@@ -160,7 +160,7 @@ fun ViewWriter.authorListItem(author: Reactive<Author>, onClick: suspend () -> U
 
             // Author info
             centered.expanding.col {
-                centered.text {
+                text {
                     ::content { author().name }
                     ellipsis = true
                     lineClamp = 2

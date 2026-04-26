@@ -34,6 +34,7 @@ import com.kf7mxe.inglenook.util.formatDurationShort
 import com.kf7mxe.inglenook.util.truncateDisplay
 import com.lightningkite.kiteui.Routable
 import com.lightningkite.kiteui.current
+import com.lightningkite.kiteui.navigation.dialogPageNavigator
 import com.lightningkite.kiteui.views.buttonTheme
 import com.lightningkite.kiteui.views.forEach
 import com.lightningkite.kiteui.views.card
@@ -78,13 +79,14 @@ class BookDetailPage(val bookId: String) : Page {
 
 
 //                        sizeConstraints(height = 15.rem).frame {
-                    themed(ImageSemantic).sizeConstraints(height = 15.rem).image {
-//                                this.rView::shown{
-//                                    cachedCover() != null
-//                                }
-                        ::source { cachedCover() }
-                        scaleType = ImageScaleType.Fit
-
+                    button {
+                        themed(ImageSemantic).sizeConstraints(height = 15.rem).image {
+                            ::source { cachedCover() }
+                            scaleType = ImageScaleType.Fit
+                        }
+                        onClick {
+                            mainPageNavigator.navigate(BookCoverFullscreenPage(bookId, book()?.coverImageId))
+                        }
                     }
 //                        }
 //                            shownWhen { book()?.coverImageId == null }.centered.icon {

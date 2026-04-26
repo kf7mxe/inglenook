@@ -12,6 +12,7 @@ import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.playback.PlaybackState
 import com.kf7mxe.inglenook.playback.SleepTimerMode
 import com.kf7mxe.inglenook.screens.AuthorDetailPage
+import com.kf7mxe.inglenook.screens.BookCoverFullscreenPage
 import com.kf7mxe.inglenook.screens.BookDetailPage
 import com.kf7mxe.inglenook.storage.DangerSemantic
 import com.kf7mxe.inglenook.storage.ImageSemantic
@@ -23,6 +24,8 @@ import com.lightningkite.kiteui.views.dynamicTheme
 import com.lightningkite.kiteui.views.forEach
 import com.lightningkite.kiteui.views.l2.dialog
 import com.lightningkite.kiteui.current
+import com.lightningkite.kiteui.navigation.dialogPageNavigator
+import com.lightningkite.kiteui.views.closePopovers
 import com.lightningkite.reactive.context.invoke
 import com.lightningkite.reactive.context.onRemove
 import com.lightningkite.reactive.core.remember
@@ -169,22 +172,28 @@ fun ViewWriter.nowPlaying(onClose: () -> Unit = {}) {
                     jellyfinClient().fetchCoverImage(book?.coverImageId, book?.id)
                 }
 
-                centered.sizeConstraints(maxWidth = 16.rem, maxHeight = 16.rem).frame {
-                    themed(ImageSemantic).image {
-                        rView::shown{
-                            PlaybackState.currentBook() != null
+                    centered.sizeConstraints(maxWidth = 16.rem, maxHeight = 16.rem).button {
+                        themed(ImageSemantic).image {
+                            rView::shown{
+                                PlaybackState.currentBook() != null
+                            }
+                            ::source { cachedOverlayCover() }
+                            scaleType = ImageScaleType.Fit
                         }
-                        ::source { cachedOverlayCover() }
-                        scaleType = ImageScaleType.Fit
-                    }
-                    centered.icon {
-                        ::shown {
-                            PlaybackState.currentBook() == null
+                        centered.icon {
+                            ::shown {
+                                PlaybackState.currentBook() == null
+                            }
+                            source = Icon.book.copy(width = 8.rem, height = 8.rem)
                         }
-                        source = Icon.book.copy(width = 8.rem, height = 8.rem)
-                    }
+                        onClick {
+                            PlaybackState.currentBook()?.let { book ->
+                                mainPageNavigator.navigate(BookCoverFullscreenPage(book.id, book.coverImageId))
+                                closePopovers()
+                            }
 
-                }
+                        }
+                    }
 
                 // Title and author
                 centered.col {

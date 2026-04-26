@@ -26,6 +26,7 @@ class MainActivity : KiteUiActivity() {
         get() = { appTheme() }
 
     override val mainNavigator: PageNavigator get() = main
+    val dialogNavigator: PageNavigator get() = dialog
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -72,7 +73,9 @@ class MainActivity : KiteUiActivity() {
             override fun handleOnBackPressed() {
                 // Handle the back button event
                 // Example: Show a confirmation dialog
-                mainNavigator.goBack()
+
+                if(dialogNavigator.canGoBack.state.raw) dialogNavigator.goBack()
+                else mainNavigator.goBack()
             }
         }
 
