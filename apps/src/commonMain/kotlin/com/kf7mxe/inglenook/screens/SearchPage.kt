@@ -10,27 +10,43 @@ import com.lightningkite.kiteui.views.expanding
 import com.lightningkite.kiteui.views.l2.icon
 import com.kf7mxe.inglenook.Book
 import com.kf7mxe.inglenook.Author
+import com.kf7mxe.inglenook.HasId
+import com.kf7mxe.inglenook.ViewMode
 import com.kf7mxe.inglenook.book
 import com.kf7mxe.inglenook.cache.fetchCoverImage
+import com.kf7mxe.inglenook.components.bookCard
+import com.kf7mxe.inglenook.components.bookListItem
 import com.kf7mxe.inglenook.components.inglenookActivityIndicator
+import com.kf7mxe.inglenook.components.viewModeToggleButton
 import com.kf7mxe.inglenook.searchOff
 import com.kf7mxe.inglenook.connectivity.ConnectivityState
 import com.kf7mxe.inglenook.downloads.DownloadManager
 import com.kf7mxe.inglenook.downloads.toAudioBook
 import com.kf7mxe.inglenook.jellyfin.SearchResults
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
+import com.kf7mxe.inglenook.lastItemViewedScrollToOnBack
 import com.kf7mxe.inglenook.storage.ImageSemantic
+import com.kf7mxe.inglenook.viewMode
+import com.lightningkite.kiteui.QueryParameter
 import com.lightningkite.kiteui.Routable
 import com.lightningkite.kiteui.views.fieldTheme
 import com.lightningkite.kiteui.views.forEach
+import com.lightningkite.kiteui.views.forEachById
+import com.lightningkite.kiteui.views.l2.RecyclerViewPlacerVerticalGrid
+import com.lightningkite.kiteui.views.l2.childrenMultipleTypes
+import com.lightningkite.reactive.context.invoke
 import com.lightningkite.reactive.core.Signal
 import com.lightningkite.reactive.core.AppScope
 import com.lightningkite.reactive.core.rememberSuspending
 import com.lightningkite.reactive.core.Constant
+import com.lightningkite.reactive.core.Reactive
 import com.lightningkite.reactive.core.remember
+import com.lightningkite.reactive.extensions.debounceWrite
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 
 private const val SEARCH_DEBOUNCE_MS = 300L
 
@@ -38,72 +54,64 @@ private const val SEARCH_DEBOUNCE_MS = 300L
 class SearchPage : Page {
     override val title get() = Constant("Search")
 
+    @QueryParameter
+    val searchQuery = Signal("")
     override fun ViewWriter.render() {
-        val searchQuery = Signal("")
+
         val isLoading = Signal(false)
-        val searchResults = Signal<SearchResults?>(null)
-        var searchJob: Job? = null
 
-        fun performSearch(query: String) {
-            searchJob?.cancel()
-            if (query.isBlank()) {
-                searchResults.value = null
-                return
-            }
 
+        val searchResults = rememberSuspending {
+            val query = searchQuery()
+            if(query.isBlank()) return@rememberSuspending emptyList<HasId>()
             if (ConnectivityState.offlineMode.value) {
                 val lowerQuery = query.lowercase()
                 val matchingBooks = DownloadManager.getDownloads()
                     .filter { download ->
                         download.title.lowercase().contains(lowerQuery) ||
-                        download.authors.any { it.name.lowercase().contains(lowerQuery) }
+                                download.authors.any { it.name.lowercase().contains(lowerQuery) }
                     }
                     .map { it.toAudioBook() }
-                searchResults.value = SearchResults(books = matchingBooks, authors = emptyList())
-                return
+//                searchResults.value = SearchResults(books = matchingBooks, authors = emptyList())
+                return@rememberSuspending matchingBooks
             }
 
-            searchJob = AppScope.launch {
-                delay(SEARCH_DEBOUNCE_MS)
-
-                isLoading.value = true
-                try {
-                    val client = jellyfinClient.value
-                    if (client != null) {
-                        searchResults.value = client.search(query)
-                    }
-                } catch (e: Exception) {
-                    ConnectivityState.onNetworkError(e.message ?: "Search failed")
-                } finally {
-                    isLoading.value = false
+            try {
+                val client = jellyfinClient.value
+                if (client != null) {
+                    val searchResults = client.search(query)
+                    val books = searchResults.books
+                    val authors = searchResults.authors
+                    return@rememberSuspending books.zip(authors) { book, author -> listOf(book, author) }
+                        .flatten() +
+                            books.drop(authors.size) +
+                            authors.drop(books.size)
                 }
+            } catch (e: Exception) {
+                ConnectivityState.onNetworkError(e.message ?: "Search failed")
+            } finally {
+                isLoading.value = false
             }
-        }
-
-        // Watch for search query changes
-        searchQuery.addListener {
-            performSearch(searchQuery.value)
+            return@rememberSuspending emptyList()
         }
 
         col {
-            gap = 0.rem
-
+            padding = 1.rem
             // Search input
             row {
-                padding = 1.rem
-                gap = 0.5.rem
 
                 centered.icon(Icon.search, "Search")
 
                 expanding.fieldTheme.textInput {
                     hint = "Search books, authors..."
-                    content bind searchQuery
+                    content bind searchQuery.debounceWrite(1.seconds)
                 }
 
                 shownWhen { searchQuery().isNotBlank() }.button {
                     icon(Icon.close, "Clear")
                     onClick { searchQuery.value = "" }
                 }
+                viewModeToggleButton()
             }
 
             separator()
@@ -115,52 +123,69 @@ class SearchPage : Page {
             }
 
             // Search results
-            shownWhen { !isLoading() && searchResults() != null }.expanding.scrolls.col {
+            shownWhen { !isLoading() && searchResults().isNotEmpty() }.expanding.scrolling.col {
                 padding = 1.rem
                 gap = 1.rem
 
 
-                // Books section
-                shownWhen { searchResults()?.books?.isNotEmpty() == true }.col {
-                    gap = 0.5.rem
+                expanding.swapView{
+                    swapping(
+                        current = {
+                            viewMode()
+                        },
+                        views = {viewMode ->
+                            when(viewMode) {
+                                ViewMode.Grid -> recyclerView {
+                                    ::placer { RecyclerViewPlacerVerticalGrid(2) }
 
-                    h3 { content = "Books" }
-
-                    col {
-                        gap = 0.rem
-                        val books =  remember {searchResults()?.books ?: emptyList() }
-                        forEach(books) {book ->
-                            col {
-                                bookSearchResult(book)
-                                separator()
+                                    childrenMultipleTypes(items = searchResults, id ={ it.id },
+                                        renderers = {
+                                            elementsMatching { it is Book } renderedAs { book ->
+                                                bookCard(book as Reactive<Book>){
+                                                    lastItemViewedScrollToOnBack.set(book().id)
+                                                    mainPageNavigator.navigate(BookDetailPage(book.invoke().id))
+                                                }
+                                            }
+                                            elementsMatching { it is Author } renderedAs {author ->
+                                                authorCard(author as Reactive<Author>) {
+                                                    lastItemViewedScrollToOnBack.set(author().id)
+                                                    mainPageNavigator.navigate(AuthorDetailPage(author().id))
+                                                }
+                                            }
+                                        })
+                                }
+                                ViewMode.List -> recyclerView {
+                                    childrenMultipleTypes(items = searchResults, id ={ it.id },
+                                        renderers = {
+                                            elementsMatching { it is Book } renderedAs { book ->
+                                                bookListItem(book as Reactive<Book>) {
+                                                    lastItemViewedScrollToOnBack.set(book().id)
+                                                    mainPageNavigator.navigate(BookDetailPage(book.invoke().id))
+                                                }
+                                            }
+                                            elementsMatching { it is Author } renderedAs {author ->
+                                                authorListItem(author as Reactive<Author>) {
+                                                    lastItemViewedScrollToOnBack.set(author().id)
+                                                    mainPageNavigator.navigate(AuthorDetailPage(author().id))
+                                                }
+                                            }
+                                        })
+                                }
                             }
+
                         }
-                    }
+                    )
                 }
 
-                // Authors section
-                shownWhen { searchResults()?.authors?.isNotEmpty() == true }.col {
-                    gap = 0.5.rem
 
-                    h3 { content = "Authors" }
 
-                    col {
-                        gap = 0.rem
-                        val authors = remember { searchResults()?.authors ?: emptyList() }
-                        forEach(authors) { author ->
-                            col {
-                                authorSearchResult(author)
-                                separator()
-                            }
-                            }
-                    }
-                }
+
+
+
 
                 // No results message
                 shownWhen {
-                    searchResults() != null &&
-                    searchResults()?.books?.isEmpty() == true &&
-                    searchResults()?.authors?.isEmpty() == true
+                    searchResults().isEmpty() && searchQuery().isNotBlank()
                 }.centered.col {
                     padding = 2.rem
                     gap = 0.5.rem
@@ -173,7 +198,7 @@ class SearchPage : Page {
             }
 
             // Empty state (no search yet)
-            shownWhen { !isLoading() && searchResults() == null && searchQuery().isBlank() }.centered.col {
+            shownWhen { !isLoading() && searchResults().isEmpty() && searchQuery().isBlank() }.centered.col {
                 padding = 2.rem
                 gap = 0.5.rem
                 centered.icon {
@@ -182,95 +207,6 @@ class SearchPage : Page {
                 }
                 centered.text("Search your library")
                 centered.subtext("Find books by title, author, or narrator")
-            }
-        }
-    }
-
-    private fun ViewWriter.bookSearchResult(book: Book) {
-        val cachedCover = rememberSuspending {
-            jellyfinClient.value.fetchCoverImage(book.coverImageId, book.id)
-        }
-
-        button {
-            row {
-                gap = 0.75.rem
-                padding = 0.5.rem
-
-                // Cover image
-                sizeConstraints(width = 3.rem, height = 4.rem).frame {
-                    shownWhen { book.coverImageId != null }.themed(ImageSemantic).image {
-                        ::source { cachedCover() }
-                        scaleType = ImageScaleType.Crop
-                    }
-                    shownWhen { book.coverImageId == null }.centered.icon(Icon.book, "Book")
-                }
-
-                // Book info
-                expanding.col {
-                    gap = 0.rem
-                    text {
-                        content = book.title
-                        ellipsis = true
-                    }
-                    subtext {
-                        content = book.authors.joinToString(", ") { it.name }.ifEmpty { "Unknown Author" }
-                        ellipsis = true
-                    }
-                    shownWhen { book.seriesName != null }.subtext {
-                        content = if (book.indexNumber != null) {
-                            "${book.seriesName} #${book.indexNumber}"
-                        } else {
-                            book.seriesName ?: ""
-                        }
-                    }
-                }
-
-                centered.icon(Icon.chevronRight, "View")
-            }
-
-            onClick {
-                mainPageNavigator.navigate(BookDetailPage(book.id))
-            }
-        }
-    }
-
-    private fun ViewWriter.authorSearchResult(author: Author) {
-        val cachedAuthorImage = rememberSuspending {
-            jellyfinClient.value.fetchCoverImage(author.imageId, author.id)
-        }
-
-        button {
-            row {
-                gap = 0.75.rem
-                padding = 0.5.rem
-
-                // Author image
-                sizeConstraints(width = 3.rem, height = 3.rem).frame {
-                    shownWhen { author.imageId != null }.themed(ImageSemantic).image {
-                        ::source { cachedAuthorImage() }
-                        scaleType = ImageScaleType.Crop
-                    }
-                    shownWhen { author.imageId == null }.centered.icon(Icon.person, "Author")
-                }
-
-                // Author info
-                expanding.col {
-                    gap = 0.rem
-                    text {
-                        content = author.name
-                        ellipsis = true
-                    }
-                    shownWhen { author.overview != null }.subtext {
-                        content = author.overview?.take(100) ?: ""
-                        ellipsis = true
-                    }
-                }
-
-                centered.icon(Icon.chevronRight, "View")
-            }
-
-            onClick {
-                mainPageNavigator.navigate(AuthorDetailPage(author.id))
             }
         }
     }

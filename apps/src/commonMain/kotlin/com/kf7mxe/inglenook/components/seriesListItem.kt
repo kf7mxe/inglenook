@@ -12,7 +12,7 @@ import com.kf7mxe.inglenook.util.formatBookCount
 import com.lightningkite.reactive.core.Reactive
 import com.lightningkite.reactive.context.invoke
 
-fun ViewWriter.SeriesListItem(
+fun ViewWriter.seriesListItem(
     series: Reactive<Series>,
     onClick: suspend () -> Unit
 ) {
@@ -21,7 +21,7 @@ fun ViewWriter.SeriesListItem(
             // Thumbnail
             coverImage(
                 imageId = { series().imageId },
-                itemId = { series().id },
+                itemId = { series().coverBookId },
                 fallbackIcon = Icon.book,
                 imageHeight = 7.rem,
                 scaleType = ImageScaleType.Crop

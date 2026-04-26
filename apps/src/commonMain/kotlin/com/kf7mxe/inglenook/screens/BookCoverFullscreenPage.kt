@@ -40,7 +40,7 @@ class BookCoverFullscreenPage(val bookId: String, val coverImageId: String?) : P
                     description = "Close"
                 }
                 onClick {
-
+                    mainPageNavigator.goBack()
                 }
             }
         }

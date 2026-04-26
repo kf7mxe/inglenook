@@ -8,6 +8,7 @@ import com.kf7mxe.inglenook.SelectedSemanticSettings
 import com.kf7mxe.inglenook.CardSemanticSettings
 import com.kf7mxe.inglenook.storage.ImageSemantic
 import com.kf7mxe.inglenook.storage.NowPlayingSemantic
+import com.kf7mxe.inglenook.storage.SelectedTab
 import com.kf7mxe.inglenook.storage.UnSelectedTab
 import com.lightningkite.kiteui.models.CornerRadii
 import com.lightningkite.kiteui.models.CornerRadii.Fixed
@@ -140,7 +141,7 @@ fun Theme.Companion.autumnCabin(accent: Color? = null): Theme {
         id = "autumn-cabin-${primary.toInt()}",
         font = FontAndStyle(),
         foreground = Color.fromHexString("#3E2F28"),
-        background = Color.fromHexString("#E9DCC9"),
+        background = Color.fromHexString("#DEC7C3"),
         outline = primary,
         outlineWidth = 2.px,
         elevation = 0.dp,
@@ -471,7 +472,7 @@ fun Theme.Companion.clouds(accent: Color? = null): Theme {
                 val primaryFixed = primary.darken(0.3f)
                 it.withBack(
                     background = primaryFixed,
-                    foreground = if (primaryFixed.perceivedBrightness > 0.4f) Color.black else Color.white,
+                    foreground = if (primaryFixed.perceivedBrightness > 0.5f) Color.black else Color.white,
                 )
             },
             OuterSemantic.override {
@@ -488,6 +489,13 @@ fun Theme.Companion.clouds(accent: Color? = null): Theme {
                     outline = primary
                 )
             },
+            SelectedTab.override {
+                it.withBack(
+                    background = it.background.darken(0.25f),
+                    cornerRadii = CornerRadii.Fixed(1.rem),
+                    padding = Edges(1.rem,0.25.rem),
+                )
+            }
         )
     )
 }

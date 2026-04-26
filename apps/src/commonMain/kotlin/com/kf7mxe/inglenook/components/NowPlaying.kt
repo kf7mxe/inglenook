@@ -189,7 +189,7 @@ fun ViewWriter.nowPlaying(onClose: () -> Unit = {}) {
                         onClick {
                             PlaybackState.currentBook()?.let { book ->
                                 mainPageNavigator.navigate(BookCoverFullscreenPage(book.id, book.coverImageId))
-                                closePopovers()
+                                onClose()
                             }
 
                         }

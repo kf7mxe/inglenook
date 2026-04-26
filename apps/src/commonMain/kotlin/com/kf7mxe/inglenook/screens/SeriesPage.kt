@@ -11,7 +11,7 @@ import com.kf7mxe.inglenook.book
 import com.kf7mxe.inglenook.components.EmptyState
 import com.kf7mxe.inglenook.components.gridListView
 import com.kf7mxe.inglenook.components.seriesCard
-import com.kf7mxe.inglenook.components.SeriesListItem
+import com.kf7mxe.inglenook.components.seriesListItem
 import com.kf7mxe.inglenook.components.viewModeToggleButton
 import com.kf7mxe.inglenook.components.connectionError
 import com.kf7mxe.inglenook.components.inglenookActivityIndicator
@@ -84,7 +84,7 @@ class SeriesPage(val searchQuery: Signal<String> = Signal("")) : Page {
                     }
                 },
                 listItem = { seriesReactive ->
-                    SeriesListItem(seriesReactive) {
+                    seriesListItem(seriesReactive) {
                         lastItemViewedScrollToOnBack.set(seriesReactive().id)
                         mainPageNavigator.navigate(SeriesDetailPage(seriesReactive().name))
                     }

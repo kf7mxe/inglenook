@@ -383,6 +383,10 @@ class ThemeSettingsPage : Page {
                             themePresetCard(preset) {
                                 selectedPreset.value = preset
                                 if(preset != ThemePreset.Glassish && preset !=ThemePreset.Custom) wallpaperPath.value  =null
+                                val colors = accentColorsForPreset(preset)
+                                colors.firstOrNull()?.let{
+                                    customPrimaryColor.value = Color.fromHexString(it.first)
+                                }
                                 applyTheme()
                             }
                         }
