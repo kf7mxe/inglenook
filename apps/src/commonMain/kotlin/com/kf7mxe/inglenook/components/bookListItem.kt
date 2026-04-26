@@ -8,20 +8,29 @@ import com.lightningkite.kiteui.views.expanding
 import com.lightningkite.kiteui.views.l2.icon
 import com.kf7mxe.inglenook.Book
 import com.kf7mxe.inglenook.ItemType
+import com.kf7mxe.inglenook.appTheme
 import com.kf7mxe.inglenook.book
 import com.kf7mxe.inglenook.pause
 import com.kf7mxe.inglenook.playArrow
 import com.kf7mxe.inglenook.playback.PlaybackState
 import com.kf7mxe.inglenook.screens.openEbook
 import com.lightningkite.kiteui.views.card
+import com.lightningkite.kiteui.views.dynamicTheme
 import com.lightningkite.reactive.core.Reactive
 import com.lightningkite.reactive.context.invoke
+import com.lightningkite.reactive.core.rememberSuspending
 
 fun ViewWriter.bookListItem(
     book: Reactive<Book>,
     onClick: suspend () -> Unit
 ) {
+    val coverDominantColor = rememberSuspending {
+        getDominantColor(book())
+    }
     card.row {
+        dynamicTheme {
+            getSemanticForBookBackground(coverDominantColor(),appTheme().background.closestColor(), CardSemantic)
+        }
         // Play button
         centered.col {
             centered.button {

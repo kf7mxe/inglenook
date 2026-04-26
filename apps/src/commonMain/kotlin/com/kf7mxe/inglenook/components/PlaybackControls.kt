@@ -173,8 +173,8 @@ fun ViewWriter. playbackControls() {
                     shownWhen { PlaybackState.isBuffering() }.centered.row {
                         sizeConstraints(width = 1.5.rem, height = 1.5.rem).inglenookActivityIndicator()
                     }
-                    shownWhen { !PlaybackState.isBuffering() }.icon {
-                        ::source { if (PlaybackState.isPlaying()) Icon.pause else Icon.playArrow }
+                    shownWhen { !PlaybackState.isBuffering() }.centered.icon {
+                        ::source { if (PlaybackState.isPlaying()) Icon.pause.copy(width = 3.rem, height = 3.rem) else Icon.playArrow.copy(width = 3.rem, height = 3.rem) }
                         ::description { if (PlaybackState.isPlaying()) "Pause" else "Play" }
                     }
                 }
@@ -217,7 +217,7 @@ fun ViewWriter. playbackControls() {
         // Bookmark buttons (only show when a book is playing)
         shownWhen { PlaybackState.currentBook() != null }.centered.row {
             // Add Bookmark button - opens note dialog
-            centered.expanding.button {
+            centered.button {
                 row {
                     icon(Icon.addBookmark, "Add bookmark")
                     text("Add Bookmark")
@@ -269,7 +269,7 @@ fun ViewWriter. playbackControls() {
             centered.separator()
 
             // View Bookmarks button - opens bookmarks list
-            centered.expanding.button {
+            centered.button {
                 row {
                     icon(Icon.bookmark, "View bookmarks")
                     text("Bookmarks")
