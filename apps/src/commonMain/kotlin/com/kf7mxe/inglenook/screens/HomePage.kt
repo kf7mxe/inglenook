@@ -1,5 +1,6 @@
 package com.kf7mxe.inglenook.screens
 
+import com.kf7mxe.inglenook.ThemePreset
 import com.lightningkite.kiteui.models.*
 import com.lightningkite.kiteui.navigation.Page
 import com.lightningkite.kiteui.navigation.mainPageNavigator
@@ -18,6 +19,7 @@ import com.kf7mxe.inglenook.downloads.DownloadManager
 import com.kf7mxe.inglenook.downloads.toAudioBook
 import com.kf7mxe.inglenook.components.connectionError
 import com.kf7mxe.inglenook.components.inglenookActivityIndicator
+import com.kf7mxe.inglenook.currentThemePreset
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.storage.CircleIndicator
 import com.lightningkite.kiteui.Routable
@@ -115,12 +117,11 @@ class HomePage : Page {
             // Main content sections (shown online, or offline with cached data)
             unpadded.col {
 
-                // Continue Listening Section
                 col {
                     ::shown { featuredBooks().isNotEmpty() || !featuredBooks.state().ready }
                     shownWhen { !featuredBooks.state().ready }.inglenookActivityIndicator()
 
-                         shownWhen { featuredBooks().isNotEmpty() }.maxHeight(38.5.rem).padded.frame{
+                         shownWhen { featuredBooks().isNotEmpty() }.maxHeight(39.5.rem).padded.frame{
                              var viewPager: Recycler2? = null
                              viewPager {
                                  viewPager = this
@@ -142,7 +143,11 @@ class HomePage : Page {
                                          }
                                      }
                                  }
-                                 space()
+                                 space(){
+                                     ::shown{
+                                         currentThemePreset() != ThemePreset.NeumorphismLight && currentThemePreset() != ThemePreset.NeumorphismDark
+                                     }
+                                 }
                              }
                          }
                 }

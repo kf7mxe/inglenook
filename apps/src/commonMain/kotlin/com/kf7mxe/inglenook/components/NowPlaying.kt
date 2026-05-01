@@ -119,7 +119,8 @@ fun ViewWriter.nowPlayingPreview() {
 fun ViewWriter.nowPlayingBottomSheet() {
     coordinatorFrame?.bottomSheet(
         partialRatio = 0.75f,
-        startState = BottomSheetState.PARTIALLY_EXPANDED
+        startState = BottomSheetState.PARTIALLY_EXPANDED,
+        blockBehind = true
     ) { control ->
         unpadded.nowPlaying() {
             control.close()

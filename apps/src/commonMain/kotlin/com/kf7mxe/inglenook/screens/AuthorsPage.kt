@@ -10,6 +10,7 @@ import com.lightningkite.kiteui.views.expanding
 import com.lightningkite.kiteui.views.l2.icon
 import com.kf7mxe.inglenook.Author
 import com.kf7mxe.inglenook.ItemType
+import com.kf7mxe.inglenook.ThemePreset
 import com.kf7mxe.inglenook.components.coverImage
 import com.kf7mxe.inglenook.components.EmptyState
 import com.kf7mxe.inglenook.components.gridListView
@@ -17,6 +18,7 @@ import com.kf7mxe.inglenook.components.viewModeToggleButton
 import com.kf7mxe.inglenook.components.connectionError
 import com.kf7mxe.inglenook.components.inglenookActivityIndicator
 import com.kf7mxe.inglenook.connectivity.ConnectivityState
+import com.kf7mxe.inglenook.currentThemePreset
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.lastItemViewedScrollToOnBack
 import com.lightningkite.kiteui.Routable
@@ -48,7 +50,7 @@ class AuthorsPage(val searchQuery: Signal<String> = Signal(""),
         }
 
         col {
-            paddingByEdge = Edges(1.rem, 0.rem, 1.rem, 0.rem)
+//            paddingByEdge = Edges(1.rem, 0.rem, 1.rem, 0.rem)
 
             // Search bar and view toggle
             row {
@@ -73,6 +75,11 @@ class AuthorsPage(val searchQuery: Signal<String> = Signal(""),
                     dynamicTheme { if (bookTypeFilter() == ItemType.Ebook) ImportantSemantic else null }
                 }
                 viewModeToggleButton()
+            }
+            sizeConstraints(height = 0.02.rem).frame() {
+                ::shown {
+                    currentThemePreset() == ThemePreset.NeumorphismLight || currentThemePreset() == ThemePreset.NeumorphismDark
+                }
             }
 
             // Loading state
@@ -119,7 +126,7 @@ class AuthorsPage(val searchQuery: Signal<String> = Signal(""),
 
 // Author card component
 fun ViewWriter.authorCard(author: Reactive<Author>, onClick: suspend () -> Unit) {
-    button {
+    card.button {
         col {
             // Author image/avatar
             launch {
@@ -147,7 +154,7 @@ fun ViewWriter.authorCard(author: Reactive<Author>, onClick: suspend () -> Unit)
 
 // Author list item component
 fun ViewWriter.authorListItem(author: Reactive<Author>, onClick: suspend () -> Unit) {
-    button {
+    card.button {
         row {
             // Thumbnail
             centered.coverImage(

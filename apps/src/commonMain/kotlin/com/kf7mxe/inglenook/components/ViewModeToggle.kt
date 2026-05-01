@@ -50,28 +50,30 @@ fun <T : Any> ViewWriter.gridListView(
             current = { viewMode() },
             views = { mode ->
                 val scrollTo = remember {
-                    if(lastItemViewedScrollToOnBack() == null) return@remember 0
-                    items().indexOfFirst {(it as HasId) .id == lastItemViewedScrollToOnBack() }.takeIf { it != -1 } ?: return@remember 0
+                    if (lastItemViewedScrollToOnBack() == null) return@remember 0
+                    items().indexOfFirst { (it as HasId).id == lastItemViewedScrollToOnBack() }.takeIf { it != -1 }
+                        ?: return@remember 0
                 }
 
                 when (mode) {
                     ViewMode.Grid -> {
-                            expanding.recyclerView {
-                                ::placer { RecyclerViewPlacerVerticalGrid(gridColumns) }
-                                launch {
-                                    if(lastItemViewedScrollToOnBack() == null) return@launch
-                                    scrollToIndex(scrollTo(), Align.Start, false)
-                                }
-                                children(items, keySelector) { item ->
-                                    gridItem(item)
-                                }
+                        expanding.recyclerView {
+                            ::placer { RecyclerViewPlacerVerticalGrid(gridColumns) }
+                            launch {
+                                if (lastItemViewedScrollToOnBack() == null) return@launch
+                                scrollToIndex(scrollTo(), Align.Start, false)
+                            }
+                            children(items, keySelector) { item ->
+                                gridItem(item)
                             }
                         }
+                    }
+
                     ViewMode.List -> {
                         expanding.recyclerView {
                             launch {
-                                if(lastItemViewedScrollToOnBack() == null) return@launch
-                                scrollToIndex(scrollTo(), Align.Start,false)
+                                if (lastItemViewedScrollToOnBack() == null) return@launch
+                                scrollToIndex(scrollTo(), Align.Start, false)
                             }
                             children(items, keySelector) { item ->
                                 listItem(item)

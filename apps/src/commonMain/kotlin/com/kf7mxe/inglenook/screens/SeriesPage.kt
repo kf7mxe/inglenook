@@ -1,5 +1,6 @@
 package com.kf7mxe.inglenook.screens
 
+import com.kf7mxe.inglenook.ThemePreset
 import com.lightningkite.kiteui.models.*
 import com.lightningkite.kiteui.navigation.Page
 import com.lightningkite.kiteui.navigation.mainPageNavigator
@@ -16,6 +17,7 @@ import com.kf7mxe.inglenook.components.viewModeToggleButton
 import com.kf7mxe.inglenook.components.connectionError
 import com.kf7mxe.inglenook.components.inglenookActivityIndicator
 import com.kf7mxe.inglenook.connectivity.ConnectivityState
+import com.kf7mxe.inglenook.currentThemePreset
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.lastItemViewedScrollToOnBack
 import com.lightningkite.kiteui.Routable
@@ -47,7 +49,7 @@ class SeriesPage(val searchQuery: Signal<String> = Signal("")) : Page {
         }
 
         col {
-            paddingByEdge = Edges(1.rem, 0.rem, 1.rem, 0.rem)
+//            paddingByEdge = Edges(0.rem, 0.rem, 0.rem, 0.rem)
 
             // Search bar and view toggle
             row {
@@ -56,6 +58,11 @@ class SeriesPage(val searchQuery: Signal<String> = Signal("")) : Page {
                     content bind searchQuery
                 }
                 viewModeToggleButton()
+            }
+            sizeConstraints(height = 0.02.rem).frame() {
+                ::shown {
+                    currentThemePreset() == ThemePreset.NeumorphismLight || currentThemePreset() == ThemePreset.NeumorphismDark
+                }
             }
 
             // Loading state

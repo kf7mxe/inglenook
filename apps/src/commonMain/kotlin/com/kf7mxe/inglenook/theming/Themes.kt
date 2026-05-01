@@ -6,6 +6,7 @@ import com.kf7mxe.inglenook.ThemeSettings
 import com.kf7mxe.inglenook.ImportantSemanticSettings
 import com.kf7mxe.inglenook.SelectedSemanticSettings
 import com.kf7mxe.inglenook.CardSemanticSettings
+import com.kf7mxe.inglenook.storage.CircleIndicator
 import com.kf7mxe.inglenook.storage.ImageSemantic
 import com.kf7mxe.inglenook.storage.NowPlayingSemantic
 import com.kf7mxe.inglenook.storage.SelectedTab
@@ -141,7 +142,7 @@ fun Theme.Companion.autumnCabin(accent: Color? = null): Theme {
         id = "autumn-cabin-${primary.toInt()}",
         font = FontAndStyle(),
         foreground = Color.fromHexString("#3E2F28"),
-        background = Color.fromHexString("#DEC7C3"),
+        background = Color.fromHexString("#F8CE9E"),
         outline = primary,
         outlineWidth = 2.px,
         elevation = 0.dp,
@@ -348,6 +349,48 @@ fun Theme.Companion.neomorphismLight(accent: Color = Color.fromHex(0xFF6200EE.to
         body = FontAndStyle(systemDefaultFont),
         cornerRadii = CornerRadii.RatioOfSpacing(1f) ,
         gap = 1.rem,
+        {shadows->
+            SemanticOverrides(
+                NavSemantic.override {
+                    it.withBack(
+                        cascading = false,
+                        padding = Edges(1.rem),
+                        //                    shadows =convexShadows
+                        cornerRadii = CornerRadii.Fixed(1.rem) ,
+                        shadows= shadows.convex
+                    )
+                },
+                BarSemantic.override {
+                    it.withBack(
+                        padding = Edges(1.rem),
+                        //                    shadows =convexShadows
+                        cornerRadii = CornerRadii.Fixed(1.rem) ,
+                        shadows= shadows.convex
+                    )
+                },
+                CircleIndicator.override {
+                    it.withBack(
+                        cornerRadii = Fixed(10.rem),
+                        shadows = shadows.concave,
+                    )
+                },
+                SelectedTab.override {
+                    it.withBack(
+                        shadows = shadows.concave,
+                        padding = Edges(left = 1.rem, top = 0.5.rem, right = 1.rem, bottom = 0.5.rem),
+                        cornerRadii = CornerRadii.Fixed(1.rem) ,
+                        )
+                },
+                UnSelectedTab.override {
+                    it.withBack(
+                        shadows =shadows.convex,
+                        padding = Edges(left = 1.rem, top = 0.5.rem, right = 1.rem, bottom = 0.5.rem),
+                        cornerRadii = CornerRadii.Fixed(1.rem) ,
+                        )
+                },
+
+                )
+        }
     )
 }
 
@@ -376,26 +419,45 @@ fun Theme.Companion.neomorphismDark(accent: Color = Color.fromHex(0xFF6200EE.toI
         body = FontAndStyle(systemDefaultFont),
         cornerRadii = CornerRadii.RatioOfSpacing(1f) ,
         gap = 1.rem,
-        semanticOverrides = SemanticOverrides(
-            NavSemantic.override {
-
-                it.withBack(
-                    cascading = false,
-                    padding = Edges(1.rem),
-//                    shadows =convexShadows
-                    cornerRadii = CornerRadii.Fixed(1.rem) ,
-                    shadows= convexShadows
-                )
+        semanticOverrides = {shadows->
+            SemanticOverrides(
+                NavSemantic.override {
+                    it.withBack(
+                        cascading = false,
+                        padding = Edges(1.rem),
+    //                    shadows =convexShadows
+                        cornerRadii = CornerRadii.Fixed(1.rem) ,
+                        shadows= shadows.convex
+                    )
                 },
-            BarSemantic.override {
-                it.withBack(
-                    padding = Edges(1.rem),
-//                    shadows =convexShadows
-                    cornerRadii = CornerRadii.Fixed(1.rem) ,
-                    shadows= convexShadows
-                )
-            }
-        )
+                BarSemantic.override {
+                    it.withBack(
+                        padding = Edges(1.rem),
+    //                    shadows =convexShadows
+                        cornerRadii = CornerRadii.Fixed(1.rem) ,
+                        shadows= shadows.convex
+                    )
+                },
+                CircleIndicator.override {
+                    it.withBack(
+                        cornerRadii = Fixed(10.rem),
+                        shadows = shadows.concave,
+                    )
+                },
+                SelectedTab.override {
+                    it.withBack(
+                        shadows = shadows.concave,
+                        cornerRadii = CornerRadii.Fixed(1.5.rem) ,
+                    )
+                },
+                UnSelectedTab.override {
+                    it.withBack(
+                        shadows =shadows.convex,
+                        cornerRadii = CornerRadii.Fixed(1.5.rem) ,
+                    )
+                }
+            )
+        }
     )
 }
 

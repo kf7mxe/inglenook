@@ -96,6 +96,7 @@ data object CircleIndicator : Semantic("circleIndicator") {
     override fun default(theme: Theme) =theme.copy(
         id="viewPagerIndicator",
         cornerRadii = Fixed(10.rem),
+
     ).withBack
 }
 

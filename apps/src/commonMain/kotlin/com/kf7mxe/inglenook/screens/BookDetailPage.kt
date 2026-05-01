@@ -384,8 +384,8 @@ class BookDetailPage(val bookId: String) : Page {
                 shownWhen {
                     val b = book()
                     b?.itemType == ItemType.AudioBook && (b.chapters.size) > 0
-                }.button {
-                        row {
+                }.unpadded.button {
+                       row {
                             expanding.h3 {
                                 ::content { "Chapters (${book()?.chapters?.size ?: 0})" }
                             }

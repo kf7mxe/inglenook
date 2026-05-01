@@ -17,6 +17,7 @@ import com.kf7mxe.inglenook.playback.PlaybackState
 import com.kf7mxe.inglenook.screens.openEbook
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.cache.ImageCache
+import com.kf7mxe.inglenook.currentThemePreset
 import com.kf7mxe.inglenook.storage.BackgroundSetToSpecificColor
 import com.kf7mxe.inglenook.util.RgbColor
 import com.kf7mxe.inglenook.util.extractDominantColors
@@ -92,7 +93,8 @@ fun ViewWriter.featuredBookCard(
                         lineClamp = 1
                     }
                     subtext {
-                        ::content {
+      //            if(currentThemePreset() == ThemePreset.NeumorphismLight || currentThemePreset() == ThemePreset.NeumorphismDark ) return@dynamicTheme null
+                  ::content {
                             book().authors.takeIf { it.isNotEmpty() }?.map { it.name }?.joinToString(", ")
                                 ?: "Unknown Author"
                         }
@@ -151,7 +153,7 @@ fun ViewWriter.bookCard(
         getDominantColor(book())
     }
 
-    centered.sizeConstraints(width = 15.rem, height = 24.rem).col {
+    sizeConstraints(width = 15.rem, height = 24.rem).col {
         dynamicTheme {
             getSemanticForBookBackground(coverDominantColor(),appTheme().background.closestColor(), CardSemantic)
         }
@@ -172,7 +174,7 @@ fun ViewWriter.bookCard(
             this.onClick { onClick() }
         }
         row {
-            sizeConstraints(width = 10.rem).button {
+            sizeConstraints(width = 8.5.rem).button {
                 col {
                     text {
                         ::content { book().title }

@@ -9,6 +9,7 @@ import com.lightningkite.kiteui.views.l2.icon
 import com.kf7mxe.inglenook.Series
 import com.kf7mxe.inglenook.book
 import com.kf7mxe.inglenook.util.formatBookCount
+import com.lightningkite.kiteui.views.card
 import com.lightningkite.reactive.core.Reactive
 import com.lightningkite.reactive.context.invoke
 
@@ -16,7 +17,7 @@ fun ViewWriter.seriesListItem(
     series: Reactive<Series>,
     onClick: suspend () -> Unit
 ) {
-    expanding.button {
+    card.expanding.button {
         row {
             // Thumbnail
             coverImage(

@@ -340,7 +340,6 @@ fun ViewWriter.bottomBar(navItems: List<NavLink>) {
                 expanding.link {
                     resetsStack = true
                     col {
-                        gap = 0.0.rem
                         centered.icon {
                             dynamicTheme {
                                 val destination = mainPageNavigator.routes.render(navLink.destination.invoke())?.urlLikePath?.segments?.toList() ?: emptyList()

@@ -1,7 +1,10 @@
 package com.kf7mxe.inglenook.screens
 
 import com.kf7mxe.inglenook.Book
+import com.kf7mxe.inglenook.HasId
 import com.kf7mxe.inglenook.ItemType
+import com.kf7mxe.inglenook.ThemePreset
+import com.kf7mxe.inglenook.ViewMode
 import com.kf7mxe.inglenook.book
 import com.kf7mxe.inglenook.components.bookCard
 import com.kf7mxe.inglenook.components.bookListItem
@@ -11,14 +14,18 @@ import com.kf7mxe.inglenook.components.viewModeToggleButton
 import com.kf7mxe.inglenook.components.connectionError
 import com.kf7mxe.inglenook.components.inglenookActivityIndicator
 import com.kf7mxe.inglenook.connectivity.ConnectivityState
+import com.kf7mxe.inglenook.currentThemePreset
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.lastItemViewedScrollToOnBack
+import com.kf7mxe.inglenook.viewMode
+import com.lightningkite.kiteui.models.Align
 import com.lightningkite.kiteui.models.Edges
 import com.lightningkite.kiteui.models.Icon
 import com.lightningkite.kiteui.models.ImportantSemantic
 import com.lightningkite.kiteui.models.KeyboardCase
 import com.lightningkite.kiteui.models.KeyboardHints
 import com.lightningkite.kiteui.models.KeyboardType
+import com.lightningkite.kiteui.models.SelectedSemantic
 import com.lightningkite.kiteui.models.rem
 import com.lightningkite.kiteui.navigation.Page
 import com.lightningkite.kiteui.navigation.mainPageNavigator
@@ -26,6 +33,8 @@ import com.lightningkite.kiteui.views.ViewWriter
 import com.lightningkite.kiteui.views.centered
 import com.lightningkite.kiteui.views.direct.*
 import com.lightningkite.kiteui.views.*
+import com.lightningkite.kiteui.views.l2.RecyclerViewPlacerVerticalGrid
+import com.lightningkite.kiteui.views.l2.children
 import com.lightningkite.kiteui.views.l2.icon
 import com.lightningkite.reactive.context.invoke
 import com.lightningkite.reactive.context.reactive
@@ -34,6 +43,7 @@ import com.lightningkite.reactive.core.Reactive
 import com.lightningkite.reactive.core.Signal
 import com.lightningkite.reactive.core.remember
 import com.lightningkite.reactive.core.rememberSuspending
+import kotlinx.coroutines.launch
 import kotlin.uuid.ExperimentalUuidApi
 
 
@@ -110,6 +120,11 @@ class BooksPage(
 
                 viewModeToggleButton()
             }
+            sizeConstraints(height = 0.02.rem).frame() {
+                ::shown {
+                    currentThemePreset() == ThemePreset.NeumorphismLight || currentThemePreset() == ThemePreset.NeumorphismDark
+                }
+            }
 
             shownWhen { !books.state().ready }.inglenookActivityIndicator()
 
@@ -134,23 +149,68 @@ class BooksPage(
                 }
             }
 
+
+            expanding.swapView {
+                swapping(
+                    current = { viewMode() },
+                    views = { mode ->
+                        val scrollTo = remember {
+                            if (lastItemViewedScrollToOnBack() == null) return@remember 0
+                            filteredBooks().indexOfFirst { (it as HasId).id == lastItemViewedScrollToOnBack() }.takeIf { it != -1 }
+                                ?: return@remember 0
+                        }
+
+                        when (mode) {
+                            ViewMode.Grid -> {
+                                expanding.recyclerView {
+                                    ::placer { RecyclerViewPlacerVerticalGrid(2) }
+                                    launch {
+                                        if (lastItemViewedScrollToOnBack() == null) return@launch
+                                        scrollToIndex(scrollTo(), Align.Start, false)
+                                    }
+                                    children(filteredBooks, {it.id}) { book ->
+                                        bookCard(book) {
+                                            lastItemViewedScrollToOnBack.set(book().id)
+                                            mainPageNavigator.navigate(BookDetailPage(book.invoke().id))
+                                        }                                    }
+                                }
+                            }
+
+                            ViewMode.List -> {
+                                expanding.recyclerView {
+                                    launch {
+                                        if (lastItemViewedScrollToOnBack() == null) return@launch
+                                        scrollToIndex(scrollTo(), Align.Start, false)
+                                    }
+                                    children(filteredBooks, { it.id }) { book ->
+                                        bookListItem(book) {
+                                            lastItemViewedScrollToOnBack.set(book().id)
+                                            mainPageNavigator.navigate(BookDetailPage(book.invoke().id))
+                                        }                                    }
+                                }
+                            }
+                        }
+                    }
+                )
+            }
+
             // Books grid/list
-            gridListView(
-                items = filteredBooks,
-                keySelector = { it.id },
-                gridItem = { book ->
-                    bookCard(book) {
-                        lastItemViewedScrollToOnBack.set(book().id)
-                        mainPageNavigator.navigate(BookDetailPage(book.invoke().id))
-                    }
-                },
-                listItem = { book ->
-                    bookListItem(book) {
-                        lastItemViewedScrollToOnBack.set(book().id)
-                        mainPageNavigator.navigate(BookDetailPage(book.invoke().id))
-                    }
-                }
-            )
+//            gridListView(
+//                items = filteredBooks,
+//                keySelector = { it.id },
+//                gridItem = { book ->
+//                    bookCard(book) {
+//                        lastItemViewedScrollToOnBack.set(book().id)
+//                        mainPageNavigator.navigate(BookDetailPage(book.invoke().id))
+//                    }
+//                },
+//                listItem = { book ->
+//                    bookListItem(book) {
+//                        lastItemViewedScrollToOnBack.set(book().id)
+//                        mainPageNavigator.navigate(BookDetailPage(book.invoke().id))
+//                    }
+//                }
+//            )
         }
     }
 }
