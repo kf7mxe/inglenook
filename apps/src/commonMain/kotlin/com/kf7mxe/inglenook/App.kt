@@ -25,7 +25,10 @@ import com.kf7mxe.inglenook.components.getSemanticForBookBackground
 import com.kf7mxe.inglenook.components.nowPlayingPreview
 import com.kf7mxe.inglenook.components.offlineBanner
 import com.kf7mxe.inglenook.connectivity.ConnectivityState
+import com.kf7mxe.inglenook.jellyfin.JellyfinClient
+import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.jellyfin.jellyfinServerConfig
+import com.kf7mxe.inglenook.jellyfin.refreshServerCapabilities
 import com.kf7mxe.inglenook.playback.PlaybackState
 import com.kf7mxe.inglenook.screens.*
 import com.kf7mxe.inglenook.storage.SelectedTab
@@ -102,7 +105,7 @@ fun ViewWriter.app(navigator: PageNavigator, dialog: PageNavigator) {
     val mainNavPages = listOf(
         NavLink("Home", Icon.home) { HomePage() },
         NavLink("Library", Icon.collectionsBookmark) { LibraryPage() },
-        NavLink("Bookshelf", Icon.book) { BookshelfPage() },
+        NavLink("Bookshelf", Icon.bookshelf) { BookshelfPage() },
         NavLink("Settings", Icon.settings) { SettingsPage() },
     )
 
@@ -129,6 +132,29 @@ fun ViewWriter.app(navigator: PageNavigator, dialog: PageNavigator) {
         }
 
         val config = jellyfinServerConfig.value
+
+
+
+
+
+
+
+
+        println("DEBUG config ${config}")
+        if (config != null) {
+            jellyfinClient.value = JellyfinClient(
+                serverUrl = config.serverUrl,
+                accessToken = config.accessToken,
+                userId = config.userId,
+                deviceId = config.deviceId
+            )
+            println("DEBUg before call refreshServerCapabailites")
+            refreshServerCapabilities(config)
+        }
+
+
+
+
         if (config == null) {
             navigator.navigate(JellyfinSetupPage())
         } else {

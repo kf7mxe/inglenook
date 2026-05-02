@@ -24,12 +24,24 @@ object BookshelfRepository {
     private val migrated: PersistentProperty<Boolean>
         get() = serverScopedProperty("bookshelvesMigrated", false)
 
+    // Session cache for endpoint availability to avoid redundant checks
+    private var endpointAvailableCache: Boolean? = null
+    private var lastCheckedServer: String? = null
+
     /** Checks whether the Inglenook bookshelf endpoint is reachable by trying to query bookshelves. */
     suspend fun bookshelfEndpointAvailable(): Boolean {
         if (!isOnline()) return false
         val client = jellyfinClient.value ?: return false
+        
+        val currentServer = client.serverUrl
+        if (lastCheckedServer == currentServer && endpointAvailableCache != null) {
+            return endpointAvailableCache!!
+        }
 
-     return client.bookshelfEndpointAvailable()
+        val available = client.bookshelfEndpointAvailable()
+        endpointAvailableCache = available
+        lastCheckedServer = currentServer
+        return available
     }
 
     private fun isOnline(): Boolean =
@@ -52,30 +64,49 @@ object BookshelfRepository {
             migrated.value = true
             return
         }
+
+        // Check if the endpoint is available before attempting migration
+        if (!bookshelfEndpointAvailable()) return
+
+        var anyFailed = false
         // Upload each local bookshelf to server
         for (shelf in localShelves) {
             try {
-                val created = client.createBookshelf(shelf.name) ?: continue
-                if (shelf.bookIds.isNotEmpty()) {
-                    client.updateBookshelf(created.Id, name = null, bookIds = shelf.bookIds)
+                val created = client.createBookshelf(shelf.name)
+                if (created != null) {
+                    if (shelf.bookIds.isNotEmpty()) {
+                        client.updateBookshelf(created.Id, name = null, bookIds = shelf.bookIds)
+                    }
+                } else {
+                    anyFailed = true
                 }
             } catch (_: Exception) {
-                // Best-effort migration
+                anyFailed = true
             }
         }
-        migrated.value = true
+        
+        // Only mark as migrated if we didn't experience any failures
+        if (!anyFailed) {
+            migrated.value = true
+        }
     }
 
     suspend fun getAllBookshelves(): List<Bookshelf> {
         if (isOnline()) {
             try {
                 val client = jellyfinClient.value!!
-                migrateLocalBookshelvesIfNeeded()
-                val serverShelves = client.getBookshelves().map { it.toBookshelf() }
-                // Cache locally
-                storedBookshelves.value = serverShelves
-                return serverShelves.sortedBy { it.name.lowercase() }
-            } catch (_: Exception) {
+                
+                // Only attempt server sync if the endpoint is available
+                if (bookshelfEndpointAvailable()) {
+                    migrateLocalBookshelvesIfNeeded()
+                    val serverShelves = client.getBookshelves().map { it.toBookshelf() }
+                    
+                    // Cache locally - only overwrite if we got a successful response
+                    storedBookshelves.value = serverShelves
+                    return serverShelves.sortedBy { it.name.lowercase() }
+                }
+            } catch (e: Exception) {
+                println("DEBUG getAllBookshelves: server sync failed, falling back to local. Error: $e")
                 // Fall through to local cache
             }
         }

@@ -121,9 +121,10 @@ class HomePage : Page {
                     ::shown { featuredBooks().isNotEmpty() || !featuredBooks.state().ready }
                     shownWhen { !featuredBooks.state().ready }.inglenookActivityIndicator()
 
-                         shownWhen { featuredBooks().isNotEmpty() }.maxHeight(39.5.rem).padded.frame{
+                         shownWhen { featuredBooks().isNotEmpty() }.maxHeight(41.5.rem)
+                             .padded.frame{
                              var viewPager: Recycler2? = null
-                             viewPager {
+                             sizeConstraints(height = 38.rem).viewPager {
                                  viewPager = this
                                  children(featuredBooks, { it.id }) { book ->
                                      featuredBookCard(book) {

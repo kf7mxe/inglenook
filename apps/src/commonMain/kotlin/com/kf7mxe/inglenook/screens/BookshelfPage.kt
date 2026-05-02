@@ -1,5 +1,7 @@
 package com.kf7mxe.inglenook.screens
 
+import com.kf7mxe.inglenook.book
+import com.kf7mxe.inglenook.bookshelf
 import com.kf7mxe.inglenook.collectionsBookmark
 import com.kf7mxe.inglenook.components.inglenookActivityIndicator
 import com.kf7mxe.inglenook.components.localOnlyBanner
@@ -133,7 +135,7 @@ class BookshelfPage : Page {
                 gap = 1.rem
                 padding = 2.rem
 
-                icon(Icon.collectionsBookmark.copy(width = 4.rem, height = 4.rem), "Bookshelves")
+                icon(Icon.bookshelf.copy(width = 4.rem, height = 4.rem), "Bookshelves")
                 centered.h3 { content = "No Bookshelves Yet" }
                 centered.text { content = "Create a bookshelf to organize your audiobooks" }
                 centered.buttonTheme.button {
@@ -161,7 +163,7 @@ class BookshelfPage : Page {
                             // Bookshelf icon
                             sizedBox(SizeConstraints(width = 4.rem, height = 4.rem)).centered.frame {
                                 icon(
-                                    Icon.collectionsBookmark.copy(width = 2.rem, height = 2.rem),
+                                    Icon.bookshelf.copy(width = 2.rem, height = 2.rem),
                                     bookshelf.name
                                 )
                             }

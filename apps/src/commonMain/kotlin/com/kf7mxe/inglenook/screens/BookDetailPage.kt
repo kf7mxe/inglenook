@@ -220,9 +220,10 @@ class BookDetailPage(val bookId: String) : Page {
                     }
                     buttonTheme.downloadButton(book)
 
-                    shownWhen {
-                        println("DEBUG jellyfinServerConfig.value?.canEditCollection ${jellyfinServerConfig.value?.canEditCollection}")
-                        jellyfinServerConfig.value?.canEditCollection == true }.buttonTheme.menuButton {
+                    val showIdentifyMenu = remember {
+                        jellyfinServerConfig()?.canEditCollection == true && jellyfinServerConfig()?.identifyAvailable == true
+                    }
+                    shownWhen { showIdentifyMenu() }.buttonTheme.menuButton {
                         icon(Icon.moreVert, "More")
                         opensMenu {
                             col {
@@ -255,8 +256,8 @@ class BookDetailPage(val bookId: String) : Page {
                             }
                         }
                     }
-                    shownWhen { jellyfinServerConfig.value?.canEditCollection != true }.buttonTheme.button {
-                        icon(Icon.collectionsBookmark, "Add to Bookshelf")
+                    shownWhen { !showIdentifyMenu() }.buttonTheme.button {
+                        icon(Icon.bookshelf, "Add to Bookshelf")
                         onClick {
                             coordinatorFrame?.bottomSheet(
                                 partialRatio = 0.75f,
@@ -285,7 +286,10 @@ class BookDetailPage(val bookId: String) : Page {
                         }
                         downloadButton(book)
 
-                        shownWhen { jellyfinServerConfig.value?.canEditCollection == true }.buttonTheme.menuButton {
+                        val showIdentifyMenu = remember {
+                            jellyfinServerConfig()?.canEditCollection == true && jellyfinServerConfig()?.identifyAvailable == true
+                        }
+                        shownWhen { showIdentifyMenu() }.buttonTheme.menuButton {
                             icon(Icon.moreVert, "More")
                             opensMenu {
                                 col {
@@ -318,8 +322,8 @@ class BookDetailPage(val bookId: String) : Page {
                                 }
                             }
                         }
-                        shownWhen { jellyfinServerConfig.value?.canEditCollection != true }.buttonTheme.button {
-                            icon(Icon.collectionsBookmark, "Add to Bookshelf")
+                        shownWhen { !showIdentifyMenu() }.buttonTheme.button {
+                            icon(Icon.bookshelf, "Add to Bookshelf")
                             onClick {
                                 coordinatorFrame?.bottomSheet(
                                     partialRatio = 0.75f,
@@ -363,7 +367,7 @@ class BookDetailPage(val bookId: String) : Page {
                         forEach(memberBookshelves) { shelf ->
                             card.button {
                                 row {
-                                    icon(Icon.collectionsBookmark.copy(width = 1.rem, height = 1.rem), "Bookshelf")
+                                    icon(Icon.bookshelf.copy(width = 1.rem, height = 1.rem), "Bookshelf")
                                     text { content = shelf.name }
                                 }
                                 onClick {
@@ -461,7 +465,7 @@ suspend fun openEbook(bookId: String, vw: ViewWriter) {
 private fun ViewWriter.bookshelfButton(bookId: String) {
     buttonTheme.button {
         row {
-            icon(Icon.collectionsBookmark, "Add to Bookshelf")
+            icon(Icon.bookshelf, "Add to Bookshelf")
             text("Add to Bookshelf")
         }
         onClick {

@@ -6,6 +6,7 @@ import com.kf7mxe.inglenook.JellyfinServerConfig
 import com.kf7mxe.inglenook.cache.ApiCache
 import com.kf7mxe.inglenook.playback.PlaybackState
 import com.lightningkite.kiteui.reactive.PersistentProperty
+import com.lightningkite.reactive.context.invoke
 import com.lightningkite.reactive.core.AppScope
 import com.lightningkite.reactive.core.Signal
 import kotlinx.coroutines.launch
@@ -29,18 +30,7 @@ val jellyfinServerConfig: Signal<JellyfinServerConfig?> = Signal<JellyfinServerC
 }
 
 /** The JellyfinClient for the active server. */
-val jellyfinClient: Signal<JellyfinClient?> = Signal<JellyfinClient?>(null).also { signal ->
-    val config = jellyfinServerConfig.value
-    if (config != null) {
-        signal.value = JellyfinClient(
-            serverUrl = config.serverUrl,
-            accessToken = config.accessToken,
-            userId = config.userId,
-            deviceId = config.deviceId
-        )
-        refreshCanEditCollection(config)
-    }
-}
+val jellyfinClient: Signal<JellyfinClient?> = Signal<JellyfinClient?>(null)
 
 // --- Per-server scoped properties ---
 
@@ -78,20 +68,28 @@ fun addServer(config: JellyfinServerConfig) {
     switchToServer(config._id.toString())
 }
 
-/** Refreshes canEditCollection for the active server config and persists the result. */
-private fun refreshCanEditCollection(config: JellyfinServerConfig) {
+/** Refreshes server capabilities (permissions, plugin support) for the active server config and persists the result. */
+fun refreshServerCapabilities(config: JellyfinServerConfig) {
+    println("DEBUG config ${config}")
     AppScope.launch {
         try {
-            val canEditCollection = jellyfinClient.value?.getCanEditCollection() ?: return@launch
-            if (canEditCollection != config.canEditCollection) {
-                val updated = config.copy(canEditCollection = canEditCollection)
+            println("DEBUG in refreshServerCpabiltiy? ${ jellyfinClient.invoke() == null}")
+            val client = jellyfinClient.invoke() ?: return@launch
+            val canEditCollection = client.getCanEditCollection()
+            val identifyAvailable = client.isIdentifyAvailable()
+
+            if (canEditCollection != config.canEditCollection || identifyAvailable != config.identifyAvailable) {
+                val updated = config.copy(
+                    canEditCollection = canEditCollection,
+                    identifyAvailable = identifyAvailable
+                )
                 jellyfinServers.value = jellyfinServers.value.map {
                     if (it._id == updated._id) updated else it
                 }
                 jellyfinServerConfig.value = updated
             }
         } catch (e: Exception) {
-            println("DEBUG refreshCanEditCollection: exception=$e")
+            println("DEBUG refreshServerCapabilities: exception=$e")
         }
     }
 }
@@ -118,7 +116,7 @@ fun switchToServer(serverId: String) {
         deviceId = config.deviceId
     )
 
-    refreshCanEditCollection(config)
+    refreshServerCapabilities(config)
 }
 
 /** Remove a server from the list. If it's the active server, switch to another or clear. */

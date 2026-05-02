@@ -13,6 +13,7 @@ import com.kf7mxe.inglenook.book
 import com.kf7mxe.inglenook.check
 import com.kf7mxe.inglenook.components.bookCard
 import com.kf7mxe.inglenook.components.bookListItem
+import com.kf7mxe.inglenook.components.AddBookDialog
 import com.kf7mxe.inglenook.components.inglenookActivityIndicator
 import com.kf7mxe.inglenook.components.EmptyState
 import com.kf7mxe.inglenook.components.viewModeToggleButton
@@ -23,12 +24,16 @@ import com.lightningkite.kiteui.Routable
 import com.lightningkite.kiteui.views.danger
 import com.lightningkite.kiteui.views.l2.RecyclerViewPlacerVerticalGrid
 import com.lightningkite.kiteui.views.l2.children
+import com.lightningkite.kiteui.views.l2.dialog
 import com.lightningkite.reactive.context.invoke
 import com.lightningkite.reactive.core.Signal
 import com.lightningkite.reactive.core.AppScope
 import com.lightningkite.reactive.core.Constant
 import com.lightningkite.reactive.core.Reactive
+import com.lightningkite.reactive.core.mutableRememberSuspending
+import com.lightningkite.reactive.core.remember
 import com.lightningkite.reactive.core.rememberSuspending
+import com.lightningkite.reactive.extensions.value
 import kotlinx.coroutines.launch
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
@@ -39,11 +44,11 @@ class BookshelfDetailPage(val bookshelfId: String) : Page {
 
     @OptIn(ExperimentalUuidApi::class)
     override fun ViewWriter.render() {
-        val bookshelf = rememberSuspending {
+        val bookshelf = mutableRememberSuspending {
             val uuid = Uuid.parse(bookshelfId)
             BookshelfRepository.getBookshelf(uuid)
         }
-        val books = rememberSuspending {
+        val books = mutableRememberSuspending {
             val client = jellyfinClient.value
             bookshelf()?.bookIds?.mapNotNull { bookId ->
                 try {
@@ -55,12 +60,28 @@ class BookshelfDetailPage(val bookshelfId: String) : Page {
         }
         val isEditing = Signal(false)
 
+        fun refreshData() {
+            AppScope.launch {
+                val uuid = Uuid.parse(bookshelfId)
+                bookshelf.value = BookshelfRepository.getBookshelf(uuid)
+                val client = jellyfinClient.value
+                books.value = bookshelf()?.bookIds?.mapNotNull { bookId ->
+                    try {
+                        client?.getBook(bookId)
+                    } catch (e: Exception) {
+                        null
+                    }
+                } ?: emptyList()
+            }
+        }
+
         // Remove book from bookshelf
         fun removeBook(bookId: String) {
             AppScope.launch {
                 try {
                     val uuid = Uuid.parse(bookshelfId)
                     BookshelfRepository.removeBookFromBookshelf(uuid, bookId)
+                    refreshData()
                 } catch (e: Exception) {
                     // Ignore error
                 }
@@ -76,6 +97,21 @@ class BookshelfDetailPage(val bookshelfId: String) : Page {
                 gap = 0.5.rem
 
                 expanding.h2 { ::content { bookshelf()?.name ?: "Bookshelf" } }
+
+                // Add books button
+                button {
+                    icon(Icon.add, "Add Books")
+                    onClick {
+                        dialog { dismiss ->
+                            AddBookDialog(
+                                bookshelfId = Uuid.parse(bookshelfId),
+                                currentBookIds = remember { bookshelf()?.bookIds?.toSet() ?: emptySet() },
+                                onDismiss = { dismiss() },
+                                onRefresh = { refreshData() }
+                            )
+                        }
+                    }
+                }
 
                 // Edit toggle
                 button {
@@ -130,7 +166,7 @@ class BookshelfDetailPage(val bookshelfId: String) : Page {
                                         ViewMode.Grid -> {
                                             recyclerView {
 
-                                                ::placer{ RecyclerViewPlacerVerticalGrid(3) }
+                                                ::placer{ RecyclerViewPlacerVerticalGrid(2) }
                                                 children(books, { it.id }) { book ->
                                                     col {
                                                         bookCard(book) {

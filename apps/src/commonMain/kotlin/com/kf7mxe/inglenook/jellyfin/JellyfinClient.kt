@@ -76,6 +76,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
         // Get server info for name
         val serverInfo = getServerInfo()
         val canEditCollection = try { getCanEditCollection() } catch (e: Exception) { false }
+        val identifyAvailable = try { isIdentifyAvailable() } catch (e: Exception) { false }
 
         return JellyfinServerConfig(
             _id = Uuid.random(),
@@ -86,7 +87,8 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
             deviceId = deviceId,
             serverId = serverInfo?.Id,
             serverName = serverInfo?.ServerName,
-            canEditCollection = canEditCollection
+            canEditCollection = canEditCollection,
+            identifyAvailable = identifyAvailable
         )
     }
 
@@ -508,17 +510,13 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
     // --- Bookshelf API (Inglenook plugin) ---
 
     open suspend fun getBookshelves(): List<BookshelfResponse> {
-        return try {
-            val response = client.get("$serverUrl/Inglenook/Bookshelves") {
-                header("X-Emby-Authorization", getAuthHeader())
-            }
-            if (response.status.isSuccess()) {
-                response.body()
-            } else {
-                emptyList()
-            }
-        } catch (e: Exception) {
-            emptyList()
+        val response = client.get("$serverUrl/Inglenook/Bookshelves") {
+            header("X-Emby-Authorization", getAuthHeader())
+        }
+        if (response.status.isSuccess()) {
+            return response.body()
+        } else {
+            throw Exception("Failed to get bookshelves: ${response.status}")
         }
     }
 
@@ -534,47 +532,39 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
     }
 
     open suspend fun createBookshelf(name: String): BookshelfResponse? {
-        return try {
-            val response = client.post("$serverUrl/Inglenook/Bookshelves") {
-                header("X-Emby-Authorization", getAuthHeader())
-                contentType(ContentType.Application.Json)
-                setBody(CreateBookshelfRequest(Name = name))
-            }
-            if (response.status.isSuccess()) {
-                response.body()
-            } else {
-                null
-            }
-        } catch (e: Exception) {
-            null
+        val response = client.post("$serverUrl/Inglenook/Bookshelves") {
+            header("X-Emby-Authorization", getAuthHeader())
+            contentType(ContentType.Application.Json)
+            setBody(CreateBookshelfRequest(Name = name))
+        }
+        if (response.status.isSuccess()) {
+            return response.body()
+        } else {
+            throw Exception("Failed to create bookshelf: ${response.status}")
         }
     }
 
     open suspend fun updateBookshelf(id: String, name: String?, bookIds: List<String>?, coverImageUrl: String? = null): BookshelfResponse? {
-        return try {
-            val response = client.put("$serverUrl/Inglenook/Bookshelves/$id") {
-                header("X-Emby-Authorization", getAuthHeader())
-                contentType(ContentType.Application.Json)
-                setBody(UpdateBookshelfRequest(Name = name, BookIds = bookIds, CoverImageUrl = coverImageUrl))
-            }
-            if (response.status.isSuccess()) {
-                response.body()
-            } else {
-                null
-            }
-        } catch (e: Exception) {
-            null
+        val response = client.put("$serverUrl/Inglenook/Bookshelves/$id") {
+            header("X-Emby-Authorization", getAuthHeader())
+            contentType(ContentType.Application.Json)
+            setBody(UpdateBookshelfRequest(Name = name, BookIds = bookIds, CoverImageUrl = coverImageUrl))
+        }
+        if (response.status.isSuccess()) {
+            return response.body()
+        } else {
+            throw Exception("Failed to update bookshelf: ${response.status}")
         }
     }
 
     open suspend fun deleteBookshelf(id: String): Boolean {
-        return try {
-            val response = client.delete("$serverUrl/Inglenook/Bookshelves/$id") {
-                header("X-Emby-Authorization", getAuthHeader())
-            }
-            response.status.isSuccess()
-        } catch (e: Exception) {
-            false
+        val response = client.delete("$serverUrl/Inglenook/Bookshelves/$id") {
+            header("X-Emby-Authorization", getAuthHeader())
+        }
+        if (response.status.isSuccess()) {
+            return true
+        } else {
+            throw Exception("Failed to delete bookshelf: ${response.status}")
         }
     }
 
@@ -1202,6 +1192,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
         // Get server info for name
         val serverInfo = getServerInfo()
         val canEditCollection = try { getCanEditCollection() } catch (e: Exception) { false }
+        val identifyAvailable = try { isIdentifyAvailable() } catch (e: Exception) { false }
 
         return JellyfinServerConfig(
             _id = Uuid.random(),
@@ -1212,7 +1203,8 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
             deviceId = deviceId,
             serverId = serverInfo?.Id,
             serverName = serverInfo?.ServerName,
-            canEditCollection = canEditCollection
+            canEditCollection = canEditCollection,
+            identifyAvailable = identifyAvailable
         )
     }
 
@@ -1255,6 +1247,37 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
             println("DEBUG getCanEditCollection: exception=$e")
             false
         }
+    }
+
+    open suspend fun getPlugins(): List<PluginInfo> {
+        return try {
+            val response = client.get("$serverUrl/System/Plugins") {
+                header("X-Emby-Authorization", getAuthHeader())
+            }
+            if (response.status.isSuccess()) response.body() else emptyList()
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    open suspend fun isIdentifyAvailable(): Boolean {
+        val plugins = getPlugins()
+        println("DEBUG plugins ${plugins}")
+        val inglenook = plugins.find { it.Name == "Inglenook" } ?: return false
+        return isVersionAtLeast(inglenook.Version, "1.0.0.1")
+    }
+
+    private fun isVersionAtLeast(version: String?, minVersion: String): Boolean {
+        if (version == null) return false
+        val v1 = version.split('.').mapNotNull { it.toIntOrNull() }
+        val v2 = minVersion.split('.').mapNotNull { it.toIntOrNull() }
+        for (i in 0 until maxOf(v1.size, v2.size)) {
+            val n1 = v1.getOrElse(i) { 0 }
+            val n2 = v2.getOrElse(i) { 0 }
+            if (n1 > n2) return true
+            if (n1 < n2) return false
+        }
+        return true
     }
 
     private fun JellyfinItem.toAudioBook(): Book {
@@ -1559,3 +1582,10 @@ data class JellyfinUserPolicy(
 
 @Serializable
 data class JellyfinUserInfoResponse(val Policy: JellyfinUserPolicy? = null)
+
+@Serializable
+data class PluginInfo(
+    val Name: String? = null,
+    val Version: String? = null,
+    val Id: String? = null
+)

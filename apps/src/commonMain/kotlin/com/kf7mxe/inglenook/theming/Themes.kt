@@ -378,14 +378,14 @@ fun Theme.Companion.neomorphismLight(accent: Color = Color.fromHex(0xFF6200EE.to
                     it.withBack(
                         shadows = shadows.concave,
                         padding = Edges(left = 1.rem, top = 0.5.rem, right = 1.rem, bottom = 0.5.rem),
-                        cornerRadii = CornerRadii.Fixed(1.rem) ,
+                        cornerRadii = CornerRadii.RatioOfSpacing(2f)  ,
                         )
                 },
                 UnSelectedTab.override {
                     it.withBack(
                         shadows =shadows.convex,
                         padding = Edges(left = 1.rem, top = 0.5.rem, right = 1.rem, bottom = 0.5.rem),
-                        cornerRadii = CornerRadii.Fixed(1.rem) ,
+                        cornerRadii = CornerRadii.RatioOfSpacing(2f) ,
                         )
                 },
 
