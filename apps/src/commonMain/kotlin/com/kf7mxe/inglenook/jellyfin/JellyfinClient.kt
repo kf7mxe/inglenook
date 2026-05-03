@@ -76,6 +76,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
         // Get server info for name
         val serverInfo = getServerInfo()
         val canEditCollection = try { getCanEditCollection() } catch (e: Exception) { false }
+        println("DEBUG canEditCollection ${canEditCollection}")
         val identifyAvailable = try { isIdentifyAvailable() } catch (e: Exception) { false }
 
         return JellyfinServerConfig(
@@ -183,7 +184,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
                     append("$serverUrl/Users/$uid/Items")
                     append("?IncludeItemTypes=AudioBook,Book")
                     append("&Recursive=true")
-                    append("&Fields=Overview,People")
+                    append("&Fields=Overview,People,ProviderIds")
                     append("&SortBy=SortName")
                     append("&SortOrder=Ascending")
                     append("&ParentId=$libId")
@@ -642,6 +643,22 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
     }
 
     /**
+     * Sets the series information for an item (book/audiobook).
+     */
+    open suspend fun setSeries(itemId: String, seriesName: String, seriesIndex: Int? = null): Boolean {
+        return try {
+            val response = client.post("$serverUrl/Inglenook/$itemId/Series") {
+                header("X-Emby-Authorization", getAuthHeader())
+                contentType(ContentType.Application.Json)
+                setBody(SetSeriesRequest(seriesName, seriesIndex))
+            }
+            response.status.isSuccess()
+        } catch (e: Exception) {
+            handleNetworkException(e, false)
+        }
+    }
+
+    /**
      * Try to find and parse a .cue file for chapter information.
      * Uses the Jellyfin API to:
      * 1. List all items in the parent folder
@@ -912,6 +929,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
 
     open fun getImageUrl(imageId: String?, itemId: String? = null, imageType: String = "Primary"): String {
         val id = itemId ?: imageId ?: return ""
+        println("DEBUG getImageUrl id ${id} imageType $imageType")
         return "$serverUrl/Items/$id/Images/$imageType"
     }
 
@@ -1241,6 +1259,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
             println("DEBUG getCanEditCollection: policy=$policy")
             if (policy == null) return false
             val result = policy.IsAdministrator || policy.EnableCollectionManagement || policy.EnableMediaManagement
+
             println("DEBUG getCanEditCollection: result=$result")
             result
         } catch (e: Exception) {
@@ -1251,11 +1270,19 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
 
     open suspend fun getPlugins(): List<PluginInfo> {
         return try {
-            val response = client.get("$serverUrl/System/Plugins") {
+            val response = client.get("$serverUrl/Plugins") {
                 header("X-Emby-Authorization", getAuthHeader())
             }
-            if (response.status.isSuccess()) response.body() else emptyList()
+            println("DEBUG getPlugins: status=${response.status}")
+            if (response.status.isSuccess()) {
+                val rawBody = response.bodyAsText()
+                println("DEBUG getPlugins: body=$rawBody")
+                json.decodeFromString<List<PluginInfo>>(rawBody)
+            } else {
+                emptyList()
+            }
         } catch (e: Exception) {
+            println("DEBUG getPlugins: exception=$e")
             emptyList()
         }
     }
@@ -1263,11 +1290,13 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
     open suspend fun isIdentifyAvailable(): Boolean {
         val plugins = getPlugins()
         println("DEBUG plugins ${plugins}")
-        val inglenook = plugins.find { it.Name == "Inglenook" } ?: return false
+        val inglenook = plugins.find { it.Name?.contains("Inglenook", ignoreCase = true) == true } ?: return false
+        println("DEBUG inglenook ${inglenook}")
         return isVersionAtLeast(inglenook.Version, "1.0.0.1")
     }
 
     private fun isVersionAtLeast(version: String?, minVersion: String): Boolean {
+        println("DEBUG version ${version}")
         if (version == null) return false
         val v1 = version.split('.').mapNotNull { it.toIntOrNull() }
         val v2 = minVersion.split('.').mapNotNull { it.toIntOrNull() }
@@ -1340,9 +1369,9 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
                     lastPlayedDate = it.LastPlayedDate
                 )
             },
-            seriesName = SeriesName,
+            seriesName = SeriesName ?: ProviderIds?.get("SeriesName"),
             seriesId = SeriesId,
-            indexNumber = IndexNumber,
+            indexNumber = IndexNumber ?: ProviderIds?.get("SeriesIndex")?.toIntOrNull(),
             year = ProductionYear,
             libraryId = ParentId,
             itemType = itemType,
@@ -1416,9 +1445,8 @@ data class JellyfinItem(
     val ArtistItems: List<NameIdPair>? = null,
 
     val Path:String? = null,
-    val RootItemId:String? = null
-
-
+    val RootItemId:String? = null,
+    val ProviderIds: Map<String, String>? = null
 )
 
 @Serializable
@@ -1552,6 +1580,12 @@ data class ApplyMetadataRequestDto(
     val Provider: String,
     val ProviderId: String,
     val ReplaceExisting: Boolean = false
+)
+
+@Serializable
+data class SetSeriesRequest(
+    val seriesName: String,
+    val seriesIndex: Int? = null
 )
 
 @Serializable

@@ -11,6 +11,7 @@ import com.lightningkite.kiteui.models.ImageSource
  * @param itemId Optional item ID for the URL path. If null, imageId is used as the item ID.
  */
 suspend fun JellyfinClient?.fetchCoverImage(imageId: String?, itemId: String? = null): ImageSource? {
+    println("DEBUG this ==null ${this == null} imageId == null ${imageId == null}")
     if (this == null || imageId == null) return null
     return ImageCache.get(getImageUrl(imageId, itemId))
 }

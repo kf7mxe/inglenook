@@ -16,6 +16,7 @@ import com.kf7mxe.inglenook.connectivity.ConnectivityState
 import com.lightningkite.reactive.context.invoke
 import com.kf7mxe.inglenook.components.BookshelfPickerDialog
 import com.kf7mxe.inglenook.components.IdentifyDialog
+import com.kf7mxe.inglenook.components.SeriesDialog
 import com.kf7mxe.inglenook.components.bookmarksList
 import com.kf7mxe.inglenook.components.chaptersList
 import com.kf7mxe.inglenook.components.getDominantColor
@@ -60,6 +61,7 @@ class BookDetailPage(val bookId: String) : Page {
 
     val cachedCover = rememberSuspending {
         val currentBook = book()
+        println("DEBUG book() ${book()}")
         jellyfinClient().fetchCoverImage(currentBook?.coverImageId, currentBook?.id)
     }
 
@@ -230,6 +232,32 @@ class BookDetailPage(val bookId: String) : Page {
                                 bookshelfButton(bookId)
                                 buttonTheme.button {
                                     row {
+                                        centered.icon(Icon.list, "Series")
+                                        centered.text {
+                                            ::content { if (book()?.seriesName != null) "Edit Series" else "Add to Series" }
+                                        }
+                                    }
+                                    onClick {
+                                        val b = book() ?: return@onClick
+                                        coordinatorFrame?.bottomSheet(
+                                            partialRatio = 0.85f,
+                                            startState = BottomSheetState.PARTIALLY_EXPANDED
+                                        ) { control ->
+                                            unpadded.SeriesDialog(
+                                                book = b,
+                                                onApplied = {
+                                                    control.close()
+                                                    mainPageNavigator.navigate(BookDetailPage(bookId))
+                                                },
+                                                onDismiss = {
+                                                    control.close()
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
+                                buttonTheme.button {
+                                    row {
                                         centered.icon(Icon.search, "Identify")
                                         centered.text { content = "Identify" }
                                     }
@@ -294,6 +322,33 @@ class BookDetailPage(val bookId: String) : Page {
                             opensMenu {
                                 col {
                                     bookshelfButton(bookId)
+                                    buttonTheme.button {
+                                        row {
+                                            centered.icon(Icon.list, "Series")
+                                            centered.text {
+                                                ::content { if (book()?.seriesName != null) "Edit Series" else "Add to Series" }
+                                            }
+                                        }
+
+                                        onClick {
+                                            val b = book() ?: return@onClick
+                                            coordinatorFrame?.bottomSheet(
+                                                partialRatio = 0.85f,
+                                                startState = BottomSheetState.PARTIALLY_EXPANDED
+                                            ) { control ->
+                                                unpadded.SeriesDialog(
+                                                    book = b,
+                                                    onApplied = {
+                                                        control.close()
+                                                        mainPageNavigator.navigate(BookDetailPage(bookId))
+                                                    },
+                                                    onDismiss = {
+                                                        control.close()
+                                                    }
+                                                )
+                                            }
+                                        }
+                                    }
                                     buttonTheme.button {
                                         row {
                                             centered.icon(Icon.search, "Identify")
