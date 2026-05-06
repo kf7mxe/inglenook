@@ -19,7 +19,8 @@ data class JellyfinServerConfig(
     val serverId: String? = null,
     val serverName: String? = null,
     @SerialName("isAdmin") val canEditCollection: Boolean = false,
-    val identifyAvailable: Boolean = false
+    val identifyAvailable: Boolean = false,
+    val bookshelvesAvailable: Boolean = false
 ) {
     /** Stable key for scoping per-server persistent data. */
     val storageKey: String get() = _id.toString()

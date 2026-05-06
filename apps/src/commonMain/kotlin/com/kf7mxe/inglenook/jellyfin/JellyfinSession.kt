@@ -77,11 +77,13 @@ fun refreshServerCapabilities(config: JellyfinServerConfig) {
             val client = jellyfinClient.invoke() ?: return@launch
             val canEditCollection = client.getCanEditCollection()
             val identifyAvailable = client.isIdentifyAvailable()
+            val bookshelvesAvailable = client.bookshelfEndpointAvailable()
 
-            if (canEditCollection != config.canEditCollection || identifyAvailable != config.identifyAvailable) {
+            if (canEditCollection != config.canEditCollection || identifyAvailable != config.identifyAvailable || bookshelvesAvailable != config.bookshelvesAvailable) {
                 val updated = config.copy(
                     canEditCollection = canEditCollection,
-                    identifyAvailable = identifyAvailable
+                    identifyAvailable = identifyAvailable,
+                    bookshelvesAvailable = bookshelvesAvailable
                 )
                 jellyfinServers.value = jellyfinServers.value.map {
                     if (it._id == updated._id) updated else it

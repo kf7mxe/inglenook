@@ -502,13 +502,36 @@ val Icon.Companion.themePalette
         ),
     )
 
+val Icon.Companion.addBookshelf
+    get() = Icon(
+        width = 2.rem,
+        height = 2.rem,
+        viewBoxMinX = 0,
+        viewBoxMinY = 0,
+        viewBoxWidth = 200,
+        viewBoxHeight = 200,
+        strokePathDatas = listOf(
+            Icon.StrokePathData(
+                strokeWidth = 1.rem, // Boldest stroke for tiny UI rendering
+                path = "M30 20v160h140v-80h-140 M50 40h20v60h-20Z M85 40h20v60h-20Z M65 155h50v25h-50Z M155 15v60 M125 45h60",
+                strokeLineCap = Icon.StrokeLineCap.Round
+            )
+        )
+    )
+
 val Icon.Companion.bookshelf
     get() = Icon(
         width = 1.5.rem,
         height = 1.5.rem,
         viewBoxMinX = 0,
-        viewBoxMinY = -960,
-        viewBoxWidth = 960,
-        viewBoxHeight = 960,
-        listOf("M120-40v-880h80v80h560v-80h80v880h-80v-80H200v80h-80Zm80-480h80v-160h240v160h240v-240H200v240Zm0 320h240v-160h240v160h80v-240H200v240Zm160-320h80v-80h-80v80Zm160 320h80v-80h-80v80ZM360-520h80-80Zm160 320h80-80Z")
+        viewBoxMinY = 0,
+        viewBoxWidth = 200,
+        viewBoxHeight = 200,
+        strokePathDatas = listOf(
+            Icon.StrokePathData(
+                strokeWidth = 0.7.rem,
+                path = "M30 20h140v170H30V20ZM30 100h140 M50 40h15v50h-15Z M70 40h15v50h-15Z M95 40l15 0l20 45l-15 5z M50 120h15v50h-15Z M90 150h60v20h-60Z M30 190h10 M160 190h10",
+                strokeLineCap = Icon.StrokeLineCap.Round
+            )
+        )
     )

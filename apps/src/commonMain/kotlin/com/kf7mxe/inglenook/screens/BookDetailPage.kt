@@ -285,7 +285,7 @@ class BookDetailPage(val bookId: String) : Page {
                         }
                     }
                     shownWhen { !showIdentifyMenu() }.buttonTheme.button {
-                        icon(Icon.bookshelf, "Add to Bookshelf")
+                        icon(Icon.addBookshelf, "Add to Bookshelf")
                         onClick {
                             coordinatorFrame?.bottomSheet(
                                 partialRatio = 0.75f,
@@ -378,7 +378,7 @@ class BookDetailPage(val bookId: String) : Page {
                             }
                         }
                         shownWhen { !showIdentifyMenu() }.buttonTheme.button {
-                            icon(Icon.bookshelf, "Add to Bookshelf")
+                            icon(Icon.addBookshelf, "Add to Bookshelf")
                             onClick {
                                 coordinatorFrame?.bottomSheet(
                                     partialRatio = 0.75f,
@@ -520,7 +520,7 @@ suspend fun openEbook(bookId: String, vw: ViewWriter) {
 private fun ViewWriter.bookshelfButton(bookId: String) {
     buttonTheme.button {
         row {
-            icon(Icon.bookshelf, "Add to Bookshelf")
+            icon(Icon.addBookshelf, "Add to Bookshelf")
             text("Add to Bookshelf")
         }
         onClick {

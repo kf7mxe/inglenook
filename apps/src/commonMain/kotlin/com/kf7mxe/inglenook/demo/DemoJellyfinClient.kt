@@ -94,9 +94,10 @@ class DemoJellyfinClient : JellyfinClient(
         return SearchResults(books = matchingBooks, authors = matchingAuthors)
     }
 
-    override suspend fun reportPlaybackStart(itemId: String, positionTicks: Long) { /* no-op */ }
     override suspend fun reportPlaybackProgress(itemId: String, positionTicks: Long, isPaused: Boolean) { /* no-op */ }
     override suspend fun reportPlaybackStopped(itemId: String, positionTicks: Long) { /* no-op */ }
+
+    override suspend fun bookshelfEndpointAvailable(): Boolean = true
 
     // In-memory bookshelf storage for demo mode
     private val demoBookshelves = mutableListOf<BookshelfResponse>()

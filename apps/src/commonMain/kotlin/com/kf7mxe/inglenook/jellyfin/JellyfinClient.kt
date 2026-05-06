@@ -78,6 +78,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
         val canEditCollection = try { getCanEditCollection() } catch (e: Exception) { false }
         println("DEBUG canEditCollection ${canEditCollection}")
         val identifyAvailable = try { isIdentifyAvailable() } catch (e: Exception) { false }
+        val bookshelvesAvailable = bookshelfEndpointAvailable()
 
         return JellyfinServerConfig(
             _id = Uuid.random(),
@@ -89,7 +90,8 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
             serverId = serverInfo?.Id,
             serverName = serverInfo?.ServerName,
             canEditCollection = canEditCollection,
-            identifyAvailable = identifyAvailable
+            identifyAvailable = identifyAvailable,
+            bookshelvesAvailable = bookshelvesAvailable
         )
     }
 
@@ -526,8 +528,10 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
             val response = client.get("$serverUrl/Inglenook/Bookshelves") {
                 header("X-Emby-Authorization", getAuthHeader())
             }
+            println("DEBUG fun bookshelfEndpointAvailable  ${response.status.value}")
             response.status.isSuccess()
         } catch (e: Exception) {
+            println("DEBUG fun bookshelfEndpointAvailable exception  ${e.message}")
             false
         }
     }
@@ -1211,6 +1215,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
         val serverInfo = getServerInfo()
         val canEditCollection = try { getCanEditCollection() } catch (e: Exception) { false }
         val identifyAvailable = try { isIdentifyAvailable() } catch (e: Exception) { false }
+        val bookshelvesAvailable = bookshelfEndpointAvailable()
 
         return JellyfinServerConfig(
             _id = Uuid.random(),
@@ -1222,7 +1227,8 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
             serverId = serverInfo?.Id,
             serverName = serverInfo?.ServerName,
             canEditCollection = canEditCollection,
-            identifyAvailable = identifyAvailable
+            identifyAvailable = identifyAvailable,
+            bookshelvesAvailable = bookshelvesAvailable
         )
     }
 

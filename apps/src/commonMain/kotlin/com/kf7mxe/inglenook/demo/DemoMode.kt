@@ -23,6 +23,9 @@ object DemoMode {
             accessToken = "demo-token",
             deviceId = "demo-device",
             serverName = "Inglenook Demo",
+            canEditCollection = true,
+            identifyAvailable = true,
+            bookshelvesAvailable = true
         )
         jellyfinClient.value = DemoJellyfinClient()
     }

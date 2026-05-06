@@ -4,6 +4,7 @@ import com.kf7mxe.inglenook.Bookshelf
 import com.kf7mxe.inglenook.connectivity.ConnectivityState
 import com.kf7mxe.inglenook.jellyfin.BookshelfResponse
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
+import com.kf7mxe.inglenook.jellyfin.jellyfinServerConfig
 import com.kf7mxe.inglenook.jellyfin.serverScopedProperty
 import com.lightningkite.kiteui.reactive.PersistentProperty
 import io.ktor.client.request.get
@@ -30,15 +31,29 @@ object BookshelfRepository {
 
     /** Checks whether the Inglenook bookshelf endpoint is reachable by trying to query bookshelves. */
     suspend fun bookshelfEndpointAvailable(): Boolean {
+        println("DEBUG bookshelfEndpointAvailable isOnline ${isOnline()}")
         if (!isOnline()) return false
+
+        println("DEBUG bookshelfEndpointAvailable jellyfinServerConfig.value?.bookshelvesAvailable ${jellyfinServerConfig.value?.bookshelvesAvailable}")
+        // If the server config already knows bookshelves are available, trust it.
+        if (jellyfinServerConfig.value?.bookshelvesAvailable == true) return true
+
+        println("DEBUG bookshelfEndpointAvailable jellyfinClient.value ${jellyfinClient.value}")
+
         val client = jellyfinClient.value ?: return false
-        
+
+
         val currentServer = client.serverUrl
-        if (lastCheckedServer == currentServer && endpointAvailableCache != null) {
-            return endpointAvailableCache!!
+        println("DEBUG bookshelfEndpointAvailable lastCheckedServer == currentServer && endpointAvailableCache == true ${lastCheckedServer == currentServer && endpointAvailableCache == true}")
+        // If we previously confirmed the endpoint is available in this session, use that.
+        if (lastCheckedServer == currentServer && endpointAvailableCache == true) {
+            return true
         }
 
         val available = client.bookshelfEndpointAvailable()
+        
+        // Cache the result. If available is false, we'll still store it to avoid hammering the network 
+        // within the same view lifecycle, but since it's not 'true', it may be re-checked later.
         endpointAvailableCache = available
         lastCheckedServer = currentServer
         return available
