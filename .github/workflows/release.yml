@@ -1,0 +1,58 @@
+name: Build and Publish Release
+
+on:
+  push:
+    # This workflow only triggers when you push a tag that starts with 'v' (e.g., v1.0.0)
+    tags:
+      - 'v*'
+
+# CRITICAL: This permission is required to allow the action to create the release and upload files
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+
+      - name: Build Web with Gradle
+        run: ./gradlew :apps:viteBuild
+
+#      - name: Build Android with Gradle
+#        run: ./gradlew :apps:assemble
+
+      # Zip the output so it is easy for users to download
+      - name: Archive production artifacts
+        run: |
+          cd apps/build/dist
+          zip -r ../../../inglenook-web.zip .
+          cd ../../..
+
+      # Automatically create the GitHub Release and attach assets
+      - name: Create Release and Upload Assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            inglenook-web.zip
+            apps/build/outputs/apk/debug/*.apk
+            apps/build/outputs/apk/release/*.apk
+          generate_release_notes: true
+          fail_on_unmatched_files: false
+          draft: true

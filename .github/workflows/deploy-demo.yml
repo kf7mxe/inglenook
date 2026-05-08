@@ -1,0 +1,61 @@
+name: Deploy KMP Vite to GitHub Pages
+
+on:
+  # This workflow only triggers when you push a tag that starts with 'v' (e.g., v1.0.0)
+  push:
+    tags:
+      - 'v*'
+  # Allows you to run this manually from the Actions tab
+  workflow_dispatch:
+
+# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow only one concurrent deployment
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK (Required for Kotlin)
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17' # Change to your Java version
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      - name: Set up Node.js (Required for Vite)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20' # Change to your Node version
+
+      - name: Make gradlew executable
+        run: chmod +x gradlew
+
+      - name: Build with Gradle
+        run: ./gradlew :apps:viteBuild
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          # KiteUI Vite build output path
+          path: 'apps/build/dist'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
