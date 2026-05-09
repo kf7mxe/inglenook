@@ -1,4 +1,0 @@
-[submodule "kiteui-kf7mxe-experimental"]
-	path = kiteui-kf7mxe-experimental
-	url = git@github.com:lightningkite/kiteui.git
-	branch = kf7mxe-experimental

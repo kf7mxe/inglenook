@@ -11,9 +11,9 @@ plugins {
 
 buildscript {
     repositories {
+        google()
         mavenLocal()
         maven("https://lightningkite-maven.s3.us-west-2.amazonaws.com")
-        google()
         mavenCentral()
     }
 }
@@ -21,9 +21,9 @@ buildscript {
 allprojects {
     group = "com.kf7mxe.inglenook"
     repositories {
+        google()
         mavenLocal()
         maven("https://lightningkite-maven.s3.us-west-2.amazonaws.com")
-        google()
         mavenCentral()
     }
 }
