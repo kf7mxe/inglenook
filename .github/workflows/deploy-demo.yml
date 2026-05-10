@@ -56,7 +56,7 @@ jobs:
 
 
       - name: Build with Gradle
-        run: ./gradlew :apps:viteBuild
+        run: ./gradlew :apps:jsBrowserProductionVite
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
