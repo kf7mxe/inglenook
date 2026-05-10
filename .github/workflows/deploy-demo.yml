@@ -39,7 +39,7 @@ jobs:
           cache: 'gradle'
       - name: Publish KiteUI to CI Maven Local
         run: |
-            cd path/to/submodule # Change this to your submodule folder name
+            cd kiteui # Change this to your submodule folder name
             # This builds KiteUI and pushes the plugin/libraries to the runner's .m2 cache
             ./gradlew publishToMavenLocal
       - name: Set up Node.js (Required for Vite)
