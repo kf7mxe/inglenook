@@ -50,6 +50,11 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x gradlew
 
+
+      - name: Debug - List all tasks
+        run: ./gradlew :apps:tasks --all
+
+
       - name: Build with Gradle
         run: ./gradlew :apps:viteBuild
 
