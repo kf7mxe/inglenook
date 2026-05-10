@@ -28,6 +28,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - name: Set up JDK (Required for Kotlin)
         uses: actions/setup-java@v4
@@ -35,7 +37,11 @@ jobs:
           java-version: '17' # Change to your Java version
           distribution: 'temurin'
           cache: 'gradle'
-
+      - name: Publish KiteUI to CI Maven Local
+        run: |
+            cd path/to/submodule # Change this to your submodule folder name
+            # This builds KiteUI and pushes the plugin/libraries to the runner's .m2 cache
+            ./gradlew publishToMavenLocal
       - name: Set up Node.js (Required for Vite)
         uses: actions/setup-node@v4
         with:

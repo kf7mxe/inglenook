@@ -19,9 +19,7 @@ plugins {
 group = "com.kf7mxe.inglenook"
 version = "1.0-SNAPSHOT"
 
-repositories {
-    maven("https://jitpack.io")
-}
+
 
 kotlin {
     applyDefaultHierarchyTemplate()
@@ -48,6 +46,7 @@ kotlin {
         val commonMain by getting {
             dependencies {
                 api(libs.kiteui)
+
                 api(libs.csvDurable)
 //                api(libs.lightningServer.client)
                 api(project(":shared"))

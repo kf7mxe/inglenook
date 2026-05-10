@@ -1,0 +1,3 @@
+[submodule "kiteui"]
+	path = kiteui
+	url = https://github.com/lightningkite/kiteui.git

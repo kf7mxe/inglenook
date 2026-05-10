@@ -25,5 +25,6 @@ allprojects {
         mavenLocal()
         maven("https://lightningkite-maven.s3.us-west-2.amazonaws.com")
         mavenCentral()
+        maven("https://jitpack.io") // <-- Add JitPack here
     }
 }
