@@ -68,7 +68,8 @@ jobs:
         uses: actions/upload-pages-artifact@v3
         with:
           # KiteUI Vite build output path
-          path: 'apps/build/dist'
+          path: 'apps/build/dist/js/production' # <-- Updated path
+#          path: 'apps/build/dist'
 
       - name: Deploy to GitHub Pages
         id: deployment
