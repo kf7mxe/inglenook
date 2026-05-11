@@ -13,9 +13,9 @@ import com.kf7mxe.inglenook.book
 import com.kf7mxe.inglenook.check
 import com.kf7mxe.inglenook.components.bookCard
 import com.kf7mxe.inglenook.components.bookListItem
-import com.kf7mxe.inglenook.components.AddBookDialog
+import com.kf7mxe.inglenook.components.addBookDialog
 import com.kf7mxe.inglenook.components.inglenookActivityIndicator
-import com.kf7mxe.inglenook.components.EmptyState
+import com.kf7mxe.inglenook.components.emptyState
 import com.kf7mxe.inglenook.components.viewModeToggleButton
 import com.kf7mxe.inglenook.edit
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
@@ -32,7 +32,6 @@ import com.lightningkite.reactive.core.Constant
 import com.lightningkite.reactive.core.Reactive
 import com.lightningkite.reactive.core.mutableRememberSuspending
 import com.lightningkite.reactive.core.remember
-import com.lightningkite.reactive.core.rememberSuspending
 import com.lightningkite.reactive.extensions.value
 import kotlinx.coroutines.launch
 import kotlin.uuid.ExperimentalUuidApi
@@ -103,7 +102,7 @@ class BookshelfDetailPage(val bookshelfId: String) : Page {
                     icon(Icon.add, "Add Books")
                     onClick {
                         dialog { dismiss ->
-                            AddBookDialog(
+                            addBookDialog(
                                 bookshelfId = Uuid.parse(bookshelfId),
                                 currentBookIds = remember { bookshelf()?.bookIds?.toSet() ?: emptySet() },
                                 onDismiss = { dismiss() },
@@ -145,7 +144,7 @@ class BookshelfDetailPage(val bookshelfId: String) : Page {
                 // Content
                 shownWhen { books.state().ready }.frame {
                     // Empty state
-                    shownWhen { books()?.isEmpty() == true }.EmptyState(
+                    shownWhen { books()?.isEmpty() == true }.emptyState(
                         icon = Icon.book,
                         title = "No books in this bookshelf",
                         description = "Add books from the book detail page"

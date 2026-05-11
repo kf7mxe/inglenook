@@ -8,8 +8,7 @@ import com.kf7mxe.inglenook.ViewMode
 import com.kf7mxe.inglenook.book
 import com.kf7mxe.inglenook.components.bookCard
 import com.kf7mxe.inglenook.components.bookListItem
-import com.kf7mxe.inglenook.components.EmptyState
-import com.kf7mxe.inglenook.components.gridListView
+import com.kf7mxe.inglenook.components.emptyState
 import com.kf7mxe.inglenook.components.viewModeToggleButton
 import com.kf7mxe.inglenook.components.connectionError
 import com.kf7mxe.inglenook.components.inglenookActivityIndicator
@@ -19,13 +18,11 @@ import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.lastItemViewedScrollToOnBack
 import com.kf7mxe.inglenook.viewMode
 import com.lightningkite.kiteui.models.Align
-import com.lightningkite.kiteui.models.Edges
 import com.lightningkite.kiteui.models.Icon
 import com.lightningkite.kiteui.models.ImportantSemantic
 import com.lightningkite.kiteui.models.KeyboardCase
 import com.lightningkite.kiteui.models.KeyboardHints
 import com.lightningkite.kiteui.models.KeyboardType
-import com.lightningkite.kiteui.models.SelectedSemantic
 import com.lightningkite.kiteui.models.rem
 import com.lightningkite.kiteui.navigation.Page
 import com.lightningkite.kiteui.navigation.mainPageNavigator
@@ -135,7 +132,7 @@ class BooksPage(
 
             // Empty / no results states
             shownWhen { books.state().ready && books().isEmpty() && ConnectivityState.lastNetworkError() == null }.frame {
-                shownWhen { books().isEmpty() }.EmptyState(
+                shownWhen { books().isEmpty() }.emptyState(
                     icon = Icon.book,
                     title = "No books found",
                     description = "Your audiobook library is empty"

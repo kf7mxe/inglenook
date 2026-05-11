@@ -15,12 +15,10 @@ import com.kf7mxe.inglenook.components.connectionError
 import com.kf7mxe.inglenook.connectivity.ConnectivityState
 import com.lightningkite.reactive.context.invoke
 import com.kf7mxe.inglenook.components.BookshelfPickerDialog
-import com.kf7mxe.inglenook.components.IdentifyDialog
-import com.kf7mxe.inglenook.components.SeriesDialog
+import com.kf7mxe.inglenook.components.identifyDialog
+import com.kf7mxe.inglenook.components.seriesDialog
 import com.kf7mxe.inglenook.components.bookmarksList
 import com.kf7mxe.inglenook.components.chaptersList
-import com.kf7mxe.inglenook.components.getDominantColor
-import com.kf7mxe.inglenook.components.getSemanticForBookBackground
 import com.kf7mxe.inglenook.ebook.ebookReader
 import com.lightningkite.kiteui.views.l2.coordinatorFrame
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
@@ -35,11 +33,9 @@ import com.kf7mxe.inglenook.util.formatDurationShort
 import com.kf7mxe.inglenook.util.truncateDisplay
 import com.lightningkite.kiteui.Routable
 import com.lightningkite.kiteui.current
-import com.lightningkite.kiteui.navigation.dialogPageNavigator
 import com.lightningkite.kiteui.views.buttonTheme
 import com.lightningkite.kiteui.views.forEach
 import com.lightningkite.kiteui.views.card
-import com.lightningkite.kiteui.views.dynamicTheme
 import com.lightningkite.reactive.core.Signal
 import com.lightningkite.reactive.core.Reactive
 import com.lightningkite.reactive.core.remember
@@ -243,7 +239,7 @@ class BookDetailPage(val bookId: String) : Page {
                                             partialRatio = 0.85f,
                                             startState = BottomSheetState.PARTIALLY_EXPANDED
                                         ) { control ->
-                                            unpadded.SeriesDialog(
+                                            unpadded.seriesDialog(
                                                 book = b,
                                                 onApplied = {
                                                     control.close()
@@ -267,7 +263,7 @@ class BookDetailPage(val bookId: String) : Page {
                                             partialRatio = 0.85f,
                                             startState = BottomSheetState.PARTIALLY_EXPANDED
                                         ) { control ->
-                                            unpadded.IdentifyDialog(
+                                            unpadded.identifyDialog(
                                                 bookId = bookId,
                                                 bookTitle = currentTitle,
                                                 onApplied = {
@@ -336,7 +332,7 @@ class BookDetailPage(val bookId: String) : Page {
                                                 partialRatio = 0.85f,
                                                 startState = BottomSheetState.PARTIALLY_EXPANDED
                                             ) { control ->
-                                                unpadded.SeriesDialog(
+                                                unpadded.seriesDialog(
                                                     book = b,
                                                     onApplied = {
                                                         control.close()
@@ -360,7 +356,7 @@ class BookDetailPage(val bookId: String) : Page {
                                                 partialRatio = 0.85f,
                                                 startState = BottomSheetState.PARTIALLY_EXPANDED
                                             ) { control ->
-                                                unpadded.IdentifyDialog(
+                                                unpadded.identifyDialog(
                                                     bookId = bookId,
                                                     bookTitle = currentTitle,
                                                     onApplied = {

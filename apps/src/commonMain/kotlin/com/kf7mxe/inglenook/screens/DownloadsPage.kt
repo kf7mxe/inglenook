@@ -9,7 +9,7 @@ import com.lightningkite.kiteui.views.direct.*
 import com.lightningkite.kiteui.views.expanding
 import com.lightningkite.kiteui.views.l2.icon
 import com.kf7mxe.inglenook.*
-import com.kf7mxe.inglenook.components.EmptyState
+import com.kf7mxe.inglenook.components.emptyState
 import com.kf7mxe.inglenook.util.formatFileSize
 import com.kf7mxe.inglenook.storage.DangerSemantic
 import com.kf7mxe.inglenook.cache.fetchCoverImage
@@ -119,7 +119,7 @@ class DownloadsPage : Page {
                 gap = 0.5.rem
                 h3 { content = "Downloaded Books" }
 
-                shownWhen { downloads().isEmpty() && activeDownloads().isEmpty() }.EmptyState(
+                shownWhen { downloads().isEmpty() && activeDownloads().isEmpty() }.emptyState(
                     icon = Icon.download,
                     title = "No downloaded books",
                     description = "Download books to listen offline"

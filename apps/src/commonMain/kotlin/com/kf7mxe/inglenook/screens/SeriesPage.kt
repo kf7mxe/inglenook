@@ -9,7 +9,7 @@ import com.lightningkite.kiteui.views.centered
 import com.lightningkite.kiteui.views.direct.*
 import com.lightningkite.kiteui.views.expanding
 import com.kf7mxe.inglenook.book
-import com.kf7mxe.inglenook.components.EmptyState
+import com.kf7mxe.inglenook.components.emptyState
 import com.kf7mxe.inglenook.components.gridListView
 import com.kf7mxe.inglenook.components.seriesCard
 import com.kf7mxe.inglenook.components.seriesListItem
@@ -74,7 +74,7 @@ class SeriesPage(val searchQuery: Signal<String> = Signal("")) : Page {
             }
 
             // Empty state
-            shownWhen { allSeries().isEmpty() && allSeries.state().ready && ConnectivityState.lastNetworkError() == null }.EmptyState(
+            shownWhen { allSeries().isEmpty() && allSeries.state().ready && ConnectivityState.lastNetworkError() == null }.emptyState(
                 icon = Icon.book,
                 title = "No series found",
                 description = "Books with series metadata will appear here"

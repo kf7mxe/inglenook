@@ -12,7 +12,7 @@ import com.kf7mxe.inglenook.Author
 import com.kf7mxe.inglenook.ItemType
 import com.kf7mxe.inglenook.ThemePreset
 import com.kf7mxe.inglenook.components.coverImage
-import com.kf7mxe.inglenook.components.EmptyState
+import com.kf7mxe.inglenook.components.emptyState
 import com.kf7mxe.inglenook.components.gridListView
 import com.kf7mxe.inglenook.components.viewModeToggleButton
 import com.kf7mxe.inglenook.components.connectionError
@@ -91,7 +91,7 @@ class AuthorsPage(val searchQuery: Signal<String> = Signal(""),
             }
 
             // Empty state
-            shownWhen { filteredAuthors.state().ready && filteredAuthors().isEmpty() && ConnectivityState.lastNetworkError() == null }.EmptyState(
+            shownWhen { filteredAuthors.state().ready && filteredAuthors().isEmpty() && ConnectivityState.lastNetworkError() == null }.emptyState(
                 icon = Icon.person,
                 title = "No authors found",
                 description = "Your audiobook library has no authors"

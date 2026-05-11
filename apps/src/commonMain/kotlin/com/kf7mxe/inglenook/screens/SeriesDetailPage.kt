@@ -12,13 +12,12 @@ import com.kf7mxe.inglenook.book
 import com.kf7mxe.inglenook.cache.ImageCache
 import com.kf7mxe.inglenook.components.bookCard
 import com.kf7mxe.inglenook.components.bookListItem
-import com.kf7mxe.inglenook.components.EmptyState
+import com.kf7mxe.inglenook.components.emptyState
 import com.kf7mxe.inglenook.components.gridListView
 import com.kf7mxe.inglenook.components.connectionError
 import com.kf7mxe.inglenook.components.inglenookActivityIndicator
 import com.kf7mxe.inglenook.connectivity.ConnectivityState
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
-import com.kf7mxe.inglenook.playback.PlaybackState
 import com.kf7mxe.inglenook.storage.ImageSemantic
 import com.kf7mxe.inglenook.util.formatBookCount
 import com.lightningkite.kiteui.Routable
@@ -86,7 +85,7 @@ class SeriesDetailPage(val seriesName: String) : Page {
             }
 
             // Empty state
-            shownWhen { books().isEmpty() && books.state().ready && ConnectivityState.lastNetworkError() == null }.EmptyState(
+            shownWhen { books().isEmpty() && books.state().ready && ConnectivityState.lastNetworkError() == null }.emptyState(
                 icon = Icon.book,
                 title = "No books found in this series",
                 description = ""

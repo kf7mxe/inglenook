@@ -11,7 +11,7 @@ import com.kf7mxe.inglenook.book
 import com.kf7mxe.inglenook.components.bookCard
 import com.kf7mxe.inglenook.components.bookListItem
 import com.kf7mxe.inglenook.components.coverImage
-import com.kf7mxe.inglenook.components.EmptyState
+import com.kf7mxe.inglenook.components.emptyState
 import com.kf7mxe.inglenook.components.gridListView
 import com.kf7mxe.inglenook.components.viewModeToggleButton
 import com.kf7mxe.inglenook.components.connectionError
@@ -50,7 +50,7 @@ class AuthorDetailPage(val authorId: String) : Page {
             }
 
             // No books state
-            shownWhen { books.state().ready && books().isEmpty() && ConnectivityState.lastNetworkError() == null }.EmptyState(
+            shownWhen { books.state().ready && books().isEmpty() && ConnectivityState.lastNetworkError() == null }.emptyState(
                 icon = Icon.book,
                 title = "No books found",
                 description = "This author has no audiobooks in your library"
