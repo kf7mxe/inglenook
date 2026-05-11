@@ -58,8 +58,12 @@ jobs:
       - name: Build with Gradle
         run: ./gradlew :apps:jsBrowserProductionVite
 
-      - name: Find output files
-        run: find apps/build -name "index.html"
+      - name: Fix absolute paths for GitHub Pages
+        run: |
+            # Replaces absolute root paths (href="/ and src="/) 
+            # with the repository sub-path (href="/inglenook/ and src="/inglenook/)
+            sed -i 's|href="/|href="/inglenook/|g' apps/build/dist/js/production/index.html
+            sed -i 's|src="/|src="/inglenook/|g' apps/build/dist/js/production/index.html
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
