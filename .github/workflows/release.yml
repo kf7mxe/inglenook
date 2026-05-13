@@ -6,6 +6,9 @@ on:
     tags:
       - 'v*'
 
+
+  # Allows you to run this manually from the Actions tab
+  workflow_dispatch:
 # CRITICAL: This permission is required to allow the action to create the release and upload files
 permissions:
   contents: write
