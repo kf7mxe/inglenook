@@ -4,5 +4,5 @@ import kotlinx.browser.window
 
 actual fun isDemoWebsite(): Boolean {
     val hostname = window.location.hostname
-    return hostname.contains("demo.net")
+    return hostname.contains("https://kf7mxe.github.io/inglenook/")
 }

@@ -25,7 +25,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.time.Duration.Companion.milliseconds
 
-@Routable("/splash")
+@Routable("/")
 class SplashPage : Page, FullScreen {
     override val title get() = Constant("Loading")
 
