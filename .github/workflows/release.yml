@@ -16,6 +16,8 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          submodules: true # FIX 1: Added submodule checkout
 
       - name: Set up JDK
         uses: actions/setup-java@v4
@@ -23,6 +25,12 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
           cache: 'gradle'
+
+      # FIX 2: Re-added the KiteUI publish step so the main app can find it
+      - name: Publish KiteUI to CI Maven Local
+        run: |
+          cd kiteui 
+          ./gradlew publishToMavenLocal
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -32,18 +40,19 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x gradlew
 
+      # FIX 3: Using the proven Vite task from your working workflow
       - name: Build Web with Gradle
-        run: ./gradlew :apps:viteBuild
+        run: ./gradlew :apps:jsBrowserProductionVite
 
-#      - name: Build Android with Gradle
-#        run: ./gradlew :apps:assemble
+      #      - name: Build Android with Gradle
+      #        run: ./gradlew :apps:assemble
 
-      # Zip the output so it is easy for users to download
+      # FIX 4: Zipping the specific production output directory
       - name: Archive production artifacts
         run: |
-          cd apps/build/dist
-          zip -r ../../../inglenook-web.zip .
-          cd ../../..
+          cd apps/build/dist/js/production
+          zip -r ../../../../../inglenook-web.zip .
+          cd ../../../../..
 
       # Automatically create the GitHub Release and attach assets
       - name: Create Release and Upload Assets
