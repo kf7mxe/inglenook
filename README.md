@@ -88,6 +88,12 @@ For the best experience, pair Inglenook with the **[Inglenook Jellyfin Plugin](h
 ### Building
 
 ```bash
+# Clone the repository with submodules
+git clone --recursive https://github.com/kf7mxe/inglenook.git
+
+# Or if already cloned
+git submodule update --init --recursive
+
 # Build all modules
 ./gradlew build
 
@@ -111,18 +117,21 @@ For the best experience, pair Inglenook with the **[Inglenook Jellyfin Plugin](h
 - **[Ktor](https://ktor.io/)** — HTTP client for Jellyfin API communication
 - **[kotlinx.serialization](https://github.com/Kotlin/kotlinx.serialization)** — JSON serialization
 
-## KiteUI Experimental Branch
+## KiteUI Submodule & Experimental Branch
 
-Inglenook currently uses an experimental build of KiteUI (`kf7mxe-experimental` branch) to support the neumorphism theme and Lottie animation color overrides. The neumorphism theme is experimental and may exhibit visual quirks.
+Inglenook uses an experimental build of KiteUI to support the neumorphism theme and Lottie animation color overrides. This is integrated as a git submodule in the `kiteui/` directory.
 
 **To build from source:**
 
-1. Clone [KiteUI](https://github.com/lightningkite/kiteui)
-2. Check out the `kf7mxe-experimental` branch
-3. Publish to Maven Local via the Gradle `publishToMavenLocal` task
-4. Build Inglenook as normal
+1.  **Initialize Submodules**:
+    ```bash
+    git submodule update --init --recursive
+    ```
+2.  **Verify Branch**: Ensure the `kiteui` submodule has the `kf7mxe-experimental` branch checked out.
+3.  **Build**: Build Inglenook as normal. Gradle is configured to use the submodule source directly via `includeBuild`, so no manual publishing is required.
 
-**To build with mainline KiteUI instead:** remove the neumorphism theme preset and the Lottie animation color overrides from the source, then build using the standard KiteUI release.
+**To build with mainline KiteUI instead:** remove the neumorphism theme preset and the Lottie animation color overrides from the source, and checkout the version 7 .
+
 
 
 ## Roadmap

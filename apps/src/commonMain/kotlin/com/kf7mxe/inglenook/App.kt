@@ -216,7 +216,7 @@ fun ViewWriter.app(navigator: PageNavigator, dialog: PageNavigator) {
                                 importantSemanticSettings = settings.importantSemanticSettings?.copy(
                                     backgroundColor = primaryHex,
 
-                                ),
+                                    ),
                                 selectedSemanticSettings = settings.selectedSemanticSettings?.copy(
                                     backgroundColor = primaryHex,
                                     outlineColor = primaryHex
@@ -253,18 +253,18 @@ fun ViewWriter.app(navigator: PageNavigator, dialog: PageNavigator) {
             }
             col {
 //                    themeChoice = ThemeDerivation.None
-                    val coverDominantColor = rememberSuspending {
-                        if(mainPageNavigator.currentPage() !is BookDetailPage){
-                            return@rememberSuspending null
-                        }
-                        bookToShowBlurredBackgroundCoverOf()?.let{book->
-                            getDominantColor(book)
-                        }
+                val coverDominantColor = rememberSuspending {
+                    if(mainPageNavigator.currentPage() !is BookDetailPage){
+                        return@rememberSuspending null
                     }
-                    dynamicTheme {
-                        getSemanticForBookBackground(coverDominantColor(),appTheme().background.closestColor(),
-                            OuterSemantic)
+                    bookToShowBlurredBackgroundCoverOf()?.let{book->
+                        getDominantColor(book)
                     }
+                }
+                dynamicTheme {
+                    getSemanticForBookBackground(coverDominantColor(),appTheme().background.closestColor(),
+                        OuterSemantic)
+                }
             }
 
             blurredImage(PlaybackState.currentBook, remember {
@@ -366,10 +366,15 @@ fun ViewWriter.bottomBar(navItems: List<NavLink>) {
                 expanding.link {
                     resetsStack = true
                     col {
-                        centered.icon {
+                           centered.sizeConstraints(width = 3.5.rem,height =2.rem).frame {
+
                             dynamicTheme {
-                                val destination = mainPageNavigator.routes.render(navLink.destination.invoke())?.urlLikePath?.segments?.toList() ?: emptyList()
-                                val currentPath = mainPageNavigator.currentPage()?.let { mainPageNavigator.routes.render(it) }?.urlLikePath?.segments?.toList() ?: emptyList()
+                                val destination =
+                                    mainPageNavigator.routes.render(navLink.destination.invoke())?.urlLikePath?.segments?.toList()
+                                        ?: emptyList()
+                                val currentPath = mainPageNavigator.currentPage()
+                                    ?.let { mainPageNavigator.routes.render(it) }?.urlLikePath?.segments?.toList()
+                                    ?: emptyList()
 
                                 // Helper: Fixes the bug where `any { }` returns false for empty destinations like `[]`
                                 fun isMatch(path: List<String>, dest: List<String>): Boolean {
@@ -382,7 +387,8 @@ fun ViewWriter.bottomBar(navItems: List<NavLink>) {
                                 // 2. If not, verify if the current screen matches ANY tab
                                 if (!matchingScreen) {
                                     val allTabDests = navItems.map {
-                                        mainPageNavigator.routes.render(it.destination.invoke())?.urlLikePath?.segments?.toList() ?: emptyList()
+                                        mainPageNavigator.routes.render(it.destination.invoke())?.urlLikePath?.segments?.toList()
+                                            ?: emptyList()
                                     }
 
                                     val isAnyTabActive = allTabDests.any { isMatch(currentPath, it) }
@@ -394,9 +400,10 @@ fun ViewWriter.bottomBar(navItems: List<NavLink>) {
                                         }
 
                                         // Find the most recent history item that corresponds to a valid tab
-                                        val lastActiveTab = historyPaths.reversed().firstNotNullOfOrNull { histPath ->
-                                            allTabDests.firstOrNull { dest -> isMatch(histPath, dest) }
-                                        }
+                                        val lastActiveTab =
+                                            historyPaths.reversed().firstNotNullOfOrNull { histPath ->
+                                                allTabDests.firstOrNull { dest -> isMatch(histPath, dest) }
+                                            }
 
                                         // If the last valid tab from history matches THIS link's destination, highlight it!
                                         if (lastActiveTab == destination) {
@@ -407,17 +414,19 @@ fun ViewWriter.bottomBar(navItems: List<NavLink>) {
 
                                 if (matchingScreen) SelectedTab else UnSelectedTab
                             }
-                            source = navLink.icon.copy(width = 1.5.rem, height = 1.5.rem)
-                            description = navLink.title
-                        }
+                           unpadded. centered.icon {
+                                source = navLink.icon.copy(width = 1.5.rem, height = 1.5.rem)
+                                description = navLink.title
+                            }
+                            }
                         centered.subtext(navLink.title)
+                        to = navLink.destination
                     }
-                    to = navLink.destination
                 }
             }
         }
     }
 }
-
-
 interface FullScreen
+
+
