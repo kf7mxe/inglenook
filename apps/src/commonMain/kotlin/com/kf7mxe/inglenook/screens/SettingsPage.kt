@@ -255,6 +255,16 @@ class SettingsPage : Page {
                             checked bind diagnosticsEnabled
                         }
                     }
+                    separator()
+                    button {
+                        row {
+                            expanding.text("View Privacy Policy")
+                            icon(Icon.chevronRight, "Go")
+                        }
+                        onClick {
+                            mainPageNavigator.navigate(PrivacyPolicyPage())
+                        }
+                    }
                 }
             }
 
@@ -277,6 +287,15 @@ class SettingsPage : Page {
             // About section
             col {
                 h3 { content = "About" }
+                card.button {
+                    row {
+                        expanding.text("Privacy Policy")
+                        icon(Icon.chevronRight, "Go")
+                    }
+                    onClick {
+                        mainPageNavigator.navigate(PrivacyPolicyPage())
+                    }
+                }
                 card.button {
                     row {
                         expanding.text("Acknowledgements")

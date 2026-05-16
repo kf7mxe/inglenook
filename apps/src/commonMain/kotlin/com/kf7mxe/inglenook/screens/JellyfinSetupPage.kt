@@ -125,12 +125,6 @@ class JellyfinSetupPage : Page, FullScreen {
                                 return@Action
                             }
 
-                            // Demo mode trigger for app store testers
-                            if (url.equals("appstoretester@inglenook.com", ignoreCase = true)) {
-                                DemoMode.activate()
-                                mainPageNavigator.navigate(HomePage())
-                                return@Action
-                            }
 
                             serverUrl.value = url
 

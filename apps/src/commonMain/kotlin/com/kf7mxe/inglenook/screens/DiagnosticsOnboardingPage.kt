@@ -67,6 +67,11 @@ class DiagnosticsOnboardingPage : Page, FullScreen {
                     }
                     themeChoice += ImportantSemantic
                 }
+
+                button {
+                    centered.subtext("View Privacy Policy")
+                    onClick { mainPageNavigator.navigate(PrivacyPolicyPage()) }
+                }
             }
         }
     }
