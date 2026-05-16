@@ -29,3 +29,6 @@ fun Color.toHexString():String {
 }
 
 expect fun RView.animatePulsating()
+
+
+expect fun maybeGetBackendOnWeb():String?

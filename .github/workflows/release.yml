@@ -67,4 +67,3 @@ jobs:
             apps/build/outputs/apk/release/*.apk
           generate_release_notes: true
           fail_on_unmatched_files: false
-          draft: true

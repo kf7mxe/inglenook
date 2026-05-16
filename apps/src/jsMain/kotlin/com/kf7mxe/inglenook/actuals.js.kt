@@ -7,6 +7,8 @@ import com.lightningkite.kiteui.views.direct.animate
 import com.lightningkite.kiteui.views.direct.vprop
 import com.lightningkite.kiteui.views.valueString
 import com.lightningkite.reactive.core.MutableReactiveValue
+import kotlinx.browser.document
+import kotlinx.browser.window
 import org.w3c.dom.HTMLElement
 import org.w3c.dom.HTMLInputElement
 import org.w3c.dom.events.Event
@@ -46,4 +48,15 @@ actual fun RView.animatePulsating() {
             )
         )
     }
+}
+
+actual fun maybeGetBackendOnWeb():String? {
+    val fullAddress = window.location.href
+    println("DEBUG fullAddress: $fullAddress")
+    // 2. Read the dynamic <base> href just in case you need it for something else
+   return document.querySelector("base")?.getAttribute("href")?.takeIf { it != "/" }?.let {
+
+       println("DEBUG base ${it}")
+            fullAddress.split(it).first()
+        }
 }

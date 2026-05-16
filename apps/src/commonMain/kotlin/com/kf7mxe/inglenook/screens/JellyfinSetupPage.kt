@@ -27,6 +27,7 @@ import com.lightningkite.reactive.core.Constant
 import com.kf7mxe.inglenook.FullScreen
 import com.kf7mxe.inglenook.components.inglenookActivityIndicator
 import com.kf7mxe.inglenook.jellyfin.hasSeenDiagnosticsPrompt
+import com.kf7mxe.inglenook.maybeGetBackendOnWeb
 import com.lightningkite.kiteui.exceptions.PlainTextException
 import com.lightningkite.kiteui.setClipboardText
 import com.lightningkite.kiteui.views.l2.toast
@@ -67,6 +68,11 @@ class JellyfinSetupPage : Page, FullScreen {
         }
 
         centered.col {
+            launch {
+                maybeGetBackendOnWeb()?.let {
+                    serverUrl.set(it)
+                }
+            }
             padding = 2.rem
             gap = 1.rem
 
@@ -82,7 +88,7 @@ class JellyfinSetupPage : Page, FullScreen {
                             else "Sign in to ${serverName() ?: serverUrl()}"
                         }
                     }
-                    sizeConstraints(width = 7.rem).image {
+                    centered.sizeConstraints(width = 7.rem).image {
                         source = Resources.jellyfinIcon
                     }
                 }

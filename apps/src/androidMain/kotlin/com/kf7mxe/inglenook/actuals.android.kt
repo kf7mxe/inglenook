@@ -315,3 +315,7 @@ actual fun RView.animatePulsating() {
         start() // Don't forget to start it!
     }
 }
+
+actual fun maybeGetBackendOnWeb():String? {
+return null
+}

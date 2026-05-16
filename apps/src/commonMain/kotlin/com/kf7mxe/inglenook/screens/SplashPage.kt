@@ -36,7 +36,7 @@ class SplashPage : Page, FullScreen {
         AppScope.launch {
             val client = jellyfinClient.value
             if (client == null) {
-                mainPageNavigator.reset(HomePage())
+                mainPageNavigator.reset(JellyfinSetupPage())
                 return@launch
             }
 
