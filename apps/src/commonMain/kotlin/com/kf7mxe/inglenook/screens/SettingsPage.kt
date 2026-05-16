@@ -24,6 +24,7 @@ import com.kf7mxe.inglenook.jellyfin.activeServerId
 import com.kf7mxe.inglenook.jellyfin.switchToServer
 import com.kf7mxe.inglenook.jellyfin.removeServer
 import com.kf7mxe.inglenook.jellyfin.selectedLibraryIds
+import com.kf7mxe.inglenook.util.openUrl
 import com.lightningkite.kiteui.Routable
 import com.lightningkite.kiteui.reactive.AppState
 import com.lightningkite.kiteui.utils.getAppVersion
@@ -99,7 +100,10 @@ class SettingsPage : Page {
                                 expanding.space(1.0)
                                 button {
                                     row {
-                                        icon(if (isActive) Icon.logout else Icon.close, if (isActive) "Log Out" else "Remove")
+                                        icon(
+                                            if (isActive) Icon.logout else Icon.close,
+                                            if (isActive) "Log Out" else "Remove"
+                                        )
                                         text(if (isActive) "Log Out" else "Remove")
                                     }
                                     onClick {
@@ -131,25 +135,24 @@ class SettingsPage : Page {
             }
 
 
-
             // Theme section
             col {
                 h3 { content = "Theme" }
-                text{
+                text {
                     ::content {
                         "Current Theme: ${currentThemePreset().displayName}"
                     }
                 }
-                    // Link to full theme settings
-                    card.button {
-                        row {
-                            centered.text { content = "Change Theme" }
-                            icon(Icon.themePalette, "theme")
-                            expanding.space()
-                            icon(Icon.chevronRight,"View")
-                        }
-                        onClick{ mainPageNavigator.navigate(ThemeSettingsPage()) }
+                // Link to full theme settings
+                card.button {
+                    row {
+                        centered.text { content = "Change Theme" }
+                        icon(Icon.themePalette, "theme")
+                        expanding.space()
+                        icon(Icon.chevronRight, "View")
                     }
+                    onClick { mainPageNavigator.navigate(ThemeSettingsPage()) }
+                }
 //                }
             }
 
@@ -274,10 +277,29 @@ class SettingsPage : Page {
             // About section
             col {
                 h3 { content = "About" }
+                card.button {
+                    row {
+                        expanding.text("Acknowledgements")
+                        icon(Icon.chevronRight, "Go")
+                    }
+                    onClick {
+                        mainPageNavigator.navigate(AcknowledgementsPage())
+                    }
+                }
+                card.button {
+                    row {
+                        expanding.text("GitHub Repository")
+                        icon(Icon.externalLink, "Open")
+                    }
+                    onClick {
+                        openUrl("https://github.com/kf7mxe/inglenook")
+                    }
+                }
+
                 card.col {
                     row {
                         expanding.text("Version")
-                        text{
+                        text {
                             ::content {
                                 getAppVersion()
                             }
@@ -294,16 +316,8 @@ class SettingsPage : Page {
 
                 }
             }
-            card.button {
-                row {
-                    expanding.text("Acknowledgements")
-                    icon(Icon.chevronRight, "Go")
-                }
-                onClick {
-                    mainPageNavigator.navigate(AcknowledgementsPage())
-                }
-            }
             space()
+
         }
     }
 }

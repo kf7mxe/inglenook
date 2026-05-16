@@ -6,6 +6,8 @@
 
 *Inglenook* — a warm nook by the fireplace — captures the feeling of curling up with a good book. Escape on an adventure from the comfort of your favorite reading spot.
 
+**[Try the Live Demo](https://kf7mxe.github.io/inglenook/)**
+
 ---
 
 ## Why Inglenook?
@@ -66,7 +68,8 @@ For the best experience, pair Inglenook with the **[Inglenook Jellyfin Plugin](h
 - Dynamic backgrounds from currently playing book covers
 
 ### Demo Mode
-- Try the app without a Jellyfin server via the built-in demo mode on web deployments
+- Try the app without a Jellyfin server via the built-in demo mode.
+- **Live Demo**: [kf7mxe.github.io/inglenook](https://kf7mxe.github.io/inglenook/)
 
 ## Platform Support
 

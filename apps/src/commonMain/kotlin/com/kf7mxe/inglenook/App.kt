@@ -52,6 +52,8 @@ import com.lightningkite.reactive.core.rememberSuspending
 import com.kf7mxe.inglenook.util.assignThemeColors
 import com.kf7mxe.inglenook.util.extractDominantColors
 import com.kf7mxe.inglenook.util.loadResizedImagePixels
+import com.lightningkite.kiteui.Platform
+import com.lightningkite.kiteui.current
 import com.lightningkite.reactive.context.invoke
 import com.lightningkite.reactive.context.reactive
 import kotlinx.coroutines.launch
@@ -78,6 +80,7 @@ val currentThemePreset get() = persistedThemePreset
 val viewMode = PersistentProperty("viewMode", ViewMode.Grid)
 
 val lastItemViewedScrollToOnBack = Signal<String?>(null)
+
 
 
 // View mode for book lists
@@ -415,6 +418,12 @@ fun ViewWriter.bottomBar(navItems: List<NavLink>) {
                                 if (matchingScreen) SelectedTab else UnSelectedTab
                             }
                            unpadded. centered.icon {
+                               dynamicTheme {
+                                   // TODO fix properly at KiteUi library layer
+                                   if( Platform.current == Platform.Web &&  (currentThemePreset() == ThemePreset.NeumorphismLight || currentThemePreset() == ThemePreset.NeumorphismDark)) ThemeDerivation.invoke { it.copy("neumorphismxtraPadding",
+                                       cascading = false,padding = Edges(1.rem,1.rem,1.rem,1.rem),
+                                       shadows =  null).withBack } else null
+                               }
                                 source = navLink.icon.copy(width = 1.5.rem, height = 1.5.rem)
                                 description = navLink.title
                             }
