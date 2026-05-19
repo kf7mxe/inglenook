@@ -29,6 +29,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
         ignoreUnknownKeys = true
         isLenient = true
         coerceInputValues = true
+        encodeDefaults = true
     }
 
     private val client = HttpClient {
@@ -36,9 +37,9 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
             json(json)
         }
         install(HttpTimeout) {
-            requestTimeoutMillis = 15_000
+            requestTimeoutMillis = 45000
             connectTimeoutMillis = 10_000
-            socketTimeoutMillis = 15_000
+            socketTimeoutMillis = 45000
         }
     }
 
@@ -613,17 +614,35 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
         replaceExisting: Boolean = false
     ): Boolean {
         return try {
-            val response = client.post("$serverUrl/Inglenook/$itemId/Metadata") {
+            // 1. Format the Jellyfin ID to include standard GUID hyphens
+            val formattedId = if (itemId.length == 32 && !itemId.contains("-")) {
+                "${itemId.substring(0, 8)}-${itemId.substring(8, 12)}-${itemId.substring(12, 16)}-${itemId.substring(16, 20)}-${itemId.substring(20)}"
+            } else {
+                itemId
+            }
+
+            val requestDto = ApplyMetadataRequestDto(
+                Provider = provider,
+                ProviderId = providerId,
+                ReplaceExisting = replaceExisting
+            )
+            println("DEBUG SENDING JSON: ${json.encodeToString(requestDto)}")
+
+            // 2. Use formattedId in the URL instead of itemId
+            val response = client.post("$serverUrl/Inglenook/$formattedId/Metadata") {
                 header("X-Emby-Authorization", getAuthHeader())
                 contentType(ContentType.Application.Json)
-                setBody(ApplyMetadataRequestDto(
-                    Provider = provider,
-                    ProviderId = providerId,
-                    ReplaceExisting = replaceExisting
-                ))
+                setBody(requestDto)
+            }
+
+            if (!response.status.isSuccess()) {
+                val errorBody = try { response.bodyAsText() } catch (e: Exception) { "Could not read error body" }
+                println("DEBUG response.status ${response.status}")
+                println("DEBUG response.body $errorBody")
             }
             response.status.isSuccess()
         } catch (e: Exception) {
+            println("DEBUG in apply remote metadata exception: ${e.message}")
             handleNetworkException(e, false)
         }
     }

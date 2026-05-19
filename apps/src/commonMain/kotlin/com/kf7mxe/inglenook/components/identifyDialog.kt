@@ -8,6 +8,8 @@ import com.lightningkite.kiteui.views.direct.*
 import com.lightningkite.kiteui.views.expanding
 import com.lightningkite.kiteui.views.l2.icon
 import com.kf7mxe.inglenook.*
+import com.kf7mxe.inglenook.cache.clearImageCaches
+import com.kf7mxe.inglenook.cache.clearPersistedImageCache
 import com.kf7mxe.inglenook.jellyfin.RemoteSearchResultDto
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.storage.ImageSemantic
@@ -25,7 +27,7 @@ fun ViewWriter.identifyDialog(
     val searchQuery = Signal(bookTitle)
     val searchResults = Signal<List<RemoteSearchResultDto>>(emptyList())
     val isSearching = Signal(false)
-    val replaceExisting = Signal(false)
+    val replaceExisting = Signal(true)
     val isApplying = Signal(false)
     val statusMessage = Signal<String?>(null)
     val warningMessage = Signal<String?>(null)
@@ -76,6 +78,8 @@ fun ViewWriter.identifyDialog(
             } catch (e: Exception) {
                 statusMessage.value = "Error: ${e.message}"
             } finally {
+                clearImageCaches()
+                clearPersistedImageCache()
                 isApplying.value = false
             }
         }

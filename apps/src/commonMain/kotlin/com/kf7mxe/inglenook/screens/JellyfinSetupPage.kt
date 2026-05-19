@@ -73,6 +73,51 @@ class JellyfinSetupPage : Page, FullScreen {
                     serverUrl.set(it)
                 }
             }
+
+            val actionConnect = Action("Connect") {
+                errorMessage.value = null
+                val url = serverUrl.value.trim().trimEnd('/')
+                if (url.isBlank()) {
+                    errorMessage.value = "Please enter a server URL"
+                    return@Action
+                }
+
+                try {
+                    serverUrl.value = url
+
+                    val client = JellyfinClient(url)
+                    val info = client.getServerInfo()
+                    if (info != null) {
+                        serverName.value = info.ServerName
+                        step.value = 2
+                    } else {
+                        errorMessage.value = "Could not connect to server. Check the URL and try again."
+                    }
+                } catch (e: Exception) {
+                    println("DEBUG e ${e.cause}")
+                }
+            }
+
+
+           val signInAction =  Action("Sign In") {
+                errorMessage.value = null
+               try {
+                   val client = JellyfinClient(serverUrl.value)
+                   val config = client.authenticate(username.value, password.value)
+                   addServer(config)
+                   if (!hasSeenDiagnosticsPrompt.value) {
+                       mainPageNavigator.navigate(DiagnosticsOnboardingPage())
+                   } else {
+                       mainPageNavigator.navigate(LibrarySelectionPage())
+                   }
+               } catch(e: Exception) {
+                   if(e.message?.contains("401") == true) errorMessage.value = "Incorrect credentials."
+                   else errorMessage.value = e.message
+                   println("DEBUG e ${e}")
+               }
+            }
+
+
             padding = 2.rem
             gap = 1.rem
 
@@ -112,31 +157,15 @@ class JellyfinSetupPage : Page, FullScreen {
                             hint = "https://your-server.com"
                             keyboardHints = KeyboardHints(KeyboardCase.None, KeyboardType.Text)
                             content bind serverUrl
+                            action = actionConnect
                         }
                     }
 
+
+
                     button {
                         centered.text("Connect")
-                        action = Action("Connect") {
-                            errorMessage.value = null
-                            val url = serverUrl.value.trim().trimEnd('/')
-                            if (url.isBlank()) {
-                                errorMessage.value = "Please enter a server URL"
-                                return@Action
-                            }
-
-
-                            serverUrl.value = url
-
-                            val client = JellyfinClient(url)
-                            val info = client.getServerInfo()
-                            if (info != null) {
-                                serverName.value = info.ServerName
-                                step.value = 2
-                            } else {
-                                errorMessage.value = "Could not connect to server. Check the URL and try again."
-                            }
-                        }
+                        action = actionConnect
                         themeChoice += ImportantSemantic
                     }
                 }
@@ -224,6 +253,7 @@ class JellyfinSetupPage : Page, FullScreen {
                                     }
                                     keyboardHints = KeyboardHints.password
                                     content bind password
+                                    action = signInAction
                                 }
                                 button {
                                     icon {
@@ -237,17 +267,7 @@ class JellyfinSetupPage : Page, FullScreen {
 
                         button {
                             centered.text("Sign In")
-                            action = Action("Sign In") {
-                                errorMessage.value = null
-                                val client = JellyfinClient(serverUrl.value)
-                                val config = client.authenticate(username.value, password.value)
-                                addServer(config)
-                                if (!hasSeenDiagnosticsPrompt.value) {
-                                    mainPageNavigator.navigate(DiagnosticsOnboardingPage())
-                                } else {
-                                    mainPageNavigator.navigate(LibrarySelectionPage())
-                                }
-                            }
+                            action =signInAction
                             themeChoice += ImportantSemantic
                         }
                     }

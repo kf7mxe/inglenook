@@ -44,7 +44,7 @@ class SplashPage : Page, FullScreen {
 
 
             // Warm critical HomePage data with 30s timeout
-            withTimeoutOrNull(15_000L.milliseconds) {
+            withTimeoutOrNull(7_000L.milliseconds) {
                 // 1. Fire off all network requests in parallel
                 val inProgress = async {
                     try { client.getInProgressBooks() } catch (_: Exception) { emptyList() }
