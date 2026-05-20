@@ -30,6 +30,7 @@ fun ViewWriter.downloadButton(bookReactive: Reactive<Book?>) {
                 val activeProgress =bookReactive()?.let { book ->
                      activeDownloads[book.id]
                 }
+                if(activeProgress?.status ==DownloadStatus.Downloading ) downloadAnimations?.play()
 //                println("DEBUG downloadStatus ${downlaodStatus}")
                 activeProgress
             }

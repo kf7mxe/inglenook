@@ -1,8 +1,0 @@
-# Generated files from testing scripts
-.admin-token
-.backend.log
-.frontend.log
-.test-data-ids
-.browser-inject.js
-.frontend-url
-.backend-url

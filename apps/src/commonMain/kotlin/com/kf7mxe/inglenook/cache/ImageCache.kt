@@ -18,7 +18,7 @@ object ImageCache {
         if (memoryCache.containsKey(key)) {
             accessOrder.remove(key)
         } else if (memoryCache.size >= MAX_MEMORY_ENTRIES) {
-            val oldest = accessOrder.removeFirst()
+            val oldest = accessOrder.removeAt(0)
             memoryCache.remove(oldest)
         }
         memoryCache[key] = value

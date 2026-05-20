@@ -430,9 +430,9 @@ class BookDetailPage(val bookId: String) : Page {
                 }
 
                 // Description section
-                shownWhen { book()?.description != null }.col {
+                shownWhen { book()?.description.takeIf { it?.isNotBlank()==true } != null }.col {
                     h3 { content = "Description" }
-                    text { ::setBasicHtmlContent { book()?.description ?: "" } }
+                    padded.text { ::setBasicHtmlContent { book()?.description ?: "" } }
                 }
 
                 // Chapters section (only for audiobooks)
