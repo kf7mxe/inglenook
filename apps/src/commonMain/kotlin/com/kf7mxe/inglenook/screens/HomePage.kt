@@ -54,7 +54,7 @@ class HomePage : Page {
         }
 
         val featuredBooks = remember{
-            inProgressBooks().shuffled().take(2) + recentlyAddedBooks().shuffled().take(1) + recommendedBooks().shuffled().take(1)
+            (inProgressBooks().shuffled().take(2) + recentlyAddedBooks().shuffled().take(1) + recommendedBooks().shuffled().take(1)).distinctBy { it.id }
         }
 
         val downloadedBooks = remember {
