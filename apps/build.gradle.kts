@@ -138,8 +138,8 @@ android {
         applicationId = "com.kf7mxe.inglenook"
         minSdk = 26
         targetSdk = 36
-        versionCode = 8
-        versionName = "1.0.6"
+        versionCode = 11
+        versionName = "1.0.9"
 
         testInstrumentationRunner = "android.support.test.runner.AndroidJUnitRunner"
     }

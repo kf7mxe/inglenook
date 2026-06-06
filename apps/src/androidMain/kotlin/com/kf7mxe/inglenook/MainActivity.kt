@@ -43,9 +43,16 @@ class MainActivity : KiteUiActivity() {
                     options.dsn = "https://bff986944dbc4e86a20beff428217965@sentry.bagleysclearing.net/2"
 
                     // Enable heavy debugging
-                    options.isDebug = true
+                    options.isDebug = false
                     options.setDiagnosticLevel(SentryLevel.DEBUG)
+
                     options.isEnableAutoSessionTracking = true
+
+                    options.setBeforeSend { event, _ ->
+                        event.user?.ipAddress = null
+                        event
+                    }
+
                 }
                 println("SENTRY: Initialization attempted successfully")
             } catch (e: Exception) {

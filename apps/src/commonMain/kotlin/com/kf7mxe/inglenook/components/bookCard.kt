@@ -153,7 +153,7 @@ fun ViewWriter.bookCard(
         getDominantColor(book())
     }
 
-    sizeConstraints(width = 15.rem, height = 24.rem).col {
+    sizeConstraints(width = 15.rem, height = 25.rem).col {
         dynamicTheme {
             getSemanticForBookBackground(coverDominantColor(),appTheme().background.closestColor(), CardSemantic)
         }
@@ -174,7 +174,7 @@ fun ViewWriter.bookCard(
             this.onClick { onClick() }
         }
         row {
-            sizeConstraints(width = 8.5.rem).button {
+            weight(2.5f).button {
                 col {
                     text {
                         ::content { book().title }
@@ -193,7 +193,7 @@ fun ViewWriter.bookCard(
                 }
                 this.onClick { onClick() }
             }
-            col {
+            weight(1f).col {
                 centered.button {
                     themeChoice += ImportantSemantic
                     centered.icon {
@@ -223,6 +223,7 @@ fun ViewWriter.bookCard(
                     }
                 }
             }
+//            weight(0.5f).space()
         }
     }
 }
