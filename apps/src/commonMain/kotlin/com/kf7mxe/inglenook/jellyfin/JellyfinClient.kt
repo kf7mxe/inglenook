@@ -114,6 +114,10 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
         }
     }
 
+    fun close() {
+        client.close()
+    }
+
     private inline fun <T> handleNetworkException(e: Exception, fallback: T): T {
         reportNetworkError(e)
         return fallback

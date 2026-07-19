@@ -4,6 +4,8 @@ package com.kf7mxe.inglenook.jellyfin
 
 import com.kf7mxe.inglenook.JellyfinServerConfig
 import com.kf7mxe.inglenook.cache.ApiCache
+import com.kf7mxe.inglenook.cache.CacheRefresher
+import com.kf7mxe.inglenook.connectivity.ConnectivityState
 import com.kf7mxe.inglenook.playback.PlaybackState
 import com.lightningkite.kiteui.reactive.PersistentProperty
 import com.lightningkite.reactive.context.invoke
@@ -103,6 +105,9 @@ fun switchToServer(serverId: String) {
     // Stop any active playback (it's tied to the old server)
     PlaybackState.stop()
 
+    // Close the old client to release stale HTTP connections
+    jellyfinClient.value?.close()
+
     // Clear in-memory API cache
     ApiCache.clear()
 
@@ -118,6 +123,11 @@ fun switchToServer(serverId: String) {
         deviceId = config.deviceId
     )
 
+    // Reset connectivity state so the new server gets a clean slate
+    ConnectivityState.exitOfflineMode()
+
+    CacheRefresher.start()
+
     refreshServerCapabilities(config)
 }
 
@@ -126,6 +136,9 @@ fun removeServer(serverId: String) {
     jellyfinServers.value = jellyfinServers.value.filter { it._id.toString() != serverId }
 
     if (activeServerId.value == serverId) {
+        // Close the old client to release stale HTTP connections
+        jellyfinClient.value?.close()
+
         val remaining = jellyfinServers.value
         if (remaining.isNotEmpty()) {
             switchToServer(remaining.first()._id.toString())
@@ -133,6 +146,7 @@ fun removeServer(serverId: String) {
             activeServerId.value = null
             jellyfinServerConfig.value = null
             jellyfinClient.value = null
+            ConnectivityState.exitOfflineMode()
         }
     }
 }
@@ -144,6 +158,8 @@ fun updateServerConfig(config: JellyfinServerConfig) {
     }
     if (activeServerId.value == config._id.toString()) {
         jellyfinServerConfig.value = config
+        // Close the old client before creating a new one
+        jellyfinClient.value?.close()
         jellyfinClient.value = JellyfinClient(
             serverUrl = config.serverUrl,
             accessToken = config.accessToken,
@@ -155,6 +171,8 @@ fun updateServerConfig(config: JellyfinServerConfig) {
 
 /** Reinitialize the client from the current active config. */
 fun initializeJellyfinClient() {
+    // Close the old client to release stale HTTP connections
+    jellyfinClient.value?.close()
     val config = jellyfinServerConfig.value
     jellyfinClient.value = if (config != null) {
         JellyfinClient(
