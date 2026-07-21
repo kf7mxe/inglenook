@@ -191,6 +191,19 @@ data class Bookmark(
     val createdAt: Instant = Clock.System.now()
 )
 
+// Highlight for ebook reader
+@GenerateDataClassPaths
+@Serializable
+data class Highlight(
+    val _id: Uuid = Uuid.random(),
+    val bookId: String,
+    val locator: String, // JSON string of Readium Locator or epub.js CFI
+    val color: String = "#FFFF00", // Hex color for highlight
+    val note: String? = null,
+    val chapterName: String? = null,
+    val createdAt: Instant = Clock.System.now()
+)
+
 // Theme preset enumeration
 @Serializable
 enum class ThemePreset(val displayName: String, val showBookBackgroundColor: Boolean = true, val allowsCustomization: Boolean = true) {

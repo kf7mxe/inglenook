@@ -3,19 +3,27 @@ package com.kf7mxe.inglenook.ebook
 import android.app.AlertDialog
 import android.content.Context
 import android.content.Intent
+import android.graphics.Color
 import android.os.Bundle
+import android.text.InputType
+import android.view.ActionMode
+import android.view.Gravity
+import android.view.Menu
+import android.view.MenuItem
 import android.view.View
+import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.LinearLayout
-import android.widget.SeekBar
+import android.widget.PopupWindow
 import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.commitNow
 import androidx.lifecycle.lifecycleScope
 import com.kf7mxe.inglenook.R
-import com.kf7mxe.inglenook.jellyfin.JellyfinClient
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.storage.BookmarkRepository
+import com.kf7mxe.inglenook.storage.HighlightRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -24,6 +32,10 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.readium.r2.navigator.DecorableNavigator
+import org.readium.r2.navigator.Decoration
+import org.readium.r2.navigator.SelectableNavigator
+import org.readium.r2.navigator.Selection
 import org.readium.r2.navigator.epub.EpubDefaults
 import org.readium.r2.navigator.epub.EpubNavigatorFactory
 import org.readium.r2.navigator.epub.EpubNavigatorFragment
@@ -44,11 +56,10 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updatePadding
-/**
- * Activity that hosts Readium's EpubNavigatorFragment for reading ebooks.
- * Downloads the EPUB from Jellyfin, opens it with Readium, and provides
- * full reading features: TOC, font/theme customization, position tracking, bookmarks.
- */
+import kotlin.time.ExperimentalTime
+import kotlin.uuid.ExperimentalUuidApi
+
+@OptIn(ExperimentalUuidApi::class, ExperimentalTime::class)
 class ReaderActivity : AppCompatActivity() {
 
     companion object {
@@ -82,18 +93,64 @@ class ReaderActivity : AppCompatActivity() {
     private var navigatorFactory: EpubNavigatorFactory? = null
     private var positionReportingJob: Job? = null
     private var lastReportedLocator: Locator? = null
-
-    // Current reading preferences
     private var currentPreferences = EpubPreferences()
 
+    private var selectionActionMode: ActionMode? = null
+
+    private val highlightColors = listOf(
+        "#FFFFEB3B" to Color.parseColor("#FFFFEB3B"),
+        "#4CAF50" to Color.parseColor("#4CAF50"),
+        "#2196F3" to Color.parseColor("#2196F3"),
+        "#E91E63" to Color.parseColor("#E91E63"),
+        "#FF9800" to Color.parseColor("#FF9800")
+    )
+
+    private val selectionActionModeCallback = object : ActionMode.Callback {
+        override fun onCreateActionMode(mode: ActionMode, menu: android.view.Menu): Boolean {
+            menu.add(0, 1, 0, "Copy")
+            menu.add(0, 2, 1, "Select All")
+            menu.add(0, 3, 2, "Highlight")
+            menu.add(0, 4, 3, "Note")
+            selectionActionMode = mode
+            return true
+        }
+
+        override fun onPrepareActionMode(mode: ActionMode, menu: android.view.Menu): Boolean = false
+
+        override fun onActionItemClicked(mode: ActionMode, item: MenuItem): Boolean {
+            when (item.itemId) {
+                1 -> { navigator?.lifecycleScope?.launch { navigator?.evaluateJavascript("document.execCommand('copy')") }; mode.finish(); return true }
+                2 -> { navigator?.lifecycleScope?.launch { navigator?.evaluateJavascript("document.execCommand('selectAll')") }; mode.finish(); return true }
+                3 -> { mode.finish(); onHighlightAction(); return true }
+                4 -> { mode.finish(); onNoteAction(); return true }
+            }
+            return false
+        }
+
+        override fun onDestroyActionMode(mode: ActionMode) {
+            selectionActionMode = null
+        }
+    }
+
+    private val highlightListener = object : DecorableNavigator.Listener {
+        override fun onDecorationActivated(event: DecorableNavigator.OnActivatedEvent): Boolean {
+            val highlightId = event.decoration.extras["highlightId"] as? String ?: return false
+            showHighlightTapDialog(highlightId)
+            return true
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
-        // Must set fragment factory BEFORE super.onCreate for configuration changes
         val factory = navigatorFactory
         if (factory != null) {
+            val fragmentConfiguration = EpubNavigatorFragment.Configuration(
+                selectionActionModeCallback = selectionActionModeCallback
+            )
             supportFragmentManager.fragmentFactory =
                 factory.createFragmentFactory(
                     initialLocator = null,
-                    initialPreferences = currentPreferences
+                    initialPreferences = currentPreferences,
+                    configuration = fragmentConfiguration
                 )
         }
 
@@ -101,12 +158,11 @@ class ReaderActivity : AppCompatActivity() {
         WindowCompat.setDecorFitsSystemWindows(window, false)
         setContentView(R.layout.activity_reader)
         setupWindowInsets()
-        // Extract intent extras
+
         bookId = intent.getStringExtra(EXTRA_BOOK_ID) ?: run { finish(); return }
         downloadUrl = intent.getStringExtra(EXTRA_DOWNLOAD_URL) ?: run { finish(); return }
         authHeader = intent.getStringExtra(EXTRA_AUTH_HEADER) ?: run { finish(); return }
 
-        // Fetch book info from Jellyfin for title and duration
         lifecycleScope.launch(Dispatchers.IO) {
             try {
                 val book = jellyfinClient.value?.getBook(bookId)
@@ -120,21 +176,18 @@ class ReaderActivity : AppCompatActivity() {
             } catch (_: Exception) { }
         }
 
-        // Load saved preferences
         loadPreferences()
-
-        // Set up toolbar
         setupToolbar()
 
         if (savedInstanceState == null) {
-            // First launch: download and open the book
             downloadAndOpenBook()
         } else {
-            // Restored from config change: re-find the navigator
             navigator = supportFragmentManager.findFragmentByTag(NAVIGATOR_TAG) as? EpubNavigatorFragment
             if (navigator != null) {
                 showReaderContent()
                 startPositionTracking()
+                registerHighlightListener()
+                loadHighlightsForBook()
             } else {
                 downloadAndOpenBook()
             }
@@ -142,21 +195,15 @@ class ReaderActivity : AppCompatActivity() {
     }
 
     private fun setupWindowInsets() {
-        // Target the root view of the Activity
         val rootView = findViewById<View>(android.R.id.content)
-
         ViewCompat.setOnApplyWindowInsetsListener(rootView) { view, windowInsets ->
             val insets = windowInsets.getInsets(WindowInsetsCompat.Type.systemBars())
-
-            // Apply the insets as padding to the view
             view.updatePadding(
                 left = insets.left,
                 top = insets.top,
                 right = insets.right,
                 bottom = insets.bottom
             )
-
-            // Return CONSUMED so the window doesn't try to apply them again
             WindowInsetsCompat.CONSUMED
         }
     }
@@ -176,6 +223,10 @@ class ReaderActivity : AppCompatActivity() {
             addBookmark()
         }
 
+        findViewById<ImageButton>(R.id.btn_highlight).setOnClickListener {
+            onHighlightAction()
+        }
+
         findViewById<ImageButton>(R.id.btn_settings).setOnClickListener {
             showReaderSettings()
         }
@@ -185,13 +236,8 @@ class ReaderActivity : AppCompatActivity() {
         lifecycleScope.launch {
             try {
                 updateLoadingText("Downloading ebook...")
-
-                // Download the EPUB to cache
                 val epubFile = downloadEpub()
-
                 updateLoadingText("Opening ebook...")
-
-                // Open with Readium
                 openWithReadium(epubFile)
             } catch (e: Exception) {
                 updateLoadingText("Error: ${e.message}")
@@ -202,27 +248,18 @@ class ReaderActivity : AppCompatActivity() {
     private suspend fun downloadEpub(): File = withContext(Dispatchers.IO) {
         val booksDir = File(cacheDir, "books")
         booksDir.mkdirs()
-
         val epubFile = File(booksDir, "$bookId.epub")
+        if (epubFile.exists() && epubFile.length() > 0) return@withContext epubFile
 
-        // Use cached file if available
-        if (epubFile.exists() && epubFile.length() > 0) {
-            return@withContext epubFile
-        }
-
-        // Download from Jellyfin
         val connection = URL(downloadUrl).openConnection() as HttpURLConnection
         connection.setRequestProperty("X-Emby-Authorization", authHeader)
         connection.connectTimeout = 30000
         connection.readTimeout = 60000
-
         try {
             connection.connect()
-
             if (connection.responseCode != HttpURLConnection.HTTP_OK) {
                 throw Exception("Download failed: HTTP ${connection.responseCode}")
             }
-
             connection.inputStream.use { input ->
                 FileOutputStream(epubFile).use { output ->
                     input.copyTo(output, bufferSize = 8192)
@@ -231,7 +268,6 @@ class ReaderActivity : AppCompatActivity() {
         } finally {
             connection.disconnect()
         }
-
         epubFile
     }
 
@@ -257,57 +293,56 @@ class ReaderActivity : AppCompatActivity() {
 
         publication = pub
 
-        // Create navigator factory
         val factory = EpubNavigatorFactory(
             publication = pub,
             configuration = EpubNavigatorFactory.Configuration(
-                defaults = EpubDefaults(
-                    pageMargins = 1.5
-                )
+                defaults = EpubDefaults(pageMargins = 1.5)
             )
         )
         navigatorFactory = factory
 
-        // Calculate initial locator from Jellyfin position
         val initialLocator = restoreSavedLocator(pub)
 
+        val fragmentConfiguration = EpubNavigatorFragment.Configuration(
+            selectionActionModeCallback = selectionActionModeCallback
+        )
+
         withContext(Dispatchers.Main) {
-            // Set fragment factory on the activity's fragment manager
             supportFragmentManager.fragmentFactory =
                 factory.createFragmentFactory(
                     initialLocator = initialLocator,
-                    initialPreferences = currentPreferences
+                    initialPreferences = currentPreferences,
+                    configuration = fragmentConfiguration
                 )
 
-            // Add the navigator fragment
             supportFragmentManager.commitNow {
                 add(R.id.navigator_container, EpubNavigatorFragment::class.java, Bundle(), NAVIGATOR_TAG)
             }
 
             navigator = supportFragmentManager.findFragmentByTag(NAVIGATOR_TAG) as? EpubNavigatorFragment
 
-            // Add tap-to-navigate support
             navigator?.let { nav ->
                 nav.addInputListener(DirectionalNavigationAdapter(nav))
             }
 
             showReaderContent()
             startPositionTracking()
-
-            // Report playback start to Jellyfin
+            registerHighlightListener()
+            loadHighlightsForBook()
             reportPlaybackStart()
         }
     }
 
+    private fun registerHighlightListener() {
+        navigator?.addDecorationListener("highlights", highlightListener)
+    }
+
     private fun restoreSavedLocator(pub: Publication): Locator? {
-        // Restore saved locator from SharedPreferences
         val prefs = getSharedPreferences("reader_prefs", MODE_PRIVATE)
         val locatorJson = prefs.getString("ebook_locator_$bookId", null) ?: return null
         return try {
             Locator.fromJSON(org.json.JSONObject(locatorJson))
-        } catch (_: Exception) {
-            null
-        }
+        } catch (_: Exception) { null }
     }
 
     private fun showReaderContent() {
@@ -325,7 +360,6 @@ class ReaderActivity : AppCompatActivity() {
 
     private fun showTableOfContents() {
         val pub = publication ?: return
-
         val toc = pub.tableOfContents
         if (toc.isEmpty()) {
             AlertDialog.Builder(this)
@@ -337,16 +371,13 @@ class ReaderActivity : AppCompatActivity() {
         }
 
         val titles = toc.map { it.title ?: "Untitled" }.toTypedArray()
-
         AlertDialog.Builder(this)
             .setTitle("Table of Contents")
             .setItems(titles) { _, which ->
                 val link = toc[which]
                 lifecycleScope.launch {
                     val locator = pub.locatorFromLink(link)
-                    if (locator != null) {
-                        navigator?.go(locator)
-                    }
+                    if (locator != null) navigator?.go(locator)
                 }
             }
             .setNegativeButton("Cancel", null)
@@ -358,7 +389,6 @@ class ReaderActivity : AppCompatActivity() {
     private fun addBookmark() {
         val nav = navigator ?: return
         val locator = nav.currentLocator.value
-
         val positionTicks = locatorToTicks(locator)
         val chapterTitle = locator.title
 
@@ -367,24 +397,294 @@ class ReaderActivity : AppCompatActivity() {
             positionTicks = positionTicks,
             chapterName = chapterTitle
         )
+        Toast.makeText(this, "Bookmark added", Toast.LENGTH_SHORT).show()
+    }
 
-        // Show confirmation
-        android.widget.Toast.makeText(this, "Bookmark added", android.widget.Toast.LENGTH_SHORT).show()
+    // --- Highlights (text selection based) ---
+
+    fun onHighlightAction() {
+        val nav = navigator ?: return
+        lifecycleScope.launch {
+            try {
+                val locator = nav.currentLocator.value
+                val selText = nav.evaluateJavascript(
+                    """(function(){var s=window.getSelection();if(!s||s.isCollapsed||!s.rangeCount)return null;return s.toString()})()"""
+                )?.trim('"')?.takeIf { it.isNotBlank() }
+                if (selText != null) {
+                    val selection = Selection(
+                        locator = locator.copy(text = org.readium.r2.shared.publication.Locator.Text(highlight = selText)),
+                        rect = null
+                    )
+                    showHighlightDialog(selection)
+                } else {
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(this@ReaderActivity, "Select some text first", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@ReaderActivity, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    fun onNoteAction() {
+        val nav = navigator ?: return
+        lifecycleScope.launch {
+            try {
+                val locator = nav.currentLocator.value
+                val selText = nav.evaluateJavascript(
+                    """(function(){var s=window.getSelection();if(!s||s.isCollapsed||!s.rangeCount)return null;return s.toString()})()"""
+                )?.trim('"')?.takeIf { it.isNotBlank() }
+                if (selText != null) {
+                    val selection = Selection(
+                        locator = locator.copy(text = org.readium.r2.shared.publication.Locator.Text(highlight = selText)),
+                        rect = null
+                    )
+                    showHighlightDialog(selection, showNoteInput = true)
+                } else {
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(this@ReaderActivity, "Select some text first", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@ReaderActivity, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    @OptIn(ExperimentalUuidApi::class)
+    private fun showHighlightDialog(selection: Selection, showNoteInput: Boolean = false) {
+        val colors = highlightColors
+        val colorNames = colors.map { (hex, _) -> hex }.toTypedArray()
+
+        val dialogView = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(24, 16, 24, 16)
+        }
+
+        for ((hex, colorInt) in colors) {
+            val circle = View(this).apply {
+                val size = dpToPx(40)
+                layoutParams = LinearLayout.LayoutParams(size, size).apply {
+                    marginStart = dpToPx(6)
+                    marginEnd = dpToPx(6)
+                }
+                setBackgroundResource(R.drawable.color_circle)
+                backgroundTintList = android.content.res.ColorStateList.valueOf(colorInt)
+                setOnClickListener {
+                    showNoteDialog(selection, colorInt, hex)
+                }
+            }
+            dialogView.addView(circle)
+        }
+
+        val noteBtn = ImageButton(this).apply {
+            layoutParams = LinearLayout.LayoutParams(dpToPx(44), dpToPx(44)).apply {
+                marginStart = dpToPx(12)
+            }
+            setImageResource(android.R.drawable.ic_menu_edit)
+            setColorFilter(Color.DKGRAY)
+            setOnClickListener {
+                showNoteDialog(selection, colors.first().second, colors.first().first)
+            }
+        }
+        dialogView.addView(noteBtn)
+
+        if (showNoteInput) {
+            showNoteDialog(selection, colors.first().second, colors.first().first)
+        } else {
+            AlertDialog.Builder(this)
+                .setView(dialogView)
+                .setNegativeButton("Cancel") { _, _ ->
+                    (navigator as? SelectableNavigator)?.clearSelection()
+                }
+                .setOnCancelListener {
+                    (navigator as? SelectableNavigator)?.clearSelection()
+                }
+                .show()
+        }
+    }
+
+    @OptIn(ExperimentalUuidApi::class)
+    private fun showNoteDialog(selection: Selection, colorInt: Int, colorHex: String) {
+        val input = EditText(this).apply {
+            hint = "Add a note (optional)"
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE
+            setPadding(48, 32, 48, 32)
+            minLines = 2
+        }
+
+        AlertDialog.Builder(this)
+            .setTitle("Add Note")
+            .setView(input)
+            .setPositiveButton("Save") { _, _ ->
+                val note = input.text.toString().takeIf { it.isNotBlank() }
+                createHighlight(selection, colorInt, colorHex, note)
+            }
+            .setNegativeButton("Skip") { _, _ ->
+                createHighlight(selection, colorInt, colorHex, null)
+            }
+            .setNeutralButton("Cancel") { _, _ ->
+                (navigator as? SelectableNavigator)?.clearSelection()
+            }
+            .setOnCancelListener {
+                (navigator as? SelectableNavigator)?.clearSelection()
+            }
+            .show()
+    }
+
+    @OptIn(ExperimentalUuidApi::class)
+    private fun createHighlight(selection: Selection, colorInt: Int, colorHex: String, note: String?) {
+        val nav = navigator ?: return
+        val selectNav = nav as? SelectableNavigator ?: return
+        val decorNav = nav as? DecorableNavigator ?: return
+
+        val locator = selection.locator
+        val locatorJson = locator.toJSON().toString()
+
+        HighlightRepository.createHighlight(
+            bookId = bookId,
+            locator = locatorJson,
+            color = colorHex,
+            note = note,
+            chapterName = locator.title
+        )
+
+        applyAllHighlights(decorNav)
+        selectNav.clearSelection()
+        Toast.makeText(this, "Highlight added", Toast.LENGTH_SHORT).show()
+    }
+
+    @OptIn(ExperimentalUuidApi::class)
+    private fun applyAllHighlights(decorNav: DecorableNavigator) {
+        lifecycleScope.launch(Dispatchers.IO) {
+            val highlights = HighlightRepository.getHighlightsForBook(bookId)
+            val decorations = highlights.mapNotNull { highlight ->
+                try {
+                    val locator = Locator.fromJSON(org.json.JSONObject(highlight.locator))
+                    locator?.let {
+                        Decoration(
+                            id = highlight._id.toString(),
+                            locator = it,
+                            style = Decoration.Style.Highlight(
+                                tint = android.graphics.Color.parseColor(highlight.color)
+                            ),
+                            extras = mapOf("highlightId" to highlight._id.toString())
+                        )
+                    }
+                } catch (e: Exception) { null }
+            }
+
+            withContext(Dispatchers.Main) {
+                decorNav.applyDecorations(decorations, "highlights")
+            }
+        }
+    }
+
+    @OptIn(ExperimentalUuidApi::class)
+    private fun loadHighlightsForBook() {
+        val nav = navigator ?: return
+        val decorNav = nav as? DecorableNavigator ?: return
+        applyAllHighlights(decorNav)
+    }
+
+    private fun showHighlightTapDialog(highlightId: String) {
+        val highlight = try {
+            HighlightRepository.getHighlight(kotlin.uuid.Uuid.parse(highlightId))
+        } catch (e: Exception) { null }
+
+        if (highlight == null) {
+            Toast.makeText(this, "Highlight not found", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val options = mutableListOf<String>()
+        if (highlight.note != null) options.add("View Note")
+        options.add("Edit Note")
+        options.add("Change Color")
+        options.add("Delete")
+
+        AlertDialog.Builder(this)
+            .setTitle("Highlight")
+            .setItems(options.toTypedArray()) { _, which ->
+                when (options[which]) {
+                    "View Note" -> {
+                        AlertDialog.Builder(this)
+                            .setTitle("Note")
+                            .setMessage(highlight.note ?: "No note")
+                            .setPositiveButton("OK", null)
+                            .show()
+                    }
+                    "Edit Note" -> showEditNoteDialog(highlight)
+                    "Change Color" -> showChangeColorDialog(highlight)
+                    "Delete" -> {
+                        HighlightRepository.deleteHighlight(highlight._id)
+                        loadHighlightsForBook()
+                        Toast.makeText(this, "Highlight deleted", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+            .setNegativeButton("Close", null)
+            .show()
+    }
+
+    @OptIn(ExperimentalUuidApi::class)
+    private fun showEditNoteDialog(highlight: com.kf7mxe.inglenook.Highlight) {
+        val input = EditText(this).apply {
+            setText(highlight.note ?: "")
+            hint = "Add a note"
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE
+            setPadding(48, 32, 48, 32)
+            minLines = 2
+        }
+
+        AlertDialog.Builder(this)
+            .setTitle("Edit Note")
+            .setView(input)
+            .setPositiveButton("Save") { _, _ ->
+                val note = input.text.toString().takeIf { it.isNotBlank() }
+                HighlightRepository.updateHighlight(highlight.copy(note = note))
+                Toast.makeText(this, "Note updated", Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    @OptIn(ExperimentalUuidApi::class)
+    private fun showChangeColorDialog(highlight: com.kf7mxe.inglenook.Highlight) {
+        val colors = arrayOf("Yellow", "Green", "Blue", "Pink", "Orange")
+        val colorHexValues = arrayOf("#FFFF00", "#00FF00", "#0000FF", "#FF00FF", "#FFA500")
+
+        AlertDialog.Builder(this)
+            .setTitle("Change Color")
+            .setItems(colors) { _, which ->
+                HighlightRepository.updateHighlight(highlight.copy(color = colorHexValues[which]))
+                loadHighlightsForBook()
+                Toast.makeText(this, "Color updated", Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun dpToPx(dp: Int): Int {
+        return (dp * resources.displayMetrics.density).toInt()
     }
 
     // --- Reader Settings ---
 
     private fun showReaderSettings() {
         val nav = navigator ?: return
-        val pub = publication ?: return
-
         val editor = navigatorFactory?.createPreferencesEditor(currentPreferences) ?: return
 
         val dialogView = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(48, 32, 48, 32)
 
-            // Font size
             addView(TextView(context).apply {
                 text = "Font Size"
                 textSize = 16f
@@ -393,7 +693,6 @@ class ReaderActivity : AppCompatActivity() {
 
             addView(LinearLayout(context).apply {
                 orientation = LinearLayout.HORIZONTAL
-
                 addView(android.widget.Button(context).apply {
                     text = "A-"
                     setOnClickListener {
@@ -403,7 +702,6 @@ class ReaderActivity : AppCompatActivity() {
                         savePreferences()
                     }
                 })
-
                 addView(android.widget.Button(context).apply {
                     text = "A+"
                     setOnClickListener {
@@ -415,7 +713,6 @@ class ReaderActivity : AppCompatActivity() {
                 })
             })
 
-            // Theme
             addView(TextView(context).apply {
                 text = "Theme"
                 textSize = 16f
@@ -424,7 +721,6 @@ class ReaderActivity : AppCompatActivity() {
 
             addView(LinearLayout(context).apply {
                 orientation = LinearLayout.HORIZONTAL
-
                 for (theme in listOf(
                     "Light" to org.readium.r2.navigator.preferences.Theme.LIGHT,
                     "Dark" to org.readium.r2.navigator.preferences.Theme.DARK,
@@ -442,16 +738,13 @@ class ReaderActivity : AppCompatActivity() {
                 }
             })
 
-            // Scroll mode toggle
             addView(LinearLayout(context).apply {
                 orientation = LinearLayout.HORIZONTAL
                 setPadding(0, 24, 0, 0)
-
                 addView(TextView(context).apply {
                     text = "Scroll Mode"
                     textSize = 16f
                 })
-
                 addView(android.widget.Switch(context).apply {
                     isChecked = editor.scroll.value ?: editor.scroll.effectiveValue
                     setOnCheckedChangeListener { _, isChecked ->
@@ -480,16 +773,12 @@ class ReaderActivity : AppCompatActivity() {
 
     private fun startPositionTracking() {
         val nav = navigator ?: return
-
         positionReportingJob?.cancel()
         positionReportingJob = lifecycleScope.launch {
-            // Track locator changes
             nav.currentLocator
                 .onEach { locator ->
                     lastReportedLocator = locator
-                    // Save position for restore on next open
                     saveLocator(locator)
-                    // Update toolbar with current chapter title
                     val chapterTitle = locator.title
                     if (!chapterTitle.isNullOrBlank()) {
                         findViewById<TextView>(R.id.toolbar_title)?.text = chapterTitle
@@ -497,9 +786,8 @@ class ReaderActivity : AppCompatActivity() {
                 }
                 .launchIn(this)
 
-            // Periodic position reporting to Jellyfin
             while (isActive) {
-                delay(30_000) // every 30 seconds
+                delay(30_000)
                 reportProgress()
             }
         }
@@ -511,9 +799,7 @@ class ReaderActivity : AppCompatActivity() {
                 val locator = lastReportedLocator
                 val ticks = if (locator != null) locatorToTicks(locator) else 0L
                 jellyfinClient.value?.reportPlaybackStart(bookId, ticks)
-            } catch (e: Exception) {
-                // Ignore reporting errors
-            }
+            } catch (_: Exception) { }
         }
     }
 
@@ -523,9 +809,7 @@ class ReaderActivity : AppCompatActivity() {
             try {
                 val ticks = locatorToTicks(locator)
                 jellyfinClient.value?.reportPlaybackProgress(bookId, ticks, false)
-            } catch (e: Exception) {
-                // Ignore reporting errors
-            }
+            } catch (_: Exception) { }
         }
     }
 
@@ -535,9 +819,7 @@ class ReaderActivity : AppCompatActivity() {
             try {
                 val ticks = locatorToTicks(locator)
                 jellyfinClient.value?.reportPlaybackStopped(bookId, ticks)
-            } catch (e: Exception) {
-                // Ignore reporting errors
-            }
+            } catch (_: Exception) { }
         }
     }
 
@@ -546,8 +828,7 @@ class ReaderActivity : AppCompatActivity() {
         return if (bookDuration > 0) {
             (progression * bookDuration).toLong()
         } else {
-            // Fallback: use progression as a percentage-based tick value
-            (progression * 10_000_000_000L).toLong() // 1000 seconds worth of ticks
+            (progression * 10_000_000_000L).toLong()
         }
     }
 
@@ -558,34 +839,25 @@ class ReaderActivity : AppCompatActivity() {
         val json = prefs.getString("epub_preferences_$bookId", null)
             ?: prefs.getString("epub_preferences_default", null)
         if (json != null) {
-            try {
-                // For now, use defaults; serialization can be added later
-            } catch (e: Exception) {
-                // Use defaults
-            }
+            try { } catch (e: Exception) { }
         }
     }
 
     private fun savePreferences() {
-        // Save for this specific book and as default
         val prefs = getSharedPreferences("reader_prefs", MODE_PRIVATE)
-        prefs.edit().apply {
-            // Preferences serialization would go here
-            // For now, we rely on the in-memory currentPreferences
-            apply()
-        }
+        prefs.edit().apply { apply() }
     }
 
     // --- Lifecycle ---
 
     override fun onStop() {
         super.onStop()
-        // Report progress when leaving
         reportProgress()
     }
 
     override fun onDestroy() {
         positionReportingJob?.cancel()
+        navigator?.removeDecorationListener(highlightListener)
         reportPlaybackStopped()
         super.onDestroy()
     }

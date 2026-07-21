@@ -11,12 +11,13 @@ import platform.CoreGraphics.CGRectZero
 
 /**
  * iOS implementation of ebook reader using WKWebView with epub.js.
+ * Uses the epub.js 'selected' event for text-range highlights with a floating context menu.
  */
 actual fun ViewWriter.ebookReader(
+    bookId: String,
     downloadUrl: String,
     authHeader: String
 ) {
-    // Use image as container since it provides rView access
     image {
         scaleType = ImageScaleType.Fit
 
@@ -24,10 +25,7 @@ actual fun ViewWriter.ebookReader(
         val container = imageView?.superview
 
         if (container != null) {
-            // Create WKWebView configuration
             val config = WKWebViewConfiguration()
-
-            // Create WKWebView
             val webView = WKWebView(frame = CGRectZero.readValue(), configuration = config)
             webView.setAutoresizingMask(
                 platform.UIKit.UIViewAutoresizingFlexibleWidth or
@@ -35,7 +33,6 @@ actual fun ViewWriter.ebookReader(
             )
             webView.setTranslatesAutoresizingMaskIntoConstraints(false)
 
-            // Create the reader HTML
             val escapedUrl = downloadUrl.replace("'", "\\'")
             val escapedAuth = authHeader.replace("'", "\\'")
 
@@ -52,45 +49,57 @@ actual fun ViewWriter.ebookReader(
                         html, body { height: 100%; overflow: hidden; background: #fafafa; }
                         #reader { width: 100%; height: calc(100% - 60px); }
                         #loading {
-                            display: flex;
-                            justify-content: center;
-                            align-items: center;
-                            height: 100%;
-                            font-family: -apple-system, sans-serif;
+                            display: flex; justify-content: center; align-items: center;
+                            height: 100%; font-family: -apple-system, sans-serif;
                         }
                         #controls {
-                            position: fixed;
-                            bottom: 0;
-                            left: 0;
-                            right: 0;
-                            display: none;
-                            justify-content: center;
-                            gap: 20px;
-                            padding: 15px;
-                            padding-bottom: env(safe-area-inset-bottom, 15px);
-                            background: #fff;
-                            border-top: 1px solid #ddd;
+                            position: fixed; bottom: 0; left: 0; right: 0;
+                            display: none; justify-content: center; gap: 20px;
+                            padding: 15px; padding-bottom: env(safe-area-inset-bottom, 15px);
+                            background: #fff; border-top: 1px solid #ddd;
                         }
                         #controls button {
-                            padding: 12px 30px;
-                            font-size: 17px;
-                            background: #007AFF;
-                            color: white;
-                            border: none;
-                            border-radius: 10px;
+                            padding: 12px 30px; font-size: 17px;
+                            background: #007AFF; color: white; border: none; border-radius: 10px;
+                        }
+                        #highlight-menu {
+                            display: none; position: fixed; background: white;
+                            border: 1px solid #ccc; border-radius: 8px; padding: 10px;
+                            box-shadow: 0 4px 16px rgba(0,0,0,0.2); z-index: 100; min-width: 200px;
+                        }
+                        #highlight-menu .menu-title { font-weight: bold; margin-bottom: 8px; font-size: 13px; }
+                        #highlight-menu .color-row { display: flex; gap: 6px; margin-bottom: 8px; }
+                        #highlight-menu .color-btn {
+                            width: 28px; height: 28px; border: 2px solid #ccc; border-radius: 4px; cursor: pointer;
+                        }
+                        #highlight-menu .action-row { display: flex; gap: 6px; }
+                        #highlight-menu .action-btn {
+                            flex: 1; padding: 6px; font-size: 12px;
+                            background: #f0f0f0; border: 1px solid #ccc; border-radius: 4px; cursor: pointer;
                         }
                         #error {
-                            display: none;
-                            padding: 20px;
-                            text-align: center;
-                            font-family: -apple-system, sans-serif;
-                            color: #c00;
+                            display: none; padding: 20px; text-align: center;
+                            font-family: -apple-system, sans-serif; color: #c00;
                         }
                     </style>
                 </head>
                 <body>
                     <div id="loading">Loading ebook...</div>
                     <div id="reader"></div>
+                    <div id="highlight-menu">
+                        <div class="menu-title">Highlight</div>
+                        <div class="color-row">
+                            <button class="color-btn" data-color="#FFFF00" style="background:#FFFF00;"></button>
+                            <button class="color-btn" data-color="#90EE90" style="background:#90EE90;"></button>
+                            <button class="color-btn" data-color="#87CEEB" style="background:#87CEEB;"></button>
+                            <button class="color-btn" data-color="#FFB6C1" style="background:#FFB6C1;"></button>
+                            <button class="color-btn" data-color="#FFA500" style="background:#FFA500;"></button>
+                        </div>
+                        <div class="action-row">
+                            <button class="action-btn" id="hl-note-btn">Add Note</button>
+                            <button class="action-btn" id="hl-cancel-btn">Cancel</button>
+                        </div>
+                    </div>
                     <div id="controls">
                         <button id="prev">← Previous</button>
                         <button id="next">Next →</button>
@@ -100,12 +109,12 @@ actual fun ViewWriter.ebookReader(
                         (async function() {
                             const url = '$escapedUrl';
                             const authHeader = '$escapedAuth';
+                            const bookId = '${bookId}';
 
                             try {
                                 const response = await fetch(url, {
                                     headers: { 'X-Emby-Authorization': authHeader }
                                 });
-
                                 if (!response.ok) throw new Error('Failed: ' + response.status);
 
                                 const contentType = response.headers.get('Content-Type') || '';
@@ -128,11 +137,96 @@ actual fun ViewWriter.ebookReader(
                                 });
                                 rendition.display();
 
+                                /* Load existing highlights */
+                                var storedHighlights = JSON.parse(localStorage.getItem('ebook_highlights_' + bookId) || '[]');
+                                function reloadHighlights() {
+                                    storedHighlights.forEach(function(h) {
+                                        try { rendition.annotations.highlight(h.cfiRange, {}, function(){}, h.id, {'fill': h.color, 'fill-opacity': '0.3'}); } catch(e) {}
+                                    });
+                                }
+                                book.ready.then(function() { reloadHighlights(); });
+
                                 document.getElementById('loading').style.display = 'none';
                                 document.getElementById('controls').style.display = 'flex';
 
                                 document.getElementById('prev').onclick = () => rendition.prev();
                                 document.getElementById('next').onclick = () => rendition.next();
+
+                                /* Highlight menu */
+                                var highlightMenu = document.getElementById('highlight-menu');
+                                var pendingCfiRange = null;
+                                var pendingText = null;
+
+                                /* Text selection triggers floating menu */
+                                rendition.on('selected', function(cfiRange, contents) {
+                                    pendingCfiRange = cfiRange;
+                                    var sel = contents.window.getSelection();
+                                    pendingText = sel ? sel.toString().substring(0, 200) : '';
+
+                                    if (sel && sel.rangeCount > 0) {
+                                        var range = sel.getRangeAt(0);
+                                        var rect = range.getBoundingClientRect();
+                                        highlightMenu.style.left = Math.min(rect.left, window.innerWidth - 220) + 'px';
+                                        highlightMenu.style.top = (rect.top - 10) + 'px';
+                                    } else {
+                                        highlightMenu.style.left = '50%';
+                                        highlightMenu.style.top = '50%';
+                                    }
+                                    highlightMenu.style.display = 'block';
+                                });
+
+                                /* Hide on tap outside */
+                                document.addEventListener('mousedown', function(e) {
+                                    if (!highlightMenu.contains(e.target)) {
+                                        highlightMenu.style.display = 'none';
+                                    }
+                                });
+
+                                /* Color buttons */
+                                var colorBtns = highlightMenu.querySelectorAll('.color-btn');
+                                for (var i = 0; i < colorBtns.length; i++) {
+                                    colorBtns[i].addEventListener('click', function(e) {
+                                        e.stopPropagation();
+                                        var color = this.getAttribute('data-color');
+                                        if (!pendingCfiRange) return;
+
+                                        var hlId = 'hl-' + Date.now() + '-' + Math.random().toString(36).substr(2, 6);
+                                        rendition.annotations.highlight(pendingCfiRange, {}, function(){}, hlId, {'fill': color, 'fill-opacity': '0.3'});
+
+                                        storedHighlights.push({ id: hlId, cfiRange: pendingCfiRange, color: color, text: pendingText, note: null, timestamp: Date.now() });
+                                        localStorage.setItem('ebook_highlights_' + bookId, JSON.stringify(storedHighlights));
+
+                                        highlightMenu.style.display = 'none';
+                                        pendingCfiRange = null;
+                                        pendingText = null;
+                                    });
+                                }
+
+                                /* Note button */
+                                document.getElementById('hl-note-btn').addEventListener('click', function(e) {
+                                    e.stopPropagation();
+                                    if (!pendingCfiRange) return;
+                                    var note = prompt('Add a note:', '');
+                                    if (note === null) return;
+
+                                    var hlId2 = 'hl-' + Date.now() + '-' + Math.random().toString(36).substr(2, 6);
+                                    rendition.annotations.highlight(pendingCfiRange, {}, function(){}, hlId2, {'fill': '#FFFF00', 'fill-opacity': '0.3'});
+
+                                    storedHighlights.push({ id: hlId2, cfiRange: pendingCfiRange, color: '#FFFF00', text: pendingText, note: note || null, timestamp: Date.now() });
+                                    localStorage.setItem('ebook_highlights_' + bookId, JSON.stringify(storedHighlights));
+
+                                    highlightMenu.style.display = 'none';
+                                    pendingCfiRange = null;
+                                    pendingText = null;
+                                });
+
+                                /* Cancel button */
+                                document.getElementById('hl-cancel-btn').addEventListener('click', function(e) {
+                                    e.stopPropagation();
+                                    highlightMenu.style.display = 'none';
+                                    pendingCfiRange = null;
+                                    pendingText = null;
+                                });
 
                             } catch (error) {
                                 document.getElementById('loading').style.display = 'none';
@@ -145,14 +239,11 @@ actual fun ViewWriter.ebookReader(
                 </html>
             """.trimIndent()
 
-            // Load the HTML
             webView.loadHTMLString(readerHtml, baseURL = NSURL.URLWithString("https://jellyfin.local"))
 
-            // Hide image and add WebView to container
             imageView?.setHidden(true)
             container.addSubview(webView)
 
-            // Set up constraints to fill the container
             webView.topAnchor.constraintEqualToAnchor(container.topAnchor).setActive(true)
             webView.bottomAnchor.constraintEqualToAnchor(container.bottomAnchor).setActive(true)
             webView.leadingAnchor.constraintEqualToAnchor(container.leadingAnchor).setActive(true)

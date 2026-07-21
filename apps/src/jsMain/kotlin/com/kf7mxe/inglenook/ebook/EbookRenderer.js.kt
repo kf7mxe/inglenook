@@ -6,6 +6,7 @@ import EpubModule
 import JsZipModule
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.storage.BookmarkRepository
+import com.kf7mxe.inglenook.storage.HighlightRepository
 import com.lightningkite.kiteui.views.FutureElement
 import com.lightningkite.kiteui.views.ViewWriter
 import com.lightningkite.kiteui.views.cssText
@@ -28,24 +29,20 @@ actual fun ViewWriter.ebookReader(
     col {
         val container = this.native as? FutureElement ?: return@col
 
-        // --- 1. Main Container Styling ---
         container.style.cssText = "width:100%; height:100%; min-height:500px; position:relative; overflow:hidden; display:flex; flex-direction:column;"
 
         val readerId = "reader-${bookId.hashCode()}"
 
-        // --- 2. Create Layout Wrapper ---
         val wrapper = createDiv("$readerId-wrapper").apply {
             style.cssText = "display:flex; flex-direction:column; width:100%; height:100%; font-family:system-ui,-apple-system,sans-serif;"
         }
         container.appendChild(wrapper)
 
-        // --- 3. Top Bar (Menus) ---
         val topBar = createDiv("$readerId-topbar").apply {
             style.cssText = "display:flex; align-items:center; justify-content:space-between; padding:8px 12px; background:#f5f5f5; border-bottom:1px solid #ddd; min-height:40px; z-index:20;"
         }
         wrapper.appendChild(topBar)
 
-        // Title Placeholder
         val titleEl = FutureElement().also {
             it.tag = "span"
             it.id = "$readerId-title"
@@ -54,13 +51,11 @@ actual fun ViewWriter.ebookReader(
         }
         topBar.appendChild(titleEl)
 
-        // Top Buttons Container
         val topBtnContainer = createDiv("$readerId-top-btns").apply {
             style.cssText = "display:flex; gap:8px;"
         }
         topBar.appendChild(topBtnContainer)
 
-        // TOC Button
         val tocBtn = FutureElement().also {
             it.tag = "button"
             it.id = "$readerId-btn-toc"
@@ -69,7 +64,6 @@ actual fun ViewWriter.ebookReader(
         }
         topBtnContainer.appendChild(tocBtn)
 
-        // Settings Button
         val settingsBtn = FutureElement().also {
             it.tag = "button"
             it.id = "$readerId-btn-settings"
@@ -79,14 +73,12 @@ actual fun ViewWriter.ebookReader(
         topBtnContainer.appendChild(settingsBtn)
 
 
-        // --- 4. Content Area (The Book) ---
         val readerArea = createDiv("$readerId-content").apply {
             style.cssText = "flex:1; position:relative; overflow:hidden;"
         }
         wrapper.appendChild(readerArea)
 
 
-        // --- 5. Bottom Bar (Navigation) ---
         val bottomBar = createDiv("$readerId-bottombar").apply {
             style.cssText = "display:flex; align-items:center; justify-content:center; gap:20px; padding:10px; background:#f5f5f5; border-top:1px solid #ddd; min-height:50px; z-index:20;"
         }
@@ -117,7 +109,6 @@ actual fun ViewWriter.ebookReader(
         bottomBar.appendChild(nextBtn)
 
 
-        // --- 6. Hidden Panels (TOC & Settings) ---
         val settingsPanel = createDiv("$readerId-settings-panel").apply {
             style.cssText = "display:none; position:absolute; top:50px; right:10px; background:white; border:1px solid #ccc; padding:15px; border-radius:4px; box-shadow:0 4px 12px rgba(0,0,0,0.15); z-index:50;"
             innerHtmlUnsafe = """
@@ -136,6 +127,26 @@ actual fun ViewWriter.ebookReader(
             content = "Initializing..."
         }
         wrapper.appendChild(loadingOverlay)
+
+        // Floating highlight context menu (hidden by default)
+        val highlightMenu = createDiv("$readerId-highlight-menu").apply {
+            style.cssText = "display:none; position:fixed; background:white; border:1px solid #ccc; border-radius:8px; padding:10px; box-shadow:0 4px 16px rgba(0,0,0,0.2); z-index:100; min-width:200px;"
+            innerHtmlUnsafe = """
+                <div style="font-weight:bold; margin-bottom:8px; font-size:13px;">Highlight</div>
+                <div style="display:flex; gap:6px; margin-bottom:8px;">
+                    <button data-color="#FFFF00" style="width:28px; height:28px; background:#FFFF00; border:2px solid #ccc; border-radius:4px; cursor:pointer;"></button>
+                    <button data-color="#90EE90" style="width:28px; height:28px; background:#90EE90; border:2px solid #ccc; border-radius:4px; cursor:pointer;"></button>
+                    <button data-color="#87CEEB" style="width:28px; height:28px; background:#87CEEB; border:2px solid #ccc; border-radius:4px; cursor:pointer;"></button>
+                    <button data-color="#FFB6C1" style="width:28px; height:28px; background:#FFB6C1; border:2px solid #ccc; border-radius:4px; cursor:pointer;"></button>
+                    <button data-color="#FFA500" style="width:28px; height:28px; background:#FFA500; border:2px solid #ccc; border-radius:4px; cursor:pointer;"></button>
+                </div>
+                <div style="display:flex; gap:6px;">
+                    <button id="$readerId-highlight-note-btn" style="flex:1; padding:6px; font-size:12px; background:#f0f0f0; border:1px solid #ccc; border-radius:4px; cursor:pointer;">Add Note</button>
+                    <button id="$readerId-highlight-cancel" style="flex:1; padding:6px; font-size:12px; background:#f0f0f0; border:1px solid #ccc; border-radius:4px; cursor:pointer;">Cancel</button>
+                </div>
+            """.trimIndent()
+        }
+        wrapper.appendChild(highlightMenu)
 
 
         // --- 7. Bridge NPM Modules ---
@@ -158,6 +169,7 @@ actual fun ViewWriter.ebookReader(
 
         window.asDynamic()["__activeReaderId"] = readerId
         window.asDynamic()["__readerConfig_$readerId"] = config
+        window.asDynamic()["__readerRendition_$readerId"] = null
 
         // --- 9. Initialize & Wire Up Events ---
         js("""
@@ -166,18 +178,20 @@ actual fun ViewWriter.ebookReader(
                 var loadingEl = document.getElementById(rid + '-loading');
                 var readerArea = document.getElementById(rid + '-content');
                 var titleEl = document.getElementById(rid + '-title');
-                
-                /* Controls */
+
                 var nextBtn = document.getElementById(rid + '-next');
                 var prevBtn = document.getElementById(rid + '-prev');
                 var tocBtn = document.getElementById(rid + '-btn-toc');
                 var settingsBtn = document.getElementById(rid + '-btn-settings');
                 var settingsPanel = document.getElementById(rid + '-settings-panel');
-                
-                /* Theme Buttons */
+
                 var tLight = document.getElementById(rid + '-theme-light');
                 var tDark = document.getElementById(rid + '-theme-dark');
                 var tSepia = document.getElementById(rid + '-theme-sepia');
+
+                var highlightMenu = document.getElementById(rid + '-highlight-menu');
+                var highlightNoteBtn = document.getElementById(rid + '-highlight-note-btn');
+                var highlightCancel = document.getElementById(rid + '-highlight-cancel');
 
                 if (!window.ePub || !readerArea) {
                     if(loadingEl) loadingEl.textContent = "Error: Library or UI missing.";
@@ -188,7 +202,7 @@ actual fun ViewWriter.ebookReader(
                 var cfg = window['__readerConfig_' + rid];
 
                 if (loadingEl) loadingEl.textContent = "Downloading book...";
-                
+
                 fetch(cfg.downloadUrl, {
                     headers: { 'X-Emby-Authorization': cfg.authHeader }
                 })
@@ -198,18 +212,18 @@ actual fun ViewWriter.ebookReader(
                 })
                 .then(function(data) {
                     if (loadingEl) loadingEl.textContent = "Rendering...";
-                    
+
                     var book = ePub(data);
-                    
-                    /* Render Book */
+
                     var rendition = book.renderTo(readerArea, {
-                        width: '100%', 
-                        height: '100%', 
+                        width: '100%',
+                        height: '100%',
                         flow: 'paginated',
                         allowScriptedContent: true
                     });
-                    
-                    /* Restore saved position or start from beginning */
+
+                    window['__readerRendition_' + rid] = rendition;
+
                     var savedCfi = localStorage.getItem('ebook_pos_' + cfg.bookId);
                     if (savedCfi) {
                         rendition.display(savedCfi);
@@ -217,71 +231,165 @@ actual fun ViewWriter.ebookReader(
                         rendition.display();
                     }
 
-                    /* Set Default Theme */
                     rendition.themes.register('light', { 'body': { 'background': '#ffffff', 'color': '#333333' } });
                     rendition.themes.register('dark', { 'body': { 'background': '#1a1a2e', 'color': '#ccc' } });
                     rendition.themes.register('sepia', { 'body': { 'background': '#f4ecd8', 'color': '#5b4636' } });
                     rendition.themes.select('light');
-                    
+
+                    /* --- Load existing highlights --- */
+                    var storedHighlights = JSON.parse(localStorage.getItem('ebook_highlights_' + cfg.bookId) || '[]');
+                    function reloadHighlights() {
+                        storedHighlights.forEach(function(h) {
+                            try { rendition.annotations.highlight(h.cfiRange, {}, function(){}, h.id, {'fill': h.color, 'fill-opacity': '0.3'}); } catch(e) {}
+                        });
+                    }
+                    book.ready.then(function() {
+                        reloadHighlights();
+                    });
+
                     book.ready.then(function() {
                         console.log("Book Ready");
                         if(loadingEl) loadingEl.style.display = 'none';
-                        
-                        /* Update Title */
                         book.loaded.metadata.then(function(meta) {
                             if(titleEl) titleEl.textContent = meta.title;
                         });
                     });
 
-                    /* Save position on page change */
                     var progressEl = document.getElementById(rid + '-progress');
                     rendition.on('relocated', function(location) {
                         if (location && location.start && location.start.cfi) {
                             localStorage.setItem('ebook_pos_' + cfg.bookId, location.start.cfi);
                         }
-                        /* Update progress display */
                         if (progressEl && book.locations && book.locations.length()) {
                             var pct = book.locations.percentageFromCfi(location.start.cfi);
                             progressEl.textContent = Math.round(pct * 100) + '%';
                         }
                     });
 
-                    /* Generate locations for progress tracking */
                     book.ready.then(function() {
                         return book.locations.generate(1024);
                     });
 
-                    /* --- EVENT LISTENERS --- */
-                    
-                    if (nextBtn) {
-                        nextBtn.addEventListener('click', function() {
-                            rendition.next();
-                        });
-                    }
-                    
-                    if (prevBtn) {
-                        prevBtn.addEventListener('click', function() {
-                            rendition.prev();
+                    /* --- Track pending highlight info --- */
+                    var pendingHighlightCfiRange = null;
+                    var pendingHighlightText = null;
+
+                    /* --- Text Selection Handler (shows floating menu) --- */
+                    rendition.on('selected', function(cfiRange, contents) {
+                        pendingHighlightCfiRange = cfiRange;
+                        var selection = contents.window.getSelection();
+                        pendingHighlightText = selection ? selection.toString().substring(0, 200) : '';
+
+                        /* Position the menu near the selection */
+                        if (selection && selection.rangeCount > 0) {
+                            var range = selection.getRangeAt(0);
+                            var rect = range.getBoundingClientRect();
+                            /* Find the reader container's position */
+                            var readerRect = readerArea.getBoundingClientRect();
+                            highlightMenu.style.left = Math.min(rect.left, readerRect.right - 220) + 'px';
+                            highlightMenu.style.top = (rect.top + readerRect.top - 10) + 'px';
+                        } else {
+                            highlightMenu.style.left = '50%';
+                            highlightMenu.style.top = '50%';
+                        }
+                        highlightMenu.style.display = 'block';
+                    });
+
+                    /* Hide menu on tap outside */
+                    document.addEventListener('mousedown', function(e) {
+                        if (!highlightMenu.contains(e.target)) {
+                            highlightMenu.style.display = 'none';
+                        }
+                    });
+
+                    /* --- Highlight Color Buttons --- */
+                    var colorBtns = highlightMenu.querySelectorAll('button[data-color]');
+                    for (var i = 0; i < colorBtns.length; i++) {
+                        colorBtns[i].addEventListener('click', function(e) {
+                            e.stopPropagation();
+                            var color = this.getAttribute('data-color');
+                            if (!pendingHighlightCfiRange) return;
+
+                            var highlightId = 'hl-' + Date.now() + '-' + Math.random().toString(36).substr(2, 6);
+                            rendition.annotations.highlight(pendingHighlightCfiRange, {}, function(){}, highlightId, {'fill': color, 'fill-opacity': '0.3'});
+
+                            var highlight = {
+                                id: highlightId,
+                                cfiRange: pendingHighlightCfiRange,
+                                color: color,
+                                text: pendingHighlightText,
+                                note: null,
+                                timestamp: Date.now()
+                            };
+                            storedHighlights.push(highlight);
+                            localStorage.setItem('ebook_highlights_' + cfg.bookId, JSON.stringify(storedHighlights));
+
+                            highlightMenu.style.display = 'none';
+                            pendingHighlightCfiRange = null;
+                            pendingHighlightText = null;
                         });
                     }
 
-                    /* Settings Toggle */
+                    /* --- Add Note Button --- */
+                    if (highlightNoteBtn) {
+                        highlightNoteBtn.addEventListener('click', function(e) {
+                            e.stopPropagation();
+                            if (!pendingHighlightCfiRange) return;
+                            var note = prompt('Add a note:', '');
+                            if (note === null) return;
+
+                            var color = '#FFFF00';
+                            var colorBtns2 = highlightMenu.querySelectorAll('button[data-color]');
+                            for (var j = 0; j < colorBtns2.length; j++) {
+                                if (colorBtns2[j].matches(':hover') || colorBtns2[j].getAttribute('data-color') === '#FFFF00') {
+                                    color = colorBtns2[j].getAttribute('data-color');
+                                    break;
+                                }
+                            }
+
+                            var highlightId2 = 'hl-' + Date.now() + '-' + Math.random().toString(36).substr(2, 6);
+                            rendition.annotations.highlight(pendingHighlightCfiRange, {}, function(){}, highlightId2, {'fill': color, 'fill-opacity': '0.3'});
+
+                            storedHighlights.push({
+                                id: highlightId2,
+                                cfiRange: pendingHighlightCfiRange,
+                                color: color,
+                                text: pendingHighlightText,
+                                note: note || null,
+                                timestamp: Date.now()
+                            });
+                            localStorage.setItem('ebook_highlights_' + cfg.bookId, JSON.stringify(storedHighlights));
+
+                            highlightMenu.style.display = 'none';
+                            pendingHighlightCfiRange = null;
+                            pendingHighlightText = null;
+                        });
+                    }
+
+                    /* --- Cancel Button --- */
+                    if (highlightCancel) {
+                        highlightCancel.addEventListener('click', function(e) {
+                            e.stopPropagation();
+                            highlightMenu.style.display = 'none';
+                            pendingHighlightCfiRange = null;
+                            pendingHighlightText = null;
+                        });
+                    }
+
+                    /* --- Navigation & Settings --- */
+                    if (nextBtn) nextBtn.addEventListener('click', function() { rendition.next(); });
+                    if (prevBtn) prevBtn.addEventListener('click', function() { rendition.prev(); });
+
                     if (settingsBtn && settingsPanel) {
                         settingsBtn.addEventListener('click', function() {
-                            if (settingsPanel.style.display === 'none') {
-                                settingsPanel.style.display = 'block';
-                            } else {
-                                settingsPanel.style.display = 'none';
-                            }
+                            settingsPanel.style.display = settingsPanel.style.display === 'none' ? 'block' : 'none';
                         });
                     }
 
-                    /* Theme Listeners */
                     if(tLight) tLight.addEventListener('click', function() { rendition.themes.select('light'); });
                     if(tDark) tDark.addEventListener('click', function() { rendition.themes.select('dark'); });
                     if(tSepia) tSepia.addEventListener('click', function() { rendition.themes.select('sepia'); });
 
-                    /* Keyboard Support */
                     document.addEventListener('keyup', function(e) {
                         if ((e.keyCode || e.which) == 37) rendition.prev();
                         if ((e.keyCode || e.which) == 39) rendition.next();
@@ -298,12 +406,9 @@ actual fun ViewWriter.ebookReader(
 }
 
 private fun createDiv(id: String): FutureElement {
-//    val div = document.createElement("div") as HTMLDivElement
-
     val div = FutureElement().also {
         it.tag = "div"
     }
-
     div.id = id
     return div
 }
