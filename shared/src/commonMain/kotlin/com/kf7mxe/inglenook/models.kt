@@ -12,9 +12,9 @@ import kotlin.uuid.Uuid
 data class JellyfinServerConfig(
     val _id: Uuid = Uuid.random(),
     val serverUrl: String,
-    val userId: String,
-    val username: String,
-    val accessToken: String,
+    val userId: String? = null,
+    val username: String? = null,
+    val accessToken: String? = null,
     val deviceId: String,
     val serverId: String? = null,
     val serverName: String? = null,
@@ -24,6 +24,9 @@ data class JellyfinServerConfig(
 ) {
     /** Stable key for scoping per-server persistent data. */
     val storageKey: String get() = _id.toString()
+
+    /** Whether this server has valid credentials and can make authenticated requests. */
+    val isLoggedIn: Boolean get() = accessToken != null
 
     /** Display name: serverName if available, otherwise the URL host. */
     val displayName: String get() = serverName ?: serverUrl

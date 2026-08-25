@@ -10,6 +10,7 @@ import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.jellyfin.jellyfinServers
 import com.kf7mxe.inglenook.jellyfin.switchToServer
 import com.kf7mxe.inglenook.screens.HomePage
+import com.kf7mxe.inglenook.screens.JellyfinSetupPage
 import com.lightningkite.kiteui.ExperimentalKiteUi
 import com.lightningkite.kiteui.lottie.models.LottieRaw
 import com.lightningkite.kiteui.lottie.views.direct.lottie
@@ -80,18 +81,22 @@ fun ViewWriter.connectivityDialog(dismiss: () -> Unit) {
             }
 
             // Switch Server section (only shown when other servers exist)
-            val hasOtherServers = jellyfinServers.value.any { it._id.toString() != activeServerId.value }
-            shownWhen { hasOtherServers }.col {
+            shownWhen { jellyfinServers().any { it._id.toString() != activeServerId() } }.col {
                 separator()
                 val otherServers = jellyfinServers.value.filter { it._id.toString() != activeServerId.value }
                 if (otherServers.size == 1) {
                     // Exactly one other server — direct switch button
+                    val single = otherServers.first()
                     button {
-                        centered.text("Switch to ${otherServers[0].displayName}")
+                        centered.text("Switch to ${single.displayName}")
                         onClick {
-                            switchToServer(otherServers[0]._id.toString())
+                            switchToServer(single._id.toString())
                             dismiss()
-                            mainPageNavigator.navigate(HomePage())
+                            if (single.accessToken == null) {
+                                mainPageNavigator.navigate(JellyfinSetupPage(loginServerId = single._id.toString()))
+                            } else {
+                                mainPageNavigator.navigate(HomePage())
+                            }
                         }
                         themeChoice += ImportantSemantic
                     }
@@ -119,7 +124,7 @@ fun ViewWriter.connectivityDialog(dismiss: () -> Unit) {
             centered.h3 { content = "Switch Server" }
 
             forEach(remember {
-                jellyfinServers.value.filter { it._id.toString() != activeServerId.value }
+                jellyfinServers().filter { it._id.toString() != activeServerId() }
             }) { server ->
                 button {
                     centered.col {
@@ -129,7 +134,11 @@ fun ViewWriter.connectivityDialog(dismiss: () -> Unit) {
                     onClick {
                         switchToServer(server._id.toString())
                         dismiss()
-                        mainPageNavigator.navigate(HomePage())
+                        if (server.accessToken == null) {
+                            mainPageNavigator.navigate(JellyfinSetupPage(loginServerId = server._id.toString()))
+                        } else {
+                            mainPageNavigator.navigate(HomePage())
+                        }
                     }
                 }
                 separator()

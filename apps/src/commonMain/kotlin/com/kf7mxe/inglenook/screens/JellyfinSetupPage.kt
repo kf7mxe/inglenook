@@ -1,6 +1,9 @@
+@file:OptIn(ExperimentalUuidApi::class)
+
 package com.kf7mxe.inglenook.screens
 
 import com.kf7mxe.inglenook.Resources
+import kotlin.uuid.ExperimentalUuidApi
 import com.lightningkite.kiteui.models.*
 import com.lightningkite.kiteui.navigation.Page
 import com.lightningkite.kiteui.navigation.mainPageNavigator
@@ -13,7 +16,9 @@ import com.lightningkite.kiteui.views.l2.icon
 import com.kf7mxe.inglenook.demo.DemoMode
 import com.kf7mxe.inglenook.jellyfin.JellyfinClient
 import com.kf7mxe.inglenook.jellyfin.addServer
+import com.kf7mxe.inglenook.jellyfin.jellyfinServerConfig
 import com.kf7mxe.inglenook.jellyfin.jellyfinServers
+import com.kf7mxe.inglenook.jellyfin.updateServerConfig
 import com.kf7mxe.inglenook.visibility
 import com.kf7mxe.inglenook.storage.DangerSemantic
 import com.kf7mxe.inglenook.visibilityOff
@@ -39,14 +44,19 @@ import kotlinx.coroutines.Job
 enum class LoginMethod { UsernamePassword, QuickConnect }
 
 @Routable("/connect-jellyfin")
-class JellyfinSetupPage : Page, FullScreen {
+class JellyfinSetupPage(val loginServerId: String? = null) : Page, FullScreen {
     override val title get() = Constant("Connect to Jellyfin")
 
     override fun ViewWriter.render() {
+        // Re-login mode: authenticating against an already-saved server. The active
+        // logged-out server is used as a fallback (e.g. after a web refresh).
+        val existingServer = loginServerId?.let { id -> jellyfinServers.value.find { it._id.toString() == id } }
+            ?: jellyfinServerConfig.value?.takeIf { it.accessToken == null }
+
         // Step tracking: 1 = server URL, 2 = authentication
-        val step = Signal(1)
-        val serverUrl = Signal("")
-        val serverName = Signal<String?>(null)
+        val step = Signal(if (existingServer != null) 2 else 1)
+        val serverUrl = Signal(existingServer?.serverUrl ?: "")
+        val serverName = Signal(existingServer?.serverName)
         val errorMessage = Signal<String?>(null)
         val loginMethod = Signal(LoginMethod.UsernamePassword)
 
@@ -104,9 +114,18 @@ class JellyfinSetupPage : Page, FullScreen {
                try {
                    val client = JellyfinClient(serverUrl.value)
                    val config = client.authenticate(username.value, password.value)
-                   addServer(config)
+                   val existing = existingServer
+                   if (existing != null) {
+                       // Re-authenticate the saved server, keeping its stable ID so
+                       // scoped data (libraries, downloads, progress) stays intact.
+                       updateServerConfig(config.copy(_id = existing._id))
+                   } else {
+                       addServer(config)
+                   }
                    if (!hasSeenDiagnosticsPrompt.value) {
                        mainPageNavigator.navigate(DiagnosticsOnboardingPage())
+                   } else if (existing != null) {
+                       mainPageNavigator.navigate(HomePage())
                    } else {
                        mainPageNavigator.navigate(LibrarySelectionPage())
                    }
@@ -361,10 +380,17 @@ class JellyfinSetupPage : Page, FullScreen {
 
                                             if (authorized) {
                                                 val config = client.authenticateWithQuickConnect(secret)
-                                                addServer(config)
+                                                val existing = existingServer
+                                                if (existing != null) {
+                                                    updateServerConfig(config.copy(_id = existing._id))
+                                                } else {
+                                                    addServer(config)
+                                                }
                                                 stopPolling()
                                                 if (!hasSeenDiagnosticsPrompt.value) {
                                                     mainPageNavigator.navigate(DiagnosticsOnboardingPage())
+                                                } else if (existing != null) {
+                                                    mainPageNavigator.navigate(HomePage())
                                                 } else {
                                                     mainPageNavigator.navigate(LibrarySelectionPage())
                                                 }

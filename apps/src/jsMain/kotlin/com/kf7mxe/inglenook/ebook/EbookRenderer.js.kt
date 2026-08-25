@@ -14,13 +14,15 @@ import com.lightningkite.kiteui.views.direct.col
 import com.lightningkite.reactive.core.AppScope
 import kotlinx.browser.document
 import kotlinx.browser.window
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
 import org.w3c.dom.HTMLButtonElement
 import org.w3c.dom.HTMLDivElement
 import org.w3c.dom.HTMLElement
 
+@OptIn(kotlin.uuid.ExperimentalUuidApi::class)
 actual fun ViewWriter.ebookReader(
     bookId: String,
     downloadUrl: String,
@@ -71,6 +73,14 @@ actual fun ViewWriter.ebookReader(
             it.style.cssText = "padding:4px 10px; cursor:pointer;"
         }
         topBtnContainer.appendChild(settingsBtn)
+
+        val bookmarkBtn = FutureElement().also {
+            it.tag = "button"
+            it.id = "$readerId-btn-bookmark"
+            it.content = "🔖"
+            it.style.cssText = "padding:4px 10px; cursor:pointer; font-size:16px; opacity:0.5;"
+        }
+        topBtnContainer.appendChild(bookmarkBtn)
 
 
         val readerArea = createDiv("$readerId-content").apply {
@@ -171,6 +181,44 @@ actual fun ViewWriter.ebookReader(
         window.asDynamic()["__readerConfig_$readerId"] = config
         window.asDynamic()["__readerRendition_$readerId"] = null
 
+        // --- Bookmark Bridge ---
+        val bookmarksState = js("""{"currentTicks": "0", "currentChapter": "", "currentCfi": ""}""")
+        window.asDynamic()["__bookmarkState_$readerId"] = bookmarksState
+        window.asDynamic()["__bookmarkIds_$readerId"] = js("{}")
+
+        window.asDynamic()["__toggleBookmark_$readerId"] = { ticksStr: String, chapter: String, cfi: String ->
+            GlobalScope.launch {
+                val ticks = ticksStr.toLongOrNull() ?: return@launch
+                val idsObj = window.asDynamic()["__bookmarkIds_$readerId"]
+                val existingId = idsObj[ticksStr]
+                if (existingId != undefined) {
+                    BookmarkRepository.deleteBookmark(kotlin.uuid.Uuid.parse(existingId as String))
+                    js("delete idsObj[ticksStr]")
+                } else {
+                    val metaObj = js("{}")
+                    metaObj.cfi = cfi
+                    metaObj.chapter = chapter
+                    val metaJson: String = js("JSON.stringify(metaObj)")
+                    val bm = BookmarkRepository.createBookmark(bookId, ticks, metaJson, chapter)
+                    js("idsObj[ticksStr] = bm._id.toString()")
+                }
+            }
+        }
+
+        window.asDynamic()["__isBookmarked_$readerId"] = { ticksStr: String ->
+            val idsObj = window.asDynamic()["__bookmarkIds_$readerId"]
+            idsObj[ticksStr] != undefined
+        }
+
+        GlobalScope.launch {
+            val bookmarks = BookmarkRepository.getBookmarksForBook(bookId)
+            val idsObj = js("{}")
+            for (b in bookmarks) {
+                js("idsObj[b.positionTicks.toString()] = b._id.toString()")
+            }
+            window.asDynamic()["__bookmarkIds_$readerId"] = idsObj
+        }
+
         // --- 9. Initialize & Wire Up Events ---
         js("""
             setTimeout(function() {
@@ -192,6 +240,7 @@ actual fun ViewWriter.ebookReader(
                 var highlightMenu = document.getElementById(rid + '-highlight-menu');
                 var highlightNoteBtn = document.getElementById(rid + '-highlight-note-btn');
                 var highlightCancel = document.getElementById(rid + '-highlight-cancel');
+                var bookmarkBtn = document.getElementById(rid + '-btn-bookmark');
 
                 if (!window.ePub || !readerArea) {
                     if(loadingEl) loadingEl.textContent = "Error: Library or UI missing.";
@@ -263,6 +312,15 @@ actual fun ViewWriter.ebookReader(
                         if (progressEl && book.locations && book.locations.length()) {
                             var pct = book.locations.percentageFromCfi(location.start.cfi);
                             progressEl.textContent = Math.round(pct * 100) + '%';
+                            var ticks = Math.round(pct * 10000000000).toString();
+                            var bs = window['__bookmarkState_' + rid];
+                            bs.currentTicks = ticks;
+                            bs.currentCfi = location.start.cfi;
+                            bs.currentChapter = location.start.href || '';
+                            if (bookmarkBtn) {
+                                var isBm = window['__isBookmarked_' + rid](ticks);
+                                bookmarkBtn.style.opacity = isBm ? '1.0' : '0.5';
+                            }
                         }
                     });
 
@@ -373,6 +431,16 @@ actual fun ViewWriter.ebookReader(
                             highlightMenu.style.display = 'none';
                             pendingHighlightCfiRange = null;
                             pendingHighlightText = null;
+                        });
+                    }
+
+                    /* --- Bookmark Button --- */
+                    if (bookmarkBtn) {
+                        bookmarkBtn.addEventListener('click', function() {
+                            var bs = window['__bookmarkState_' + rid];
+                            window['__toggleBookmark_' + rid](bs.currentTicks, bs.currentChapter, bs.currentCfi);
+                            var isBm = window['__isBookmarked_' + rid](bs.currentTicks);
+                            bookmarkBtn.style.opacity = isBm ? '1.0' : '0.5';
                         });
                     }
 

@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalUuidApi::class)
+
 package com.kf7mxe.inglenook
 
 import com.kf7mxe.inglenook.cache.blurAndCacheImage
@@ -29,6 +31,7 @@ import com.kf7mxe.inglenook.jellyfin.JellyfinClient
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.jellyfin.jellyfinServerConfig
 import com.kf7mxe.inglenook.jellyfin.refreshServerCapabilities
+import com.kf7mxe.inglenook.jellyfin.sessionExpiredServerId
 import com.kf7mxe.inglenook.playback.PlaybackState
 import com.kf7mxe.inglenook.screens.*
 import com.kf7mxe.inglenook.storage.SelectedTab
@@ -58,6 +61,7 @@ import com.lightningkite.reactive.context.invoke
 import com.lightningkite.reactive.context.reactive
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
+import kotlin.uuid.ExperimentalUuidApi
 
 // Persistent theme settings - survives app restart
 val persistedThemePreset = PersistentProperty<ThemePreset>("themePreset", ThemePreset.Cozy)
@@ -137,14 +141,8 @@ fun ViewWriter.app(navigator: PageNavigator, dialog: PageNavigator) {
         val config = jellyfinServerConfig.value
 
 
-
-
-
-
-
-
         println("DEBUG config ${config}")
-        if (config != null) {
+        if (config != null && config.accessToken != null) {
             jellyfinClient.value = JellyfinClient(
                 serverUrl = config.serverUrl,
                 accessToken = config.accessToken,
@@ -160,6 +158,9 @@ fun ViewWriter.app(navigator: PageNavigator, dialog: PageNavigator) {
 
         if (config == null) {
             navigator.navigate(JellyfinSetupPage())
+        } else if (config.accessToken == null) {
+            // Saved server but logged out — go straight to the re-login flow
+            navigator.navigate(LoginPage(config._id.toString()))
         } else {
             navigator.navigate(SplashPage())
         }
@@ -350,6 +351,15 @@ fun ViewWriter.app(navigator: PageNavigator, dialog: PageNavigator) {
                             dismiss()
                         }
                     }
+                }
+            }
+
+            // Session expired → route to re-login for the affected server
+            sessionExpiredServerId.addListener {
+                val serverId = sessionExpiredServerId.value
+                if (serverId != null) {
+                    sessionExpiredServerId.value = null
+                    mainPageNavigator.reset(LoginPage(serverId))
                 }
             }
 

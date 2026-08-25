@@ -1,9 +1,9 @@
 package com.kf7mxe.inglenook.ebook
 
-import android.app.AlertDialog
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
+import android.graphics.PorterDuff
 import android.os.Bundle
 import android.text.InputType
 import android.view.ActionMode
@@ -14,12 +14,12 @@ import android.view.View
 import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.LinearLayout
-import android.widget.PopupWindow
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.commitNow
 import androidx.lifecycle.lifecycleScope
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.kf7mxe.inglenook.R
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.storage.BookmarkRepository
@@ -104,6 +104,17 @@ class ReaderActivity : AppCompatActivity() {
         "#E91E63" to Color.parseColor("#E91E63"),
         "#FF9800" to Color.parseColor("#FF9800")
     )
+
+    private val highlightColorNames = mapOf(
+        "#FFFFEB3B" to "Yellow",
+        "#4CAF50" to "Green",
+        "#2196F3" to "Blue",
+        "#E91E63" to "Pink",
+        "#FF9800" to "Orange"
+    )
+
+    private var currentPositionTicks: Long = 0L
+    private var bookmarksForBook: List<com.kf7mxe.inglenook.Bookmark> = emptyList()
 
     private val selectionActionModeCallback = object : ActionMode.Callback {
         override fun onCreateActionMode(mode: ActionMode, menu: android.view.Menu): Boolean {
@@ -220,16 +231,63 @@ class ReaderActivity : AppCompatActivity() {
         }
 
         findViewById<ImageButton>(R.id.btn_bookmark).setOnClickListener {
-            addBookmark()
+            toggleBookmark()
+        }
+        findViewById<ImageButton>(R.id.btn_bookmark).setOnLongClickListener {
+            showBookmarksList()
+            true
         }
 
         findViewById<ImageButton>(R.id.btn_highlight).setOnClickListener {
             onHighlightAction()
         }
+        findViewById<ImageButton>(R.id.btn_highlight).setOnLongClickListener {
+            showHighlightsList()
+            true
+        }
 
         findViewById<ImageButton>(R.id.btn_settings).setOnClickListener {
             showReaderSettings()
         }
+
+        updateBookmarkIcon()
+        loadBookmarksForCurrentBook()
+    }
+
+    private fun loadBookmarksForCurrentBook() {
+        bookmarksForBook = BookmarkRepository.getBookmarksForBook(bookId)
+    }
+
+    private fun toggleBookmark() {
+        val nav = navigator ?: return
+        val locator = nav.currentLocator.value
+        val ticks = locatorToTicks(locator)
+        val chapterTitle = locator.title
+
+        val existing = bookmarksForBook.find { it.positionTicks == ticks }
+        if (existing != null) {
+            BookmarkRepository.deleteBookmark(existing._id)
+            bookmarksForBook = bookmarksForBook.filter { it._id != existing._id }
+            Toast.makeText(this, "Bookmark removed", Toast.LENGTH_SHORT).show()
+        } else {
+            val bookmark = BookmarkRepository.createBookmark(
+                bookId = bookId,
+                positionTicks = ticks,
+                chapterName = chapterTitle
+            )
+            bookmarksForBook = (bookmarksForBook + bookmark).sortedBy { it.positionTicks }
+            Toast.makeText(this, "Bookmark added", Toast.LENGTH_SHORT).show()
+        }
+        updateBookmarkIcon()
+    }
+
+    private fun updateBookmarkIcon() {
+        val btnBookmark = findViewById<ImageButton>(R.id.btn_bookmark)
+        val isBookmarked = bookmarksForBook.any { it.positionTicks == currentPositionTicks }
+        val tintColor = if (isBookmarked) Color.parseColor("#FFD700") else {
+            androidx.core.content.ContextCompat.getColor(this, R.color.on_surface_dim)
+        }
+        btnBookmark.setColorFilter(tintColor, PorterDuff.Mode.SRC_IN)
     }
 
     private fun downloadAndOpenBook() {
@@ -362,7 +420,7 @@ class ReaderActivity : AppCompatActivity() {
         val pub = publication ?: return
         val toc = pub.tableOfContents
         if (toc.isEmpty()) {
-            AlertDialog.Builder(this)
+            MaterialAlertDialogBuilder(this)
                 .setTitle("Table of Contents")
                 .setMessage("No table of contents available.")
                 .setPositiveButton("OK", null)
@@ -371,7 +429,7 @@ class ReaderActivity : AppCompatActivity() {
         }
 
         val titles = toc.map { it.title ?: "Untitled" }.toTypedArray()
-        AlertDialog.Builder(this)
+        MaterialAlertDialogBuilder(this)
             .setTitle("Table of Contents")
             .setItems(titles) { _, which ->
                 val link = toc[which]
@@ -386,21 +444,7 @@ class ReaderActivity : AppCompatActivity() {
 
     // --- Bookmarks ---
 
-    private fun addBookmark() {
-        val nav = navigator ?: return
-        val locator = nav.currentLocator.value
-        val positionTicks = locatorToTicks(locator)
-        val chapterTitle = locator.title
-
-        BookmarkRepository.createBookmark(
-            bookId = bookId,
-            positionTicks = positionTicks,
-            chapterName = chapterTitle
-        )
-        Toast.makeText(this, "Bookmark added", Toast.LENGTH_SHORT).show()
-    }
-
-    // --- Highlights (text selection based) ---
+    // --- Highlights ---
 
     fun onHighlightAction() {
         val nav = navigator ?: return
@@ -458,19 +502,21 @@ class ReaderActivity : AppCompatActivity() {
 
     @OptIn(ExperimentalUuidApi::class)
     private fun showHighlightDialog(selection: Selection, showNoteInput: Boolean = false) {
-        val colors = highlightColors
-        val colorNames = colors.map { (hex, _) -> hex }.toTypedArray()
-
-        val dialogView = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(24, 16, 24, 16)
+        if (showNoteInput) {
+            showNoteDialog(selection, highlightColors.first().second, highlightColors.first().first)
+            return
         }
 
-        for ((hex, colorInt) in colors) {
+        val circleSize = dpToPx(42)
+        val rootView = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = android.view.Gravity.CENTER
+            setPadding(dpToPx(8), dpToPx(8), dpToPx(8), dpToPx(8))
+        }
+
+        for ((hex, colorInt) in highlightColors) {
             val circle = View(this).apply {
-                val size = dpToPx(40)
-                layoutParams = LinearLayout.LayoutParams(size, size).apply {
+                layoutParams = LinearLayout.LayoutParams(circleSize, circleSize).apply {
                     marginStart = dpToPx(6)
                     marginEnd = dpToPx(6)
                 }
@@ -480,46 +526,33 @@ class ReaderActivity : AppCompatActivity() {
                     showNoteDialog(selection, colorInt, hex)
                 }
             }
-            dialogView.addView(circle)
+            rootView.addView(circle)
         }
 
-        val noteBtn = ImageButton(this).apply {
-            layoutParams = LinearLayout.LayoutParams(dpToPx(44), dpToPx(44)).apply {
-                marginStart = dpToPx(12)
+        MaterialAlertDialogBuilder(this)
+            .setTitle("Highlight Color")
+            .setView(rootView)
+            .setNeutralButton("Cancel") { _, _ ->
+                (navigator as? SelectableNavigator)?.clearSelection()
             }
-            setImageResource(android.R.drawable.ic_menu_edit)
-            setColorFilter(Color.DKGRAY)
-            setOnClickListener {
-                showNoteDialog(selection, colors.first().second, colors.first().first)
+            .setOnCancelListener {
+                (navigator as? SelectableNavigator)?.clearSelection()
             }
-        }
-        dialogView.addView(noteBtn)
-
-        if (showNoteInput) {
-            showNoteDialog(selection, colors.first().second, colors.first().first)
-        } else {
-            AlertDialog.Builder(this)
-                .setView(dialogView)
-                .setNegativeButton("Cancel") { _, _ ->
-                    (navigator as? SelectableNavigator)?.clearSelection()
-                }
-                .setOnCancelListener {
-                    (navigator as? SelectableNavigator)?.clearSelection()
-                }
-                .show()
-        }
+            .show()
     }
 
     @OptIn(ExperimentalUuidApi::class)
     private fun showNoteDialog(selection: Selection, colorInt: Int, colorHex: String) {
         val input = EditText(this).apply {
-            hint = "Add a note (optional)"
+            hint = "Note (optional)"
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE
-            setPadding(48, 32, 48, 32)
+            setPadding(dpToPx(16), dpToPx(12), dpToPx(16), dpToPx(12))
             minLines = 2
+            maxLines = 4
+            textSize = 14f
         }
 
-        AlertDialog.Builder(this)
+        MaterialAlertDialogBuilder(this)
             .setTitle("Add Note")
             .setView(input)
             .setPositiveButton("Save") { _, _ ->
@@ -579,7 +612,6 @@ class ReaderActivity : AppCompatActivity() {
                     }
                 } catch (e: Exception) { null }
             }
-
             withContext(Dispatchers.Main) {
                 decorNav.applyDecorations(decorations, "highlights")
             }
@@ -603,33 +635,43 @@ class ReaderActivity : AppCompatActivity() {
             return
         }
 
-        val options = mutableListOf<String>()
-        if (highlight.note != null) options.add("View Note")
-        options.add("Edit Note")
-        options.add("Change Color")
-        options.add("Delete")
+        val snippet = try {
+            val loc = Locator.fromJSON(org.json.JSONObject(highlight.locator))
+            loc?.text?.highlight?.take(100) ?: ""
+        } catch (_: Exception) { "" }
 
-        AlertDialog.Builder(this)
-            .setTitle("Highlight")
-            .setItems(options.toTypedArray()) { _, which ->
-                when (options[which]) {
-                    "View Note" -> {
-                        AlertDialog.Builder(this)
-                            .setTitle("Note")
-                            .setMessage(highlight.note ?: "No note")
-                            .setPositiveButton("OK", null)
-                            .show()
-                    }
+        val name = highlightColorNames[highlight.color] ?: "Unknown"
+        MaterialAlertDialogBuilder(this)
+            .setTitle("$name Highlight")
+            .setMessage(if (snippet.isNotBlank()) "\"$snippet\"" else null)
+            .setItems(highlight.actions()) { _, which ->
+                when (highlight.actions()[which]) {
+                    "View Note" -> showViewNoteDialog(highlight)
                     "Edit Note" -> showEditNoteDialog(highlight)
                     "Change Color" -> showChangeColorDialog(highlight)
-                    "Delete" -> {
-                        HighlightRepository.deleteHighlight(highlight._id)
-                        loadHighlightsForBook()
-                        Toast.makeText(this, "Highlight deleted", Toast.LENGTH_SHORT).show()
-                    }
+                    "View All" -> showHighlightsList()
+                    "Delete" -> deleteHighlight(highlight._id)
                 }
             }
             .setNegativeButton("Close", null)
+            .show()
+    }
+
+    private fun com.kf7mxe.inglenook.Highlight.actions(): Array<String> {
+        val list = mutableListOf<String>()
+        if (note != null) list.add("View Note")
+        list.add("Edit Note")
+        list.add("Change Color")
+        list.add("View All")
+        list.add("Delete")
+        return list.toTypedArray()
+    }
+
+    private fun showViewNoteDialog(highlight: com.kf7mxe.inglenook.Highlight) {
+        MaterialAlertDialogBuilder(this)
+            .setTitle("Note")
+            .setMessage(highlight.note ?: "No note")
+            .setPositiveButton("OK", null)
             .show()
     }
 
@@ -637,19 +679,20 @@ class ReaderActivity : AppCompatActivity() {
     private fun showEditNoteDialog(highlight: com.kf7mxe.inglenook.Highlight) {
         val input = EditText(this).apply {
             setText(highlight.note ?: "")
-            hint = "Add a note"
+            hint = "Note"
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE
-            setPadding(48, 32, 48, 32)
+            setPadding(dpToPx(16), dpToPx(12), dpToPx(16), dpToPx(12))
             minLines = 2
+            maxLines = 4
+            textSize = 14f
         }
 
-        AlertDialog.Builder(this)
+        MaterialAlertDialogBuilder(this)
             .setTitle("Edit Note")
             .setView(input)
             .setPositiveButton("Save") { _, _ ->
                 val note = input.text.toString().takeIf { it.isNotBlank() }
                 HighlightRepository.updateHighlight(highlight.copy(note = note))
-                Toast.makeText(this, "Note updated", Toast.LENGTH_SHORT).show()
             }
             .setNegativeButton("Cancel", null)
             .show()
@@ -657,18 +700,309 @@ class ReaderActivity : AppCompatActivity() {
 
     @OptIn(ExperimentalUuidApi::class)
     private fun showChangeColorDialog(highlight: com.kf7mxe.inglenook.Highlight) {
-        val colors = arrayOf("Yellow", "Green", "Blue", "Pink", "Orange")
-        val colorHexValues = arrayOf("#FFFF00", "#00FF00", "#0000FF", "#FF00FF", "#FFA500")
+        val circleSize = dpToPx(42)
+        val rootView = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = android.view.Gravity.CENTER
+            setPadding(dpToPx(8), dpToPx(8), dpToPx(8), dpToPx(8))
+        }
 
-        AlertDialog.Builder(this)
+        val dialog = MaterialAlertDialogBuilder(this)
             .setTitle("Change Color")
-            .setItems(colors) { _, which ->
-                HighlightRepository.updateHighlight(highlight.copy(color = colorHexValues[which]))
-                loadHighlightsForBook()
-                Toast.makeText(this, "Color updated", Toast.LENGTH_SHORT).show()
-            }
+            .setView(rootView)
             .setNegativeButton("Cancel", null)
             .show()
+
+        for ((hex, colorInt) in highlightColors) {
+            val isSelected = highlight.color.equals(hex, ignoreCase = true)
+            val circle = View(this).apply {
+                layoutParams = LinearLayout.LayoutParams(circleSize, circleSize).apply {
+                    marginStart = dpToPx(6)
+                    marginEnd = dpToPx(6)
+                }
+                setBackgroundResource(R.drawable.color_circle)
+                backgroundTintList = android.content.res.ColorStateList.valueOf(colorInt)
+                alpha = if (isSelected) 1.0f else 0.4f
+                setOnClickListener {
+                    HighlightRepository.updateHighlight(highlight.copy(color = hex))
+                    loadHighlightsForBook()
+                    dialog.dismiss()
+                }
+            }
+            rootView.addView(circle)
+        }
+    }
+
+    @OptIn(ExperimentalUuidApi::class)
+    private fun deleteHighlight(highlightId: kotlin.uuid.Uuid) {
+        HighlightRepository.deleteHighlight(highlightId)
+        loadHighlightsForBook()
+        Toast.makeText(this, "Highlight deleted", Toast.LENGTH_SHORT).show()
+    }
+
+    // --- Highlights List ---
+
+    @OptIn(ExperimentalUuidApi::class)
+    private fun showHighlightsList() {
+        val nav = navigator ?: return
+        lifecycleScope.launch(Dispatchers.IO) {
+            val highlights = HighlightRepository.getHighlightsForBook(bookId)
+            withContext(Dispatchers.Main) {
+                if (highlights.isEmpty()) {
+                    MaterialAlertDialogBuilder(this@ReaderActivity)
+                        .setTitle("Highlights")
+                        .setMessage("No highlights yet. Select text and tap Highlight to add one.")
+                        .setPositiveButton("OK", null)
+                        .show()
+                    return@withContext
+                }
+
+                var dialog: androidx.appcompat.app.AlertDialog? = null
+
+                val container = LinearLayout(this@ReaderActivity).apply {
+                    orientation = LinearLayout.VERTICAL
+                }
+
+                for (highlight in highlights) {
+                    val snippet = try {
+                        val loc = Locator.fromJSON(org.json.JSONObject(highlight.locator))
+                        loc?.text?.highlight?.take(120) ?: "(no text)"
+                    } catch (_: Exception) { "(no text)" }
+
+                    val colorInt = try { Color.parseColor(highlight.color) } catch (_: Exception) { Color.YELLOW }
+                    val chapter = highlight.chapterName ?: ""
+
+                    val row = LinearLayout(this@ReaderActivity).apply {
+                        orientation = LinearLayout.HORIZONTAL
+                        gravity = android.view.Gravity.CENTER_VERTICAL
+                        setPadding(dpToPx(12), dpToPx(10), dpToPx(12), dpToPx(10))
+                        setOnClickListener {
+                            dialog?.dismiss()
+                            navigateToHighlight(highlight)
+                        }
+                    }
+
+                    row.addView(View(this@ReaderActivity).apply {
+                        layoutParams = LinearLayout.LayoutParams(dpToPx(14), dpToPx(14)).apply {
+                            marginEnd = dpToPx(10)
+                        }
+                        setBackgroundResource(R.drawable.color_circle)
+                        backgroundTintList = android.content.res.ColorStateList.valueOf(colorInt)
+                    })
+
+                    val textColumn = LinearLayout(this@ReaderActivity).apply {
+                        orientation = LinearLayout.VERTICAL
+                        layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                    }
+
+                    textColumn.addView(TextView(this@ReaderActivity).apply {
+                        text = snippet
+                        maxLines = 2
+                        ellipsize = android.text.TextUtils.TruncateAt.END
+                        textSize = 14f
+                    })
+
+                    if (chapter.isNotBlank()) {
+                        textColumn.addView(TextView(this@ReaderActivity).apply {
+                            text = chapter
+                            textSize = 11f
+                            setTextColor(Color.parseColor("#999999"))
+                            maxLines = 1
+                        })
+                    }
+
+                    row.addView(textColumn)
+
+                    if (highlight.note != null) {
+                        row.addView(TextView(this@ReaderActivity).apply {
+                            text = "📝"
+                            textSize = 14f
+                            setPadding(dpToPx(6), 0, 0, 0)
+                        })
+                    }
+
+                    row.addView(TextView(this@ReaderActivity).apply {
+                        text = "✕"
+                        textSize = 16f
+                        setTextColor(Color.parseColor("#999999"))
+                        setPadding(dpToPx(8), dpToPx(8), dpToPx(8), dpToPx(8))
+                        setOnClickListener {
+                            MaterialAlertDialogBuilder(this@ReaderActivity)
+                                .setTitle("Delete Highlight")
+                                .setMessage("Delete this highlight?")
+                                .setPositiveButton("Delete") { _, _ ->
+                                    lifecycleScope.launch(Dispatchers.IO) {
+                                        HighlightRepository.deleteHighlight(highlight._id)
+                                        withContext(Dispatchers.Main) {
+                                            loadHighlightsForBook()
+                                            Toast.makeText(this@ReaderActivity, "Highlight deleted", Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                }
+                                .setNegativeButton("Cancel", null)
+                                .show()
+                        }
+                    })
+
+                    container.addView(row)
+                    container.addView(View(this@ReaderActivity).apply {
+                        layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 1)
+                        setBackgroundColor(Color.parseColor("#E0E0E0"))
+                    })
+                }
+
+                dialog = MaterialAlertDialogBuilder(this@ReaderActivity)
+                    .setTitle("Highlights (${highlights.size})")
+                    .setView(container)
+                    .setPositiveButton("Close", null)
+                    .setNeutralButton("Clear All") { _, _ ->
+                        MaterialAlertDialogBuilder(this@ReaderActivity)
+                            .setTitle("Clear All Highlights")
+                            .setMessage("Are you sure you want to delete all highlights for this book?")
+                            .setPositiveButton("Delete") { _, _ ->
+                                lifecycleScope.launch(Dispatchers.IO) {
+                                    HighlightRepository.deleteHighlightsForBook(bookId)
+                                    withContext(Dispatchers.Main) {
+                                        loadHighlightsForBook()
+                                        Toast.makeText(this@ReaderActivity, "All highlights deleted", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            }
+                            .setNegativeButton("Cancel", null)
+                            .show()
+                    }
+                    .show()
+            }
+        }
+    }
+
+    @OptIn(ExperimentalUuidApi::class)
+    private fun navigateToHighlight(highlight: com.kf7mxe.inglenook.Highlight) {
+        val nav = navigator ?: return
+        lifecycleScope.launch {
+            try {
+                val locator = Locator.fromJSON(org.json.JSONObject(highlight.locator))
+                if (locator != null) {
+                    nav.go(locator)
+                } else {
+                    Toast.makeText(this@ReaderActivity, "Could not navigate to highlight", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(this@ReaderActivity, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    // --- Bookmarks List ---
+
+    private fun showBookmarksList() {
+        lifecycleScope.launch(Dispatchers.IO) {
+            val bookmarks = BookmarkRepository.getBookmarksForBook(bookId)
+            withContext(Dispatchers.Main) {
+                if (bookmarks.isEmpty()) {
+                    MaterialAlertDialogBuilder(this@ReaderActivity)
+                        .setTitle("Bookmarks")
+                        .setMessage("No bookmarks yet. Tap the bookmark icon to add one.")
+                        .setPositiveButton("OK", null)
+                        .show()
+                    return@withContext
+                }
+
+                var dialog: androidx.appcompat.app.AlertDialog? = null
+
+                val container = LinearLayout(this@ReaderActivity).apply {
+                    orientation = LinearLayout.VERTICAL
+                }
+
+                for (bookmark in bookmarks) {
+                    val row = LinearLayout(this@ReaderActivity).apply {
+                        orientation = LinearLayout.HORIZONTAL
+                        gravity = android.view.Gravity.CENTER_VERTICAL
+                        setPadding(dpToPx(12), dpToPx(10), dpToPx(12), dpToPx(10))
+                    }
+
+                    row.addView(TextView(this@ReaderActivity).apply {
+                        text = "🔖"
+                        textSize = 18f
+                        setPadding(0, 0, dpToPx(12), 0)
+                    })
+
+                    val textColumn = LinearLayout(this@ReaderActivity).apply {
+                        orientation = LinearLayout.VERTICAL
+                        layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                    }
+
+                    textColumn.addView(TextView(this@ReaderActivity).apply {
+                        text = bookmark.chapterName ?: "Position ${bookmark.positionTicks}"
+                        textSize = 14f
+                        maxLines = 1
+                        ellipsize = android.text.TextUtils.TruncateAt.END
+                    })
+
+                    textColumn.addView(TextView(this@ReaderActivity).apply {
+                        text = if (bookmark.note != null) bookmark.note else ""
+                        textSize = 11f
+                        setTextColor(Color.parseColor("#999999"))
+                        maxLines = 1
+                    })
+
+                    row.addView(textColumn)
+
+                    row.addView(TextView(this@ReaderActivity).apply {
+                        text = "✕"
+                        textSize = 16f
+                        setTextColor(Color.parseColor("#999999"))
+                        setPadding(dpToPx(8), dpToPx(8), dpToPx(8), dpToPx(8))
+                        setOnClickListener {
+                            MaterialAlertDialogBuilder(this@ReaderActivity)
+                                .setTitle("Delete Bookmark")
+                                .setMessage("Delete this bookmark?")
+                                .setPositiveButton("Delete") { _, _ ->
+                                    lifecycleScope.launch(Dispatchers.IO) {
+                                        BookmarkRepository.deleteBookmark(bookmark._id)
+                                        withContext(Dispatchers.Main) {
+                                            bookmarksForBook = bookmarks.filter { it._id != bookmark._id }
+                                            updateBookmarkIcon()
+                                            Toast.makeText(this@ReaderActivity, "Bookmark deleted", Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                }
+                                .setNegativeButton("Cancel", null)
+                                .show()
+                        }
+                    })
+
+                    container.addView(row)
+                    container.addView(View(this@ReaderActivity).apply {
+                        layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 1)
+                        setBackgroundColor(Color.parseColor("#E0E0E0"))
+                    })
+                }
+
+                dialog = MaterialAlertDialogBuilder(this@ReaderActivity)
+                    .setTitle("Bookmarks (${bookmarks.size})")
+                    .setView(container)
+                    .setPositiveButton("Close", null)
+                    .setNeutralButton("Clear All") { _, _ ->
+                        MaterialAlertDialogBuilder(this@ReaderActivity)
+                            .setTitle("Clear All Bookmarks")
+                            .setMessage("Are you sure you want to delete all bookmarks for this book?")
+                            .setPositiveButton("Delete") { _, _ ->
+                                lifecycleScope.launch(Dispatchers.IO) {
+                                    BookmarkRepository.deleteBookmarksForBook(bookId)
+                                    withContext(Dispatchers.Main) {
+                                        bookmarksForBook = emptyList()
+                                        updateBookmarkIcon()
+                                        Toast.makeText(this@ReaderActivity, "All bookmarks deleted", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            }
+                            .setNegativeButton("Cancel", null)
+                            .show()
+                    }
+                    .show()
+            }
+        }
     }
 
     private fun dpToPx(dp: Int): Int {
@@ -757,7 +1091,7 @@ class ReaderActivity : AppCompatActivity() {
             })
         }
 
-        AlertDialog.Builder(this)
+        MaterialAlertDialogBuilder(this)
             .setTitle("Reader Settings")
             .setView(dialogView)
             .setPositiveButton("Done", null)
@@ -779,10 +1113,12 @@ class ReaderActivity : AppCompatActivity() {
                 .onEach { locator ->
                     lastReportedLocator = locator
                     saveLocator(locator)
+                    currentPositionTicks = locatorToTicks(locator)
                     val chapterTitle = locator.title
                     if (!chapterTitle.isNullOrBlank()) {
                         findViewById<TextView>(R.id.toolbar_title)?.text = chapterTitle
                     }
+                    updateBookmarkIcon()
                 }
                 .launchIn(this)
 

@@ -41,7 +41,17 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
             connectTimeoutMillis = 10_000
             socketTimeoutMillis = 45000
         }
+        HttpResponseValidator {
+            validateResponse { response ->
+                if (response.status == HttpStatusCode.Unauthorized && accessToken != null) {
+                    unauthorizedHandled = true
+                    handleSessionExpired()
+                }
+            }
+        }
     }
+
+    private var unauthorizedHandled = false
 
     private val deviceName = "Inglenook"
     private val clientVersion = "1.0.0"
@@ -124,6 +134,10 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
     }
 
     private fun reportNetworkError(e: Exception) {
+        // A 401 triggers logout/session-expiry handling elsewhere; don't double-report
+        // it as a connectivity issue.
+        if (unauthorizedHandled) return
+
         // Treat IO/network exceptions as connectivity issues.
         // Only exclude serialization and programming errors.
         val isNonNetworkError = e is kotlinx.serialization.SerializationException ||

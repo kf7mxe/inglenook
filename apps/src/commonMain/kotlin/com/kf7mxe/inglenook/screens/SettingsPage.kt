@@ -23,6 +23,7 @@ import com.kf7mxe.inglenook.jellyfin.jellyfinServers
 import com.kf7mxe.inglenook.jellyfin.activeServerId
 import com.kf7mxe.inglenook.jellyfin.switchToServer
 import com.kf7mxe.inglenook.jellyfin.removeServer
+import com.kf7mxe.inglenook.jellyfin.logout
 import com.kf7mxe.inglenook.jellyfin.selectedLibraryIds
 import com.kf7mxe.inglenook.util.openUrl
 import com.lightningkite.kiteui.Routable
@@ -31,7 +32,6 @@ import com.lightningkite.kiteui.utils.getAppVersion
 import com.lightningkite.kiteui.views.forEach
 import com.lightningkite.reactive.context.invoke
 import com.lightningkite.reactive.core.Constant
-import com.lightningkite.reactive.core.remember
 
 
 @Routable("/settings")
@@ -70,15 +70,21 @@ class SettingsPage : Page {
                     }
                 } else {
                     card.col {
-                        forEach(remember { jellyfinServers.value }) { server ->
+                        forEach(jellyfinServers) { server ->
                             val isActive = activeServerId.value == server._id.toString()
+                            val isLoggedIn = server.accessToken != null
 
                             button {
                                 row {
                                     expanding.col {
                                         text { content = server.displayName }
                                         subtext { content = server.serverUrl }
-                                        subtext { content = "Logged in as ${server.username}" }
+                                        subtext {
+                                            ::content {
+                                                if (isLoggedIn) "Logged in as ${server.username ?: "user"}"
+                                                else "Not logged in"
+                                            }
+                                        }
                                     }
                                     if (isActive) {
                                         centered.icon(Icon.check, "Active")
@@ -87,7 +93,11 @@ class SettingsPage : Page {
                                 onClick {
                                     if (!isActive) {
                                         switchToServer(server._id.toString())
+                                    }
+                                    if (isLoggedIn) {
                                         mainPageNavigator.navigate(HomePage())
+                                    } else {
+                                        mainPageNavigator.navigate(LoginPage(server._id.toString()))
                                     }
                                 }
                                 if (isActive) {
@@ -95,24 +105,49 @@ class SettingsPage : Page {
                                 }
                             }
 
-                            // Logout/Remove button for each server
+                            // Login/Logout/Remove buttons for each server
                             row {
                                 expanding.space(1.0)
-                                button {
-                                    row {
-                                        icon(
-                                            if (isActive) Icon.logout else Icon.close,
-                                            if (isActive) "Log Out" else "Remove"
-                                        )
-                                        text(if (isActive) "Log Out" else "Remove")
-                                    }
-                                    onClick {
-                                        removeServer(server._id.toString())
-                                        if (jellyfinServers.value.isEmpty()) {
-                                            mainPageNavigator.navigate(JellyfinSetupPage())
+                                if (!isLoggedIn) {
+                                    button {
+                                        row {
+                                            icon(Icon.login, "Log In")
+                                            text("Log In")
                                         }
+                                        onClick {
+                                            if (!isActive) {
+                                                switchToServer(server._id.toString())
+                                            }
+                                            mainPageNavigator.navigate(LoginPage(server._id.toString()))
+                                        }
+                                        themeChoice += ImportantSemantic
                                     }
-                                    themeChoice += DangerSemantic
+                                } else if (isActive) {
+                                    button {
+                                        row {
+                                            icon(Icon.logout, "Log Out")
+                                            text("Log Out")
+                                        }
+                                        onClick {
+                                            logout()
+                                        }
+                                        themeChoice += DangerSemantic
+                                    }
+                                }
+                                if (!isActive) {
+                                    button {
+                                        row {
+                                            icon(Icon.close, "Remove")
+                                            text("Remove")
+                                        }
+                                        onClick {
+                                            removeServer(server._id.toString())
+                                            if (jellyfinServers.value.isEmpty()) {
+                                                mainPageNavigator.navigate(JellyfinSetupPage())
+                                            }
+                                        }
+                                        themeChoice += DangerSemantic
+                                    }
                                 }
                             }
 

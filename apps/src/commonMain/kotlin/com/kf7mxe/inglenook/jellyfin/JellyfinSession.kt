@@ -62,6 +62,9 @@ val hasSeenDiagnosticsPrompt = PersistentProperty("hasSeenDiagnosticsPrompt", fa
 
 /** Add a new server config and make it the active server. */
 fun addServer(config: JellyfinServerConfig) {
+    if (config.accessToken != null) {
+        resetSessionExpiryGuard()
+    }
     // Remove any existing config for the same server+user combo to avoid duplicates
     val existing = jellyfinServers.value.filter {
         !(it.serverUrl == config.serverUrl && it.userId == config.userId)
@@ -115,20 +118,26 @@ fun switchToServer(serverId: String) {
     activeServerId.value = serverId
     jellyfinServerConfig.value = config
 
-    // Reinitialize client
-    jellyfinClient.value = JellyfinClient(
-        serverUrl = config.serverUrl,
-        accessToken = config.accessToken,
-        userId = config.userId,
-        deviceId = config.deviceId
-    )
-
     // Reset connectivity state so the new server gets a clean slate
     ConnectivityState.exitOfflineMode()
 
-    CacheRefresher.start()
+    if (config.accessToken != null) {
+        // Reinitialize client
+        jellyfinClient.value = JellyfinClient(
+            serverUrl = config.serverUrl,
+            accessToken = config.accessToken,
+            userId = config.userId,
+            deviceId = config.deviceId
+        )
 
-    refreshServerCapabilities(config)
+        CacheRefresher.start()
+
+        refreshServerCapabilities(config)
+    } else {
+        // Logged-out server: no client to make authenticated requests with
+        jellyfinClient.value = null
+        CacheRefresher.stop()
+    }
 }
 
 /** Remove a server from the list. If it's the active server, switch to another or clear. */
@@ -153,6 +162,9 @@ fun removeServer(serverId: String) {
 
 /** Update credentials for an existing server (e.g., after re-authentication). */
 fun updateServerConfig(config: JellyfinServerConfig) {
+    if (config.accessToken != null) {
+        resetSessionExpiryGuard()
+    }
     jellyfinServers.value = jellyfinServers.value.map {
         if (it._id == config._id) config else it
     }
@@ -160,12 +172,20 @@ fun updateServerConfig(config: JellyfinServerConfig) {
         jellyfinServerConfig.value = config
         // Close the old client before creating a new one
         jellyfinClient.value?.close()
-        jellyfinClient.value = JellyfinClient(
-            serverUrl = config.serverUrl,
-            accessToken = config.accessToken,
-            userId = config.userId,
-            deviceId = config.deviceId
-        )
+        jellyfinClient.value = if (config.accessToken != null) {
+            JellyfinClient(
+                serverUrl = config.serverUrl,
+                accessToken = config.accessToken,
+                userId = config.userId,
+                deviceId = config.deviceId
+            )
+        } else {
+            null
+        }
+        if (config.accessToken != null) {
+            ConnectivityState.exitOfflineMode()
+            CacheRefresher.start()
+        }
     }
 }
 
@@ -174,7 +194,7 @@ fun initializeJellyfinClient() {
     // Close the old client to release stale HTTP connections
     jellyfinClient.value?.close()
     val config = jellyfinServerConfig.value
-    jellyfinClient.value = if (config != null) {
+    jellyfinClient.value = if (config != null && config.accessToken != null) {
         JellyfinClient(
             serverUrl = config.serverUrl,
             accessToken = config.accessToken,
@@ -184,6 +204,59 @@ fun initializeJellyfinClient() {
     } else {
         null
     }
+}
+
+// --- Logout / session expiry ---
+
+private var sessionExpiryHandled = false
+
+private fun resetSessionExpiryGuard() {
+    sessionExpiryHandled = false
+}
+
+/**
+ * Logs out the active server: clears credentials but keeps the server entry so the
+ * user only has to re-authenticate rather than re-add the server.
+ */
+fun logout() {
+    val config = jellyfinServerConfig.value ?: return
+
+    // Stop any active playback tied to this session
+    PlaybackState.stop()
+
+    // Close the old client to release stale HTTP connections
+    jellyfinClient.value?.close()
+    jellyfinClient.value = null
+
+    // Clear in-memory API cache and stop background refreshes
+    ApiCache.clear()
+    CacheRefresher.stop()
+
+    // Keep the server record but drop credentials
+    val updated = config.copy(accessToken = null)
+    jellyfinServers.value = jellyfinServers.value.map {
+        if (it._id == config._id) updated else it
+    }
+    jellyfinServerConfig.value = updated
+
+    ConnectivityState.exitOfflineMode()
+}
+
+/** ID of the server whose session expired and needs re-login. App.kt observes this and routes. */
+val sessionExpiredServerId = Signal<String?>(null)
+
+/**
+ * Called when a 401 response indicates the session has expired. Logs out and signals
+ * the UI to route the user to the login flow for the affected server.
+ */
+fun handleSessionExpired() {
+    if (sessionExpiryHandled) return
+    sessionExpiryHandled = true
+    val config = jellyfinServerConfig.value ?: return
+    if (config.accessToken == null) return
+
+    logout()
+    sessionExpiredServerId.value = config._id.toString()
 }
 
 // --- Legacy migration ---

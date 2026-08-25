@@ -4,6 +4,7 @@ import com.kf7mxe.inglenook.FullScreen
 import com.kf7mxe.inglenook.Resources
 import com.kf7mxe.inglenook.animatePulsating
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
+import com.kf7mxe.inglenook.jellyfin.jellyfinServerConfig
 import com.lightningkite.kiteui.Routable
 import com.lightningkite.kiteui.navigation.Page
 import com.lightningkite.kiteui.navigation.mainPageNavigator
@@ -35,7 +36,7 @@ class SplashPage : Page, FullScreen {
 
         AppScope.launch {
             val client = jellyfinClient.value
-            if (client == null) {
+            if (client == null || jellyfinServerConfig.value?.accessToken == null) {
                 mainPageNavigator.reset(JellyfinSetupPage())
                 return@launch
             }

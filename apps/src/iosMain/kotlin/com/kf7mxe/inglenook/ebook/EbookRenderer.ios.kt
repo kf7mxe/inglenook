@@ -47,7 +47,15 @@ actual fun ViewWriter.ebookReader(
                     <style>
                         * { margin: 0; padding: 0; box-sizing: border-box; }
                         html, body { height: 100%; overflow: hidden; background: #fafafa; }
-                        #reader { width: 100%; height: calc(100% - 60px); }
+                        #topbar {
+                            display: flex; align-items: center; justify-content: space-between;
+                            padding: 8px 12px; background: #f5f5f5; border-bottom: 1px solid #ddd;
+                            height: 44px;
+                        }
+                        #topbar-title { font-size: 14px; font-weight: 600; color: #333; flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+                        #topbar-btns { display: flex; gap: 8px; }
+                        #topbar-btns button { padding: 4px 10px; cursor: pointer; font-size: 16px; background: none; border: none; border-radius: 4px; }
+                        #reader { width: 100%; height: calc(100% - 104px); }
                         #loading {
                             display: flex; justify-content: center; align-items: center;
                             height: 100%; font-family: -apple-system, sans-serif;
@@ -85,6 +93,12 @@ actual fun ViewWriter.ebookReader(
                 </head>
                 <body>
                     <div id="loading">Loading ebook...</div>
+                    <div id="topbar">
+                        <div id="topbar-title">Loading...</div>
+                        <div id="topbar-btns">
+                            <button id="btn-bookmark" style="opacity:0.5;">🔖</button>
+                        </div>
+                    </div>
                     <div id="reader"></div>
                     <div id="highlight-menu">
                         <div class="menu-title">Highlight</div>
@@ -146,11 +160,53 @@ actual fun ViewWriter.ebookReader(
                                 }
                                 book.ready.then(function() { reloadHighlights(); });
 
+                                /* Load existing bookmarks */
+                                var storedBookmarks = JSON.parse(localStorage.getItem('ebook_bookmarks_' + bookId) || '[]');
+                                function isBookmarked(cfi) {
+                                    var key = bookmarkKey(cfi);
+                                    return storedBookmarks.some(function(b) { return b.cfi === key; });
+                                }
+                                function bookmarkKey(cfi) { return cfi.substring(0, 80); }
+
                                 document.getElementById('loading').style.display = 'none';
                                 document.getElementById('controls').style.display = 'flex';
 
                                 document.getElementById('prev').onclick = () => rendition.prev();
                                 document.getElementById('next').onclick = () => rendition.next();
+
+                                /* Track position for progress and bookmarks */
+                                book.ready.then(function() {
+                                    return book.locations.generate(1024);
+                                });
+
+                                var lastCfi = null;
+                                var bookmarkBtn = document.getElementById('btn-bookmark');
+                                rendition.on('relocated', function(location) {
+                                    if (location && location.start && location.start.cfi) {
+                                        lastCfi = location.start.cfi;
+                                        localStorage.setItem('ebook_pos_' + bookId, lastCfi);
+                                        var bkey = bookmarkKey(lastCfi);
+                                        if (bookmarkBtn) {
+                                            bookmarkBtn.style.opacity = isBookmarked(bkey) ? '1.0' : '0.5';
+                                        }
+                                    }
+                                });
+
+                                /* Bookmark toggle */
+                                if (bookmarkBtn) {
+                                    bookmarkBtn.addEventListener('click', function() {
+                                        if (!lastCfi) return;
+                                        var bkey = bookmarkKey(lastCfi);
+                                        var idx = storedBookmarks.findIndex(function(b) { return b.cfi === bkey; });
+                                        if (idx >= 0) {
+                                            storedBookmarks.splice(idx, 1);
+                                        } else {
+                                            storedBookmarks.push({ cfi: bkey, timestamp: Date.now() });
+                                        }
+                                        localStorage.setItem('ebook_bookmarks_' + bookId, JSON.stringify(storedBookmarks));
+                                        bookmarkBtn.style.opacity = isBookmarked(bkey) ? '1.0' : '0.5';
+                                    });
+                                }
 
                                 /* Highlight menu */
                                 var highlightMenu = document.getElementById('highlight-menu');

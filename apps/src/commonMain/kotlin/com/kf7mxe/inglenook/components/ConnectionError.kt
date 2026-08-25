@@ -10,6 +10,7 @@ import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.jellyfin.jellyfinServers
 import com.kf7mxe.inglenook.jellyfin.switchToServer
 import com.kf7mxe.inglenook.screens.HomePage
+import com.kf7mxe.inglenook.screens.JellyfinSetupPage
 import com.lightningkite.kiteui.ExperimentalKiteUi
 import com.lightningkite.kiteui.lottie.models.LottieRaw
 import com.lightningkite.kiteui.lottie.views.direct.lottie
@@ -79,17 +80,21 @@ fun ViewWriter.connectionError(onRetrySuccess: () -> Unit) {
             }
 
             // Switch Server section (only shown when other servers exist)
-            val hasOtherServers = jellyfinServers.value.any { it._id.toString() != activeServerId.value }
-            shownWhen { hasOtherServers }.col {
+            shownWhen { jellyfinServers().any { it._id.toString() != activeServerId() } }.col {
                 gap = 1.rem
                 separator()
                 val otherServers = jellyfinServers.value.filter { it._id.toString() != activeServerId.value }
                 if (otherServers.size == 1) {
+                    val single = otherServers.first()
                     centered.button {
-                        centered.text("Switch to ${otherServers[0].displayName}")
+                        centered.text("Switch to ${single.displayName}")
                         onClick {
-                            switchToServer(otherServers[0]._id.toString())
-                            mainPageNavigator.navigate(HomePage())
+                            switchToServer(single._id.toString())
+                            if (single.accessToken == null) {
+                                mainPageNavigator.navigate(JellyfinSetupPage(loginServerId = single._id.toString()))
+                            } else {
+                                mainPageNavigator.navigate(HomePage())
+                            }
                             onRetrySuccess()
                         }
                         themeChoice += ImportantSemantic
@@ -120,7 +125,11 @@ fun ViewWriter.connectionError(onRetrySuccess: () -> Unit) {
                     }
                     onClick {
                         switchToServer(server._id.toString())
-                        mainPageNavigator.navigate(HomePage())
+                        if (server.accessToken == null) {
+                            mainPageNavigator.navigate(JellyfinSetupPage(loginServerId = server._id.toString()))
+                        } else {
+                            mainPageNavigator.navigate(HomePage())
+                        }
                         onRetrySuccess()
                     }
                 }
