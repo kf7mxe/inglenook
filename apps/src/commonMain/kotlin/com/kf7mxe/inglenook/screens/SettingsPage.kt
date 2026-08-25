@@ -30,8 +30,10 @@ import com.lightningkite.kiteui.Routable
 import com.lightningkite.kiteui.reactive.AppState
 import com.lightningkite.kiteui.utils.getAppVersion
 import com.lightningkite.kiteui.views.forEach
+import com.lightningkite.kiteui.views.forEachUpdating
 import com.lightningkite.reactive.context.invoke
 import com.lightningkite.reactive.core.Constant
+import com.lightningkite.reactive.core.remember
 
 
 @Routable("/settings")
@@ -70,84 +72,82 @@ class SettingsPage : Page {
                     }
                 } else {
                     card.col {
-                        forEach(jellyfinServers) { server ->
-                            val isActive = activeServerId.value == server._id.toString()
-                            val isLoggedIn = server.accessToken != null
+                        forEachUpdating(jellyfinServers) { server ->
+                            val isLoggedIn = remember {server().accessToken != null }
+                            val isActive = remember { activeServerId() == server()._id.toString() }
 
                             button {
                                 row {
                                     expanding.col {
-                                        text { content = server.displayName }
-                                        subtext { content = server.serverUrl }
+                                        text { ::content {
+                                            server().displayName
+                                        } }
+                                        subtext { ::content {
+
+                                        server().serverUrl }}
                                         subtext {
                                             ::content {
-                                                if (isLoggedIn) "Logged in as ${server.username ?: "user"}"
+                                                if (isLoggedIn()) "Logged in as ${server().username ?: "user"}"
                                                 else "Not logged in"
                                             }
                                         }
                                     }
-                                    if (isActive) {
-                                        centered.icon(Icon.check, "Active")
-                                    }
+                                    shownWhen { isActive() }.centered.icon(Icon.check, "Active")
                                 }
                                 onClick {
-                                    if (!isActive) {
-                                        switchToServer(server._id.toString())
+                                    if (activeServerId.value != server()._id.toString()) {
+                                        switchToServer(server()._id.toString())
                                     }
-                                    if (isLoggedIn) {
+                                    if (isLoggedIn()) {
                                         mainPageNavigator.navigate(HomePage())
                                     } else {
-                                        mainPageNavigator.navigate(LoginPage(server._id.toString()))
+                                        mainPageNavigator.navigate(LoginPage(server()._id.toString()))
                                     }
                                 }
-                                if (isActive) {
-                                    dynamicTheme { SelectedSemantic }
+                                dynamicTheme {
+                                    if (isActive()) SelectedSemantic else null
                                 }
                             }
 
                             // Login/Logout/Remove buttons for each server
                             row {
                                 expanding.space(1.0)
-                                if (!isLoggedIn) {
-                                    button {
+                                    shownWhen { !isLoggedIn() }.button {
                                         row {
                                             icon(Icon.login, "Log In")
                                             text("Log In")
                                         }
                                         onClick {
-                                            if (!isActive) {
-                                                switchToServer(server._id.toString())
+                                            if (activeServerId.value != server()._id.toString()) {
+                                                switchToServer(server()._id.toString())
                                             }
-                                            mainPageNavigator.navigate(LoginPage(server._id.toString()))
+                                            mainPageNavigator.navigate(LoginPage(server()._id.toString()))
                                         }
                                         themeChoice += ImportantSemantic
                                     }
-                                } else if (isActive) {
-                                    button {
-                                        row {
-                                            icon(Icon.logout, "Log Out")
-                                            text("Log Out")
-                                        }
-                                        onClick {
-                                            logout()
-                                        }
-                                        themeChoice += DangerSemantic
+
+                                shownWhen { isLoggedIn() && isActive() }.button {
+                                    row {
+                                        icon(Icon.logout, "Log Out")
+                                        text("Log Out")
                                     }
+                                    onClick {
+                                        logout()
+                                    }
+                                    themeChoice += DangerSemantic
                                 }
-                                if (!isActive) {
-                                    button {
-                                        row {
-                                            icon(Icon.close, "Remove")
-                                            text("Remove")
-                                        }
-                                        onClick {
-                                            removeServer(server._id.toString())
-                                            if (jellyfinServers.value.isEmpty()) {
-                                                mainPageNavigator.navigate(JellyfinSetupPage())
-                                            }
-                                        }
-                                        themeChoice += DangerSemantic
+                                shownWhen { !isActive() }.button {
+                                    row {
+                                        icon(Icon.close, "Remove")
+                                        text("Remove")
                                     }
+                                    onClick {
+                                        removeServer(server()._id.toString())
+                                        if (jellyfinServers.value.isEmpty()) {
+                                            mainPageNavigator.navigate(JellyfinSetupPage())
+                                        }
+                                    }
+                                    themeChoice += DangerSemantic
                                 }
                             }
 
