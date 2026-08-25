@@ -237,6 +237,30 @@ class SettingsPage : Page {
                             themeChoice += ImportantSemantic
                         }
                     }
+
+                    separator()
+
+                    // Connection issue timeout slider
+                        row {
+                            expanding.text { content = "Connection Timeout" }
+                            text {
+                                ::content {
+                                    val secs = ConnectivityState.connectivityTimeoutSeconds().toInt()
+                                    if (secs < 60) "${secs}s"
+                                    else "${secs / 60}m ${secs % 60}s"
+                                }
+                            }
+                        }
+                        subtext {
+                            content = "How long to wait before showing the connection-issue dialog and views."
+                        }
+
+                    slider {
+//                            min = 5.0f
+//                            max = 120.0f
+//                            step = 5.0f
+                            value bind ConnectivityState.connectivityTimeoutSeconds
+                        }
                 }
             }
 

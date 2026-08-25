@@ -3,6 +3,7 @@
 package com.kf7mxe.inglenook.screens
 
 import com.kf7mxe.inglenook.Resources
+import com.kf7mxe.inglenook.check
 import kotlin.uuid.ExperimentalUuidApi
 import com.lightningkite.kiteui.models.*
 import com.lightningkite.kiteui.navigation.Page
@@ -12,12 +13,14 @@ import com.lightningkite.kiteui.views.centered
 import com.lightningkite.kiteui.views.card
 import com.lightningkite.kiteui.views.direct.*
 import com.lightningkite.kiteui.views.expanding
+import com.lightningkite.kiteui.views.forEach
 import com.lightningkite.kiteui.views.l2.icon
 import com.kf7mxe.inglenook.demo.DemoMode
 import com.kf7mxe.inglenook.jellyfin.JellyfinClient
 import com.kf7mxe.inglenook.jellyfin.addServer
 import com.kf7mxe.inglenook.jellyfin.jellyfinServerConfig
 import com.kf7mxe.inglenook.jellyfin.jellyfinServers
+import com.kf7mxe.inglenook.jellyfin.switchToServer
 import com.kf7mxe.inglenook.jellyfin.updateServerConfig
 import com.kf7mxe.inglenook.visibility
 import com.kf7mxe.inglenook.storage.DangerSemantic
@@ -420,6 +423,44 @@ class JellyfinSetupPage(val loginServerId: String? = null) : Page, FullScreen {
                     ::content { errorMessage() ?: "" }
                     themeChoice += DangerSemantic
                 }
+
+                // Other saved servers — lets the user switch to a different server
+                // (e.g. one that's still logged in) instead of re-authenticating here.
+                val otherServers = jellyfinServers.value.filter { it._id.toString() != existingServer?._id.toString() }
+                shownWhen { otherServers.isNotEmpty() }.centered.subtext { content = "Other Servers" }
+                    shownWhen { otherServers.isNotEmpty() }.col {
+                        gap = 0.5.rem
+
+                        forEach(jellyfinServers) { other ->
+                            if (existingServer != null && other._id == existingServer._id) return@forEach
+                            val isLoggedIn = other.accessToken != null
+                            button {
+                                row {
+                                    expanding.col {
+                                        text { content = other.displayName }
+                                        subtext {
+                                            ::content {
+                                                if (isLoggedIn) "Logged in as ${other.username ?: "user"}"
+                                                else "Not logged in"
+                                            }
+                                        }
+                                    }
+                                    centered.icon(
+                                        if (isLoggedIn) Icon.check else Icon.login,
+                                        if (isLoggedIn) "Switch" else "Log In"
+                                    )
+                                }
+                                onClick {
+                                    if (isLoggedIn) {
+                                        switchToServer(other._id.toString())
+                                        mainPageNavigator.reset(HomePage())
+                                    } else {
+                                        mainPageNavigator.reset(LoginPage(other._id.toString()))
+                                    }
+                                }
+                            }
+                        }
+                    }
             }
         }
     }

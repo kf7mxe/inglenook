@@ -18,14 +18,26 @@ object ConnectivityState {
     val showingConnectivityDialog = Signal(false)
     val lastNetworkError = Signal<String?>(null)
 
+    /** How long (in seconds) to wait before showing the connection-issue dialog/views. */
+    val connectivityTimeoutSeconds = PersistentProperty("connectivityTimeoutSeconds", 30f)
+
     private var reconnectJob: Job? = null
     private var connectivityCheckJob: Job? = null
     private var connectivityListener: (() -> Unit)? = null
     private var consecutiveFailures = 0
-    private const val FAILURES_BEFORE_DIALOG = 3
     private const val INITIAL_DELAY_MS = 1_000L
     private const val CONNECTIVITY_CHECK_INTERVAL_MS = 10_000L
     private const val RECONNECT_CHECK_INTERVAL_MS = 10_000L
+
+    /** The number of consecutive failures required before showing the dialog, derived from the user's timeout. */
+    private val failuresBeforeDialog: Int
+        get() {
+            val timeoutSec = connectivityTimeoutSeconds.value.coerceIn(5f, 120f)
+            // Each check happens every CONNECTIVITY_CHECK_INTERVAL_MS; require enough failures
+            // to span roughly the requested timeout.
+            val needed = (timeoutSec * 1000L / CONNECTIVITY_CHECK_INTERVAL_MS).toInt().coerceAtLeast(1)
+            return needed
+        }
 
     fun onNetworkError(errorMessage: String) {
         lastNetworkError.value = errorMessage
@@ -118,8 +130,9 @@ object ConnectivityState {
                     } else {
                         consecutiveFailures++
                         // Only show dialog after multiple consecutive failures
-                        // to avoid false positives from device sleep/wake transitions
-                        if (consecutiveFailures >= FAILURES_BEFORE_DIALOG) {
+                        // to avoid false positives from device sleep/wake transitions.
+                        // The number of failures is derived from the user's timeout setting.
+                        if (consecutiveFailures >= failuresBeforeDialog) {
                             onNetworkError("Unable to reach Jellyfin server")
                         }
                     }
