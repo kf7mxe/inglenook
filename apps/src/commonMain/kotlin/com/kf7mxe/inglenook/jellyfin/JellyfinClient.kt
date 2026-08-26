@@ -15,9 +15,19 @@ import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import kotlinx.serialization.Serializable
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.serialization.json.Json
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
+
+private data class CapabilityResults(
+    val serverInfo: ServerInfoResponse?,
+    val canEditCollection: Boolean,
+    val identifyAvailable: Boolean,
+    val bookshelvesAvailable: Boolean
+)
 
 open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
     val serverUrl: String,
@@ -43,7 +53,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
         }
         HttpResponseValidator {
             validateResponse { response ->
-                if (response.status == HttpStatusCode.Unauthorized && accessToken != null) {
+                if (response.status == HttpStatusCode.Unauthorized && accessToken != null && !unauthorizedHandled) {
                     unauthorizedHandled = true
                     handleSessionExpired()
                 }
@@ -67,11 +77,15 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
         return parts.joinToString(", ")
     }
 
+    private fun HttpRequestBuilder.withAuthentication() {
+        header("X-Emby-Authorization", getAuthHeader())
+    }
+
     @OptIn(ExperimentalUuidApi::class)
     suspend fun authenticate(username: String, password: String): JellyfinServerConfig {
         val response = client.post("$serverUrl/Users/AuthenticateByName") {
             contentType(ContentType.Application.Json)
-            header("X-Emby-Authorization", getAuthHeader())
+            withAuthentication()
             setBody(AuthenticateRequest(username, password))
         }
 
@@ -84,12 +98,32 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
         accessToken = authResponse.AccessToken
         userId = authResponse.User.Id
 
-        // Get server info for name
-        val serverInfo = getServerInfo()
-        val canEditCollection = try { getCanEditCollection() } catch (e: Exception) { false }
-        println("DEBUG canEditCollection ${canEditCollection}")
-        val identifyAvailable = try { isIdentifyAvailable() } catch (e: Exception) { false }
-        val bookshelvesAvailable = bookshelfEndpointAvailable()
+        val (serverInfo, canEditCollection, identifyAvailable, bookshelvesAvailable) = coroutineScope {
+            val serverInfo = async { getServerInfo() }
+            val canEditCollection = async {
+                try {
+                    getCanEditCollection()
+                } catch (e: Exception) {
+                    if (e is CancellationException) throw e
+                    false
+                }
+            }
+            val identifyAvailable = async {
+                try {
+                    isIdentifyAvailable()
+                } catch (e: Exception) {
+                    if (e is CancellationException) throw e
+                    false
+                }
+            }
+            val bookshelvesAvailable = async { bookshelfEndpointAvailable() }
+            CapabilityResults(
+                serverInfo.await(),
+                canEditCollection.await(),
+                identifyAvailable.await(),
+                bookshelvesAvailable.await()
+            )
+        }
 
         return JellyfinServerConfig(
             _id = Uuid.random(),
@@ -129,6 +163,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
     }
 
     private inline fun <T> handleNetworkException(e: Exception, fallback: T): T {
+        if (e is CancellationException) throw e
         reportNetworkError(e)
         return fallback
     }
@@ -154,7 +189,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
 
         return try {
             val response = client.get("$serverUrl/Users/$uid/Views") {
-                header("X-Emby-Authorization", getAuthHeader())
+                withAuthentication()
             }
 
             if (!response.status.isSuccess()) return emptyList()
@@ -197,36 +232,37 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
     private suspend fun fetchAllBooks(uid: String, libraryIds: List<String>): List<Book> {
         // If specific libraries are selected, query each one and merge results
         if (libraryIds.isNotEmpty()) {
-            val allBooks = mutableListOf<Book>()
-            var lastError: Exception? = null
-            var anySucceeded = false
-            for (libId in libraryIds) {
-                val url = buildString {
-                    append("$serverUrl/Users/$uid/Items")
-                    append("?IncludeItemTypes=AudioBook,Book")
-                    append("&Recursive=true")
-                    append("&Fields=Overview,People,ProviderIds")
-                    append("&SortBy=SortName")
-                    append("&SortOrder=Ascending")
-                    append("&ParentId=$libId")
-                }
-
-                try {
-                    val response = client.get(url) {
-                        header("X-Emby-Authorization", getAuthHeader())
+            val results = coroutineScope {
+                libraryIds.map { libId ->
+                    async {
+                        try {
+                            val response = client.get("$serverUrl/Users/$uid/Items") {
+                                parameter("IncludeItemTypes", "AudioBook,Book")
+                                parameter("Recursive", true)
+                                parameter("Fields", "Overview,People,ProviderIds")
+                                parameter("SortBy", "SortName")
+                                parameter("SortOrder", "Ascending")
+                                parameter("ParentId", libId)
+                                withAuthentication()
+                            }
+                            if (!response.status.isSuccess()) {
+                                Result.failure<List<Book>>(Exception("Library request failed: ${response.status}"))
+                            } else {
+                                val itemsResponse: ItemsResponse = response.body()
+                                Result.success(itemsResponse.Items.map { it.toAudioBook() })
+                            }
+                        } catch (e: Exception) {
+                            if (e is CancellationException) throw e
+                            Result.failure(e)
+                        }
                     }
-                    if (response.status.isSuccess()) {
-                        val itemsResponse: ItemsResponse = response.body()
-                        allBooks.addAll(itemsResponse.Items.map { it.toAudioBook() })
-                        anySucceeded = true
-                    }
-                } catch (e: Exception) {
-                    lastError = e
-                }
+                }.map { it.await() }
             }
-            // If ALL libraries failed, propagate the error so cache fallback can kick in
-            if (!anySucceeded && lastError != null) throw lastError
-            return allBooks.distinctBy { it.id }.sortedBy { it.sortTitle ?: it.title }
+            val successfulResults = results.mapNotNull { it.getOrNull() }
+            if (successfulResults.isEmpty() && results.isNotEmpty()) {
+                throw results.first().exceptionOrNull() ?: Exception("All library requests failed")
+            }
+            return successfulResults.flatten().distinctBy { it.id }.sortedBy { it.sortTitle ?: it.title }
         }
 
         // No specific libraries selected - get all books
@@ -240,7 +276,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
         }
 
         val response = client.get(url) {
-            header("X-Emby-Authorization", getAuthHeader())
+            withAuthentication()
         }
 
         if (!response.status.isSuccess()) return emptyList()
@@ -249,7 +285,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
         return itemsResponse.Items.map { it.toAudioBook() }
     }
 
-    open suspend fun getInProgressBooks(): List<Book> {
+    open suspend fun getInProgressBooks(forceRefresh: Boolean = false): List<Book> {
         val uid = userId ?: return emptyList()
         val libraryIds = selectedLibraryIds.value
         val cacheKey = ApiCache.inProgressKey(libraryIds)
@@ -262,7 +298,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
         }
 
         return try {
-            ApiCache.getOrPut(cacheKey, ApiCache.SHORT_TTL, onError = ::reportNetworkError) {
+            ApiCache.getOrPut(cacheKey, ApiCache.SHORT_TTL, forceRefresh, onError = ::reportNetworkError) {
                 if (libraryIds.isNotEmpty()) {
                     // Query each library separately for reliable filtering
                     val allInProgress = mutableListOf<Book>()
@@ -274,12 +310,12 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
                                 append("$serverUrl/Users/$uid/Items/Resume")
                                 append("?IncludeItemTypes=AudioBook,Book")
                                 append("&Recursive=true")
-                                append("&Fields=Chapters,Overview,People")
+                                append("&Fields=Overview,People")
                                 append("&Limit=20")
                                 append("&ParentId=$libId")
                             }
                             val response = client.get(url) {
-                                header("X-Emby-Authorization", getAuthHeader())
+                                withAuthentication()
                             }
                             if (response.status.isSuccess()) {
                                 val itemsResponse: ItemsResponse = response.body()
@@ -297,11 +333,11 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
                         append("$serverUrl/Users/$uid/Items/Resume")
                         append("?IncludeItemTypes=AudioBook,Book")
                         append("&Recursive=true")
-                        append("&Fields=Chapters,Overview,People")
-                        append("&Limit=50")
+                        append("&Fields=Overview,People")
+                        append("&Limit=10")
                     }
                     val response = client.get(url) {
-                        header("X-Emby-Authorization", getAuthHeader())
+                        withAuthentication()
                     }
                     if (!response.status.isSuccess()) throw Exception("Resume request failed: ${response.status}")
                     val itemsResponse: ItemsResponse = response.body()
@@ -313,7 +349,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
         }
     }
 
-    open suspend fun getRecentlyAddedBooks(): List<Book> {
+    open suspend fun getRecentlyAddedBooks(forceRefresh: Boolean = false): List<Book> {
         val uid = userId ?: return emptyList()
         val libraryIds = selectedLibraryIds.value
         val cacheKey = ApiCache.recentKey(libraryIds)
@@ -326,7 +362,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
         }
 
         return try {
-            ApiCache.getOrPut(cacheKey, ApiCache.SHORT_TTL, onError = ::reportNetworkError) {
+            ApiCache.getOrPut(cacheKey, ApiCache.SHORT_TTL, forceRefresh, onError = ::reportNetworkError) {
             // If specific libraries are selected, query each and merge
             if (libraryIds.isNotEmpty()) {
                 val perLibraryResults = mutableListOf<List<Book>>()
@@ -336,14 +372,14 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
                     val url = buildString {
                         append("$serverUrl/Users/$uid/Items/Latest")
                         append("?IncludeItemTypes=AudioBook,Book")
-                        append("&Fields=Chapters,Overview,People")
+                        append("&Fields=Overview,People")
                         append("&Limit=20")
                         append("&ParentId=$libId")
                     }
 
                     try {
                         val response = client.get(url) {
-                            header("X-Emby-Authorization", getAuthHeader())
+                            withAuthentication()
                         }
                         if (response.status.isSuccess()) {
                             val items: List<JellyfinItem> = response.body()
@@ -368,12 +404,12 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
                 val url = buildString {
                     append("$serverUrl/Users/$uid/Items/Latest")
                     append("?IncludeItemTypes=AudioBook,Book")
-                    append("&Fields=Chapters,Overview,People")
+                    append("&Fields=Overview,People")
                     append("&Limit=20")
                 }
 
                 val response = client.get(url) {
-                    header("X-Emby-Authorization", getAuthHeader())
+                    withAuthentication()
                 }
 
                 if (!response.status.isSuccess()) throw Exception("Latest items request failed: ${response.status}")
@@ -387,7 +423,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
         }
     }
 
-    open suspend fun getSuggestedBooks(): List<Book> {
+    open suspend fun getSuggestedBooks(forceRefresh: Boolean = false): List<Book> {
         val uid = userId ?: return emptyList()
         val libraryIds = selectedLibraryIds.value
         val cacheKey = ApiCache.suggestedKey(libraryIds)
@@ -400,17 +436,17 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
         }
 
         return try {
-            ApiCache.getOrPut(cacheKey, ApiCache.DEFAULT_TTL, onError = ::reportNetworkError) {
+            ApiCache.getOrPut(cacheKey, ApiCache.DEFAULT_TTL, forceRefresh, onError = ::reportNetworkError) {
                 // Suggestions endpoint doesn't support ParentId, so fetch all and cross-reference
                 val url = buildString {
                     append("$serverUrl/Users/$uid/Suggestions")
                     append("?IncludeItemTypes=AudioBook,Book")
-                    append("&Fields=Chapters,Overview,People")
-                    append("&Limit=50")
+                    append("&Fields=Overview,People")
+                    append("&Limit=10")
                 }
 
                 val response = client.get(url) {
-                    header("X-Emby-Authorization", getAuthHeader())
+                    withAuthentication()
                 }
 
                 if (!response.status.isSuccess()) throw Exception("Suggestions request failed: ${response.status}")
@@ -465,7 +501,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
 
         return try {
             val response = client.get("$serverUrl/Users/$uid/Items/$itemId") {
-                header("X-Emby-Authorization", getAuthHeader())
+                withAuthentication()
                 parameter("Fields", "Chapters,Overview,People,Path,MediaSources")
             }
 
@@ -516,7 +552,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
     open suspend fun getAudiobookChapters(itemId: String): List<PluginChapter> {
         return try {
             val response = client.get("$serverUrl/Inglenook/$itemId") {
-                header("X-Emby-Authorization", getAuthHeader())
+                withAuthentication()
             }
             if (response.status.isSuccess()) {
                 response.body()
@@ -533,7 +569,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
 
     open suspend fun getBookshelves(): List<BookshelfResponse> {
         val response = client.get("$serverUrl/Inglenook/Bookshelves") {
-            header("X-Emby-Authorization", getAuthHeader())
+            withAuthentication()
         }
         if (response.status.isSuccess()) {
             return response.body()
@@ -545,7 +581,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
     open suspend fun bookshelfEndpointAvailable(): Boolean {
         return try {
             val response = client.get("$serverUrl/Inglenook/Bookshelves") {
-                header("X-Emby-Authorization", getAuthHeader())
+                withAuthentication()
             }
             println("DEBUG fun bookshelfEndpointAvailable  ${response.status.value}")
             response.status.isSuccess()
@@ -557,7 +593,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
 
     open suspend fun createBookshelf(name: String): BookshelfResponse? {
         val response = client.post("$serverUrl/Inglenook/Bookshelves") {
-            header("X-Emby-Authorization", getAuthHeader())
+            withAuthentication()
             contentType(ContentType.Application.Json)
             setBody(CreateBookshelfRequest(Name = name))
         }
@@ -570,7 +606,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
 
     open suspend fun updateBookshelf(id: String, name: String?, bookIds: List<String>?, coverImageUrl: String? = null): BookshelfResponse? {
         val response = client.put("$serverUrl/Inglenook/Bookshelves/$id") {
-            header("X-Emby-Authorization", getAuthHeader())
+            withAuthentication()
             contentType(ContentType.Application.Json)
             setBody(UpdateBookshelfRequest(Name = name, BookIds = bookIds, CoverImageUrl = coverImageUrl))
         }
@@ -583,7 +619,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
 
     open suspend fun deleteBookshelf(id: String): Boolean {
         val response = client.delete("$serverUrl/Inglenook/Bookshelves/$id") {
-            header("X-Emby-Authorization", getAuthHeader())
+            withAuthentication()
         }
         if (response.status.isSuccess()) {
             return true
@@ -604,7 +640,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
     ): RemoteSearchResponseDto {
         return try {
             val response = client.post("$serverUrl/Inglenook/Search/Remote") {
-                header("X-Emby-Authorization", getAuthHeader())
+                withAuthentication()
                 contentType(ContentType.Application.Json)
                 setBody(RemoteSearchRequestDto(
                     Query = query,
@@ -648,7 +684,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
 
             // 2. Use formattedId in the URL instead of itemId
             val response = client.post("$serverUrl/Inglenook/$formattedId/Metadata") {
-                header("X-Emby-Authorization", getAuthHeader())
+                withAuthentication()
                 contentType(ContentType.Application.Json)
                 setBody(requestDto)
             }
@@ -671,7 +707,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
     open suspend fun getItemMetadata(itemId: String): ItemMetadataDto? {
         return try {
             val response = client.get("$serverUrl/Inglenook/$itemId/Metadata") {
-                header("X-Emby-Authorization", getAuthHeader())
+                withAuthentication()
             }
             if (response.status.isSuccess()) {
                 response.body()
@@ -689,7 +725,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
     open suspend fun setSeries(itemId: String, seriesName: String, seriesIndex: Int? = null): Boolean {
         return try {
             val response = client.post("$serverUrl/Inglenook/$itemId/Series") {
-                header("X-Emby-Authorization", getAuthHeader())
+                withAuthentication()
                 contentType(ContentType.Application.Json)
                 setBody(SetSeriesRequest(seriesName, seriesIndex))
             }
@@ -713,7 +749,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
             val folderPath = itemPath.substringBeforeLast("/")
 
             val dirResponse = client.get("$serverUrl/Environment/DirectoryContents") {
-                header("X-Emby-Authorization", getAuthHeader())
+                withAuthentication()
                 parameter("Path", folderPath)
             }
 
@@ -726,7 +762,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
             } ?: return emptyList()
 
             val cueContent = client.get("$serverUrl/Environment/DownloadFile") {
-                header("X-Emby-Authorization", getAuthHeader())
+                withAuthentication()
                 parameter("Path", cueEntry.Path)
             }.bodyAsText()
 
@@ -750,7 +786,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
      */
     suspend fun downloadCueFile(id: String): String? {
         val response = client.get("$serverUrl/Items/$id/Download") {
-            header("X-Emby-Authorization", getAuthHeader())
+            withAuthentication()
         }
         if (!response.status.isSuccess()) return null
         return response.bodyAsText()
@@ -804,7 +840,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
         for (url in albumArtistUrls) {
             try {
                 val response = client.get(url) {
-                    header("X-Emby-Authorization", getAuthHeader())
+                    withAuthentication()
                 }
                 if (response.status.isSuccess()) {
                     val itemsResponse: ItemsResponse = response.body()
@@ -846,7 +882,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
         for (url in itemUrls) {
             try {
                 val response = client.get(url) {
-                    header("X-Emby-Authorization", getAuthHeader())
+                    withAuthentication()
                 }
                 if (response.status.isSuccess()) {
                     val itemsResponse: ItemsResponse = response.body()
@@ -901,7 +937,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
             // authorId may contain comma-separated IDs from merged authors; use the first one
             val primaryId = authorId.split(",").first()
             val response = client.get("$serverUrl/Users/$uid/Items/$primaryId") {
-                header("X-Emby-Authorization", getAuthHeader())
+                withAuthentication()
             }
 
             if (!response.status.isSuccess()) return null
@@ -927,7 +963,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
             append("$serverUrl/Users/$uid/Items")
             append("?IncludeItemTypes=AudioBook")
             append("&Recursive=true")
-            append("&Fields=Chapters,Overview,People")
+            append("&Fields=Overview,People")
             append("&ArtistIds=$authorId")
             append("&SortBy=SortName")
             append("&SortOrder=Ascending")
@@ -937,31 +973,31 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
             append("$serverUrl/Users/$uid/Items")
             append("?IncludeItemTypes=Book")
             append("&Recursive=true")
-            append("&Fields=Chapters,Overview,People")
+            append("&Fields=Overview,People")
             append("&PersonIds=$authorId")
             append("&SortBy=SortName")
             append("&SortOrder=Ascending")
         }
 
         return try {
-            val results = mutableMapOf<String, Book>()
-
-            val audioBookResponse = client.get(audioBookUrl) {
-                header("X-Emby-Authorization", getAuthHeader())
+            val (audioBookResponse, ebookResponse) = coroutineScope {
+                val audioBooks = async {
+                    client.get(audioBookUrl) { withAuthentication() }
+                }
+                val ebooks = async {
+                    client.get(ebookUrl) { withAuthentication() }
+                }
+                audioBooks.await() to ebooks.await()
             }
+            val results = mutableMapOf<String, Book>()
             if (audioBookResponse.status.isSuccess()) {
                 val itemsResponse: ItemsResponse = audioBookResponse.body()
                 itemsResponse.Items.forEach { results[it.Id] = it.toAudioBook() }
-            }
-
-            val ebookResponse = client.get(ebookUrl) {
-                header("X-Emby-Authorization", getAuthHeader())
             }
             if (ebookResponse.status.isSuccess()) {
                 val itemsResponse: ItemsResponse = ebookResponse.body()
                 itemsResponse.Items.forEach { results[it.Id] = it.toAudioBook() }
             }
-
             results.values.sortedBy { it.sortTitle ?: it.title }
         } catch (e: Exception) {
             handleNetworkException(e, emptyList())
@@ -1085,13 +1121,13 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
                     append("?SearchTerm=$query")
                     append("&IncludeItemTypes=AudioBook,Book")
                     append("&Recursive=true")
-                    append("&Fields=Chapters,Overview,People")
+                    append("&Fields=Overview,People")
                     append("&Limit=$limit")
                     append("&ParentId=$libId")
                 }
                 try {
                     val response = client.get(url) {
-                        header("X-Emby-Authorization", getAuthHeader())
+                        withAuthentication()
                     }
                     if (response.status.isSuccess()) {
                         val itemsResponse: ItemsResponse = response.body()
@@ -1109,12 +1145,12 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
                 append("?SearchTerm=$query")
                 append("&IncludeItemTypes=AudioBook,Book")
                 append("&Recursive=true")
-                append("&Fields=Chapters,Overview,People")
+                append("&Fields=Overview,People")
                 append("&Limit=$limit")
             }
             try {
                 val response = client.get(url) {
-                    header("X-Emby-Authorization", getAuthHeader())
+                    withAuthentication()
                 }
                 if (response.status.isSuccess()) {
                     val itemsResponse: ItemsResponse = response.body()
@@ -1135,7 +1171,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
 
         val authors = try {
             val response = client.get(authorsUrl) {
-                header("X-Emby-Authorization", getAuthHeader())
+                withAuthentication()
             }
             if (response.status.isSuccess()) {
                 val itemsResponse: ItemsResponse = response.body()
@@ -1158,7 +1194,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
     open suspend fun reportPlaybackStart(itemId: String, positionTicks: Long) {
         try {
             client.post("$serverUrl/Sessions/Playing") {
-                header("X-Emby-Authorization", getAuthHeader())
+                withAuthentication()
                 contentType(ContentType.Application.Json)
                 setBody(PlaybackStartInfo(itemId, positionTicks))
             }
@@ -1170,7 +1206,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
     open suspend fun reportPlaybackProgress(itemId: String, positionTicks: Long, isPaused: Boolean) {
         try {
             client.post("$serverUrl/Sessions/Playing/Progress") {
-                header("X-Emby-Authorization", getAuthHeader())
+                withAuthentication()
                 contentType(ContentType.Application.Json)
                 setBody(PlaybackProgressInfo(itemId, positionTicks, isPaused))
             }
@@ -1182,7 +1218,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
     open suspend fun reportPlaybackStopped(itemId: String, positionTicks: Long) {
         try {
             client.post("$serverUrl/Sessions/Playing/Stopped") {
-                header("X-Emby-Authorization", getAuthHeader())
+                withAuthentication()
                 contentType(ContentType.Application.Json)
                 setBody(PlaybackStopInfo(itemId, positionTicks))
             }
@@ -1199,7 +1235,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
      */
     suspend fun initiateQuickConnect(): QuickConnectResult {
         val response = client.post("$serverUrl/QuickConnect/Initiate") {
-            header("X-Emby-Authorization", getAuthHeader())
+            withAuthentication()
         }
 
         if (!response.status.isSuccess()) {
@@ -1215,7 +1251,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
      */
     suspend fun checkQuickConnectStatus(secret: String): Boolean {
         val response = client.get("$serverUrl/QuickConnect/Connect") {
-            header("X-Emby-Authorization", getAuthHeader())
+            withAuthentication()
             parameter("Secret", secret)
         }
 
@@ -1234,7 +1270,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
     @OptIn(ExperimentalUuidApi::class)
     suspend fun authenticateWithQuickConnect(secret: String): JellyfinServerConfig {
         val response = client.post("$serverUrl/Users/AuthenticateWithQuickConnect") {
-            header("X-Emby-Authorization", getAuthHeader())
+            withAuthentication()
             contentType(ContentType.Application.Json)
             setBody(QuickConnectAuthRequest(secret))
         }
@@ -1275,7 +1311,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
     suspend fun isQuickConnectEnabled(): Boolean {
         return try {
             val response = client.get("$serverUrl/QuickConnect/Enabled") {
-                header("X-Emby-Authorization", getAuthHeader())
+                withAuthentication()
             }
             if (response.status.isSuccess()) {
                 // Response is just "true" or "false" as plain text
@@ -1291,7 +1327,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
     open suspend fun getCanEditCollection(): Boolean {
         return try {
             val response = client.get("$serverUrl/Users/Me") {
-                header("X-Emby-Authorization", getAuthHeader())
+                withAuthentication()
             }
             println("DEBUG getCanEditCollection: status=${response.status}")
             if (!response.status.isSuccess()) return false
@@ -1314,7 +1350,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
     open suspend fun getPlugins(): List<PluginInfo> {
         return try {
             val response = client.get("$serverUrl/Plugins") {
-                header("X-Emby-Authorization", getAuthHeader())
+                withAuthentication()
             }
             println("DEBUG getPlugins: status=${response.status}")
             if (response.status.isSuccess()) {

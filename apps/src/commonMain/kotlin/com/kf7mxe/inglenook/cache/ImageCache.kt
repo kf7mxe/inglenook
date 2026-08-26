@@ -1,6 +1,8 @@
 package com.kf7mxe.inglenook.cache
 
 import com.lightningkite.kiteui.models.ImageSource
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -12,6 +14,7 @@ object ImageCache {
     private const val MAX_MEMORY_ENTRIES = 100
     private val memoryCache = mutableMapOf<String, ImageSource>()
     private val accessOrder = mutableListOf<String>()
+    private val inFlight = mutableMapOf<String, CompletableDeferred<ImageSource?>>()
     private val mutex = Mutex()
 
     private fun putInMemoryUnsafe(key: String, value: ImageSource) {
@@ -33,14 +36,7 @@ object ImageCache {
         return value
     }
 
-    fun cacheKey(url: String): String {
-        val afterItems = url.substringAfter("/Items/", "")
-        return if (afterItems.isNotEmpty()) {
-            afterItems.replace("/", "-")
-        } else {
-            url.hashCode().toUInt().toString()
-        }
-    }
+    fun cacheKey(url: String): String = "image_${url.hashCode().toUInt()}"
 
     suspend fun get(url: String): ImageSource? {
         if (url.isBlank()) return null
@@ -58,16 +54,46 @@ object ImageCache {
             return persisted
         }
 
-        // L3: Fetch from network, persist, and return
-        val fetched = fetchAndPersistImage(url, key)
-        if (fetched != null) {
-            mutex.withLock { putInMemoryUnsafe(key, fetched) }
+        // L3: Fetch from network, persist, and return. Only one request per image
+        // is allowed at a time; grids commonly ask for the same image concurrently.
+        val (deferred, isOwner) = mutex.withLock {
+            val existing = inFlight[key]
+            if (existing != null) {
+                existing to false
+            } else {
+                CompletableDeferred<ImageSource?>().also { inFlight[key] = it } to true
+            }
         }
-        return fetched
+
+        if (!isOwner) {
+            return try {
+                deferred.await()
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                null
+            }
+        }
+
+        return try {
+            val fetched = fetchAndPersistImage(url, key)
+            mutex.withLock {
+                if (fetched != null) putInMemoryUnsafe(key, fetched)
+                inFlight.remove(key)
+            }
+            deferred.complete(fetched)
+            fetched
+        } catch (e: Exception) {
+            mutex.withLock { inFlight.remove(key) }
+            deferred.completeExceptionally(e)
+            if (e is CancellationException) throw e
+            null
+        }
     }
 
     suspend fun clear() {
         mutex.withLock {
+            inFlight.values.forEach { it.completeExceptionally(CancellationException("Image cache cleared")) }
+            inFlight.clear()
             memoryCache.clear()
             accessOrder.clear()
         }

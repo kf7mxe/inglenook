@@ -23,8 +23,8 @@ object CacheRefresher {
                 delay(SHORT_INTERVAL_MS)
                 if (ConnectivityState.offlineMode.value) continue
                 val client = jellyfinClient.value ?: continue
-                try { client.getInProgressBooks() } catch (_: Exception) {}
-                try { client.getRecentlyAddedBooks() } catch (_: Exception) {}
+                try { client.getInProgressBooks(forceRefresh = true) } catch (_: Exception) {}
+                try { client.getRecentlyAddedBooks(forceRefresh = true) } catch (_: Exception) {}
             }
         }
 
@@ -34,7 +34,7 @@ object CacheRefresher {
                 delay(DEFAULT_INTERVAL_MS)
                 if (ConnectivityState.offlineMode.value) continue
                 val client = jellyfinClient.value ?: continue
-                try { client.getSuggestedBooks() } catch (_: Exception) {}
+                try { client.getSuggestedBooks(forceRefresh = true) } catch (_: Exception) {}
                 try { client.getAllBooks() } catch (_: Exception) {}
                 try { client.getAuthors() } catch (_: Exception) {}
             }

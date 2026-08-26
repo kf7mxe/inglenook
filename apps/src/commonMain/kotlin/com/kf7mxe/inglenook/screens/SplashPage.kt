@@ -41,10 +41,8 @@ class SplashPage : Page, FullScreen {
                 return@launch
             }
 
-            // Start background warmup immediately (non-blocking, survives navigation)
-
-
-            // Warm critical HomePage data with 30s timeout
+            // Warm only the data displayed immediately on HomePage. The cache
+            // coalesces these requests with any page loads started during navigation.
             withTimeoutOrNull(7_000L.milliseconds) {
                 // 1. Fire off all network requests in parallel
                 val inProgress = async {
@@ -56,10 +54,6 @@ class SplashPage : Page, FullScreen {
                 val recentlyAdded = async {
                     try { client.getRecentlyAddedBooks() } catch (_: Exception) { emptyList() }
                 }
-                AppScope.launch {
-                    try { client.getAllBooks() } catch (_: Exception) { /* best effort */ }
-                }
-
                 // 2. Await them sequentially with a guaranteed minimum display time
                 val minDisplayTime = 800L // Adjust this to make it read faster/slower
 
@@ -82,9 +76,6 @@ class SplashPage : Page, FullScreen {
 
             CacheRefresher.start()
             mainPageNavigator.reset(HomePage())
-            AppScope.launch {
-                try { client.getAuthors() } catch (_: Exception) { /* best effort */ }
-            }
         }
         centered.frame {
             val animation = rememberSuspending {

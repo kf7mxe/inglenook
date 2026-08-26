@@ -28,15 +28,15 @@ class DemoJellyfinClient : JellyfinClient(
         return DemoData.allBooks
     }
 
-    override suspend fun getInProgressBooks(): List<Book> {
+    override suspend fun getInProgressBooks(forceRefresh: Boolean): List<Book> {
         return DemoData.inProgressBooks
     }
 
-    override suspend fun getRecentlyAddedBooks(): List<Book> {
+    override suspend fun getRecentlyAddedBooks(forceRefresh: Boolean): List<Book> {
         return DemoData.recentlyAddedBooks
     }
 
-    override suspend fun getSuggestedBooks(): List<Book> {
+    override suspend fun getSuggestedBooks(forceRefresh: Boolean): List<Book> {
         return DemoData.suggestedBooks
     }
 

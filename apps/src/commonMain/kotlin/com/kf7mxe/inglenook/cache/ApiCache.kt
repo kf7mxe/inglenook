@@ -2,6 +2,8 @@
 
 package com.kf7mxe.inglenook.cache
 
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlin.time.Clock
@@ -29,6 +31,7 @@ object ApiCache {
     }
 
     private val cache = mutableMapOf<String, CacheEntry<Any>>()
+    private val inFlight = mutableMapOf<String, CompletableDeferred<Any>>()
 
     // Default TTL values
     val DEFAULT_TTL: Duration = 5.minutes
@@ -76,6 +79,8 @@ object ApiCache {
      * Invalidate all cache entries.
      */
     fun clear() {
+        inFlight.values.forEach { it.completeExceptionally(CancellationException("Cache cleared")) }
+        inFlight.clear()
         cache.clear()
     }
 
@@ -88,26 +93,13 @@ object ApiCache {
         ttl: Duration = DEFAULT_TTL,
         onError: ((Exception) -> Unit)? = null,
         compute: suspend () -> T
-    ): T {
-        mutex.withLock { get<T>(key) }?.let { return it }
-
-        return try {
-            val computed = compute()
-            mutex.withLock { put(key, computed, ttl) }
-            computed
-        } catch (e: Exception) {
-            onError?.invoke(e)
-            val stale = mutex.withLock { getStale<T>(key) }
-            if (stale != null) stale else throw e
-        }
-    }
+    ): T = getOrPut(key, ttl, false, onError, compute)
 
     /**
-     * Get or compute a value, using the cache if available.
-     * Force refresh will bypass the cache and recompute.
-     * On failure, returns stale cached data if available rather than propagating the error.
-     * [onError] is called when compute fails, even if stale data is returned.
+     * Gets or computes a value while coalescing concurrent requests for the same key.
+     * Force refresh bypasses the cache, but still joins an already-running request.
      */
+    @Suppress("UNCHECKED_CAST")
     suspend fun <T : Any> getOrPut(
         key: String,
         ttl: Duration = DEFAULT_TTL,
@@ -119,11 +111,38 @@ object ApiCache {
             mutex.withLock { get<T>(key) }?.let { return it }
         }
 
+        val (deferred, isOwner) = mutex.withLock {
+            val existing = inFlight[key]
+            if (existing != null) {
+                existing to false
+            } else {
+                CompletableDeferred<Any>().also { inFlight[key] = it } to true
+            }
+        }
+
+        if (!isOwner) {
+            return try {
+                deferred.await() as T
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                onError?.invoke(e)
+                val stale = mutex.withLock { getStale<T>(key) }
+                if (stale != null) stale else throw e
+            }
+        }
+
         return try {
             val computed = compute()
-            mutex.withLock { put(key, computed, ttl) }
+            mutex.withLock {
+                put(key, computed, ttl)
+                inFlight.remove(key)
+            }
+            deferred.complete(computed)
             computed
         } catch (e: Exception) {
+            mutex.withLock { inFlight.remove(key) }
+            deferred.completeExceptionally(e)
+            if (e is CancellationException) throw e
             onError?.invoke(e)
             val stale = mutex.withLock { getStale<T>(key) }
             if (stale != null) stale else throw e
