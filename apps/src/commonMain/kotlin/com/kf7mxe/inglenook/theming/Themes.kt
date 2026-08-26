@@ -56,7 +56,7 @@ fun Theme.Companion.cozy(accent: Color? = null): Theme {
         foreground =  Color.fromHexString("#3E2F28"),
         background = Color.fromHexString("#F0E2C6"),
         outline = accent?: Color.fromHexString("#7B8266"),
-        outlineWidth = 2.px,
+        outlineWidth = 1.px,
         elevation = 0.dp,
         gap = 0.75.rem,
         semanticOverrides = SemanticOverrides(
@@ -78,8 +78,9 @@ fun Theme.Companion.cozy(accent: Color? = null): Theme {
 
                 cornerRadii = CornerRadii.PerCorner(1.rem,true,true,true,true),
             ) },
-            MainContentSemantic.override { it.withoutBack(
+            MainContentSemantic.override { it.withBack(
                 cascading = false,
+                background = it.background.closestColor().lighten (0.05f),
                 padding = Edges(1.rem,0.rem,1.rem,0.rem),
                 cornerRadii = CornerRadii.Fixed(0.rem),
                 outlineWidth = 0.dp,

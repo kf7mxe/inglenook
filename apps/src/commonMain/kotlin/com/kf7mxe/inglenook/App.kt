@@ -23,6 +23,7 @@ import com.kf7mxe.inglenook.demo.DemoMode
 import com.kf7mxe.inglenook.demo.isDemoWebsite
 import com.kf7mxe.inglenook.components.connectivityDialog
 import com.kf7mxe.inglenook.components.getDominantColor
+import com.kf7mxe.inglenook.components.getGlowSemanticForBookBackground
 import com.kf7mxe.inglenook.components.getSemanticForBookBackground
 import com.kf7mxe.inglenook.components.nowPlayingPreview
 import com.kf7mxe.inglenook.components.offlineBanner
@@ -266,7 +267,7 @@ fun ViewWriter.app(navigator: PageNavigator, dialog: PageNavigator) {
                     }
                 }
                 dynamicTheme {
-                    getSemanticForBookBackground(coverDominantColor(),appTheme().background.closestColor(),
+                    getGlowSemanticForBookBackground(coverDominantColor(),appTheme().background.closestColor(),
                         OuterSemantic)
                 }
             }

@@ -155,7 +155,7 @@ fun ViewWriter.nowPlaying(onClose: () -> Unit = {}) {
             }
         }
         dynamicTheme {
-            getSemanticForBookBackground(coverDominantColor(),appTheme().background.closestColor(),
+            getGlowSemanticForBookBackground(coverDominantColor(),appTheme().background.closestColor(),
                 NowPlayingSemantic)
         }
 
