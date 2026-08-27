@@ -41,12 +41,19 @@ class AuthorsPage(val searchQuery: Signal<String> = Signal(""),
     override fun ViewWriter.render() {
         val filteredAuthors: Reactive<List<Author>> = rememberSuspending {
             ConnectivityState.offlineMode()
-            val books = jellyfinClient()?.getAllBooks() ?: emptyList()
+            val client = jellyfinClient()
+            val bookType = bookTypeFilter()
+            val authors = if (bookType == null) {
+                client?.getAuthors() ?: emptyList()
+            } else {
+                val books = client?.getAllBooks() ?: emptyList()
+                books.filter { it.itemType == bookType }
+                    .flatMap { it.authors }
+                    .distinctBy { it.id }
+            }
             val query = searchQuery().lowercase().trim()
-            val authorsWithBookType = books.filter {  bookTypeFilter()?.let{bookTypeFilter -> it.itemType == bookTypeFilter }?:true }.map {it.authors}.flatten().distinctBy { it.id }
-            if (query.isEmpty()) return@rememberSuspending authorsWithBookType.sortedBy { it.name.lowercase() }
-            println("DEBUG book type filter ${bookTypeFilter()}")
-            return@rememberSuspending authorsWithBookType.filter { it.name.lowercase().contains(query.lowercase()) }.sortedBy { it.name.lowercase() }
+            authors.filter { query.isEmpty() || it.name.lowercase().contains(query) }
+                .sortedBy { it.name.lowercase() }
         }
 
         col {
@@ -129,10 +136,6 @@ fun ViewWriter.authorCard(author: Reactive<Author>, onClick: suspend () -> Unit)
     card.button {
         col {
             // Author image/avatar
-            launch {
-                println("DEBUG author card author().image id ${author().imageId}")
-                println("DEBUG author card author().id ${author().id}")
-            }
             centered.coverImage(
                     imageId = { author().imageId },
                     itemId = { author().id },

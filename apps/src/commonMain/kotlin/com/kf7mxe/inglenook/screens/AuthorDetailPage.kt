@@ -34,7 +34,6 @@ class AuthorDetailPage(val authorId: String) : Page {
     override fun ViewWriter.render() {
         val client = jellyfinClient.value
         val author = rememberSuspending {
-            println("DEBUG authorId ${authorId}")
             client?.getAuthor(authorId)
         }
         val books = rememberSuspending {
@@ -58,10 +57,6 @@ class AuthorDetailPage(val authorId: String) : Page {
 
             // Author image and info
             row {
-                launch{
-                    println("DEBUG detail author()?.image ${author()?.imageId}")
-                    println("DEBUG detail author()?.id ${authorId}")
-                }
                 coverImage(
                     imageId = { author()?.imageId },
                     itemId = { authorId },

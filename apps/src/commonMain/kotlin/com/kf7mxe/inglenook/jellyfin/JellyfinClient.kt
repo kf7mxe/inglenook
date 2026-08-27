@@ -18,9 +18,18 @@ import kotlinx.serialization.Serializable
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.serialization.json.Json
+import kotlin.time.Clock
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
+
+data class JellyfinRequestMetric(
+    val endpoint: String,
+    val durationMs: Long,
+    val statusCode: Int?
+)
 
 private data class CapabilityResults(
     val serverInfo: ServerInfoResponse?,
@@ -63,6 +72,8 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
 
     private var unauthorizedHandled = false
 
+    var requestMetricsListener: ((JellyfinRequestMetric) -> Unit)? = null
+
     private val deviceName = "Inglenook"
     private val clientVersion = "1.0.0"
 
@@ -79,6 +90,26 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
 
     private fun HttpRequestBuilder.withAuthentication() {
         header("X-Emby-Authorization", getAuthHeader())
+    }
+
+    private fun scopedCacheKey(key: String): String =
+        "server_${serverUrl.trimEnd('/').hashCode()}_$key"
+
+    @OptIn(kotlin.time.ExperimentalTime::class)
+    private suspend fun timedRequest(endpoint: String, request: suspend () -> HttpResponse): HttpResponse {
+        val startedAt = Clock.System.now().toEpochMilliseconds()
+        return try {
+            request().also { response ->
+                requestMetricsListener?.invoke(
+                    JellyfinRequestMetric(endpoint, Clock.System.now().toEpochMilliseconds() - startedAt, response.status.value)
+                )
+            }
+        } catch (error: Exception) {
+            requestMetricsListener?.invoke(
+                JellyfinRequestMetric(endpoint, Clock.System.now().toEpochMilliseconds() - startedAt, null)
+            )
+            throw error
+        }
     }
 
     @OptIn(ExperimentalUuidApi::class)
@@ -145,6 +176,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
             val response = client.get("$serverUrl/System/Info/Public")
             if (response.status.isSuccess()) response.body() else null
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
             null
         }
     }
@@ -154,6 +186,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
             val response = client.get("$serverUrl/System/Info/Public")
             response.status.isSuccess()
         } catch (e: Exception) {
+            if (e is CancellationException) throw e
             false
         }
     }
@@ -211,7 +244,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
     open suspend fun getAllBooks(libraryId: String? = null, forceRefresh: Boolean = false): List<Book> {
         val uid = userId ?: return emptyList()
         val libraryIds = if (libraryId != null) listOf(libraryId) else selectedLibraryIds.value
-        val cacheKey = ApiCache.booksKey(libraryIds)
+        val cacheKey = scopedCacheKey(ApiCache.booksKey(libraryIds))
 
         // Check cache first (even in offline mode)
         if (ConnectivityState.offlineMode.value) {
@@ -229,28 +262,49 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
         }
     }
 
+    private suspend fun fetchBooksPaged(uid: String, parentId: String? = null): List<Book> {
+        val pageSize = 200
+        val books = mutableListOf<Book>()
+        var startIndex = 0
+
+        while (true) {
+            val response = timedRequest("Items?page=$startIndex") {
+                client.get("$serverUrl/Users/$uid/Items") {
+                    parameter("IncludeItemTypes", "AudioBook,Book")
+                    parameter("Recursive", true)
+                    parameter("Fields", "Overview,People,ProviderIds")
+                    parameter("SortBy", "SortName")
+                    parameter("SortOrder", "Ascending")
+                    parameter("StartIndex", startIndex)
+                    parameter("Limit", pageSize)
+                    parentId?.let { parameter("ParentId", it) }
+                    withAuthentication()
+                }
+            }
+            if (!response.status.isSuccess()) {
+                throw Exception("Books request failed: ${response.status}")
+            }
+
+            val itemsResponse: ItemsResponse = response.body()
+            books += itemsResponse.Items.map { it.toAudioBook() }
+            startIndex += itemsResponse.Items.size
+            if (itemsResponse.Items.isEmpty() ||
+                itemsResponse.Items.size < pageSize ||
+                (itemsResponse.TotalRecordCount > 0 && startIndex >= itemsResponse.TotalRecordCount)
+            ) break
+        }
+        return books
+    }
+
     private suspend fun fetchAllBooks(uid: String, libraryIds: List<String>): List<Book> {
         // If specific libraries are selected, query each one and merge results
         if (libraryIds.isNotEmpty()) {
+            val requestLimiter = Semaphore(4)
             val results = coroutineScope {
                 libraryIds.map { libId ->
                     async {
                         try {
-                            val response = client.get("$serverUrl/Users/$uid/Items") {
-                                parameter("IncludeItemTypes", "AudioBook,Book")
-                                parameter("Recursive", true)
-                                parameter("Fields", "Overview,People,ProviderIds")
-                                parameter("SortBy", "SortName")
-                                parameter("SortOrder", "Ascending")
-                                parameter("ParentId", libId)
-                                withAuthentication()
-                            }
-                            if (!response.status.isSuccess()) {
-                                Result.failure<List<Book>>(Exception("Library request failed: ${response.status}"))
-                            } else {
-                                val itemsResponse: ItemsResponse = response.body()
-                                Result.success(itemsResponse.Items.map { it.toAudioBook() })
-                            }
+                            Result.success(requestLimiter.withPermit { fetchBooksPaged(uid, libId) })
                         } catch (e: Exception) {
                             if (e is CancellationException) throw e
                             Result.failure(e)
@@ -265,30 +319,15 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
             return successfulResults.flatten().distinctBy { it.id }.sortedBy { it.sortTitle ?: it.title }
         }
 
-        // No specific libraries selected - get all books
-        val url = buildString {
-            append("$serverUrl/Users/$uid/Items")
-            append("?IncludeItemTypes=AudioBook,Book")
-            append("&Recursive=true")
-            append("&Fields=Overview,People")
-            append("&SortBy=SortName")
-            append("&SortOrder=Ascending")
-        }
+        // No specific libraries selected - page through the complete collection.
+        return fetchBooksPaged(uid)
 
-        val response = client.get(url) {
-            withAuthentication()
-        }
-
-        if (!response.status.isSuccess()) return emptyList()
-
-        val itemsResponse: ItemsResponse = response.body()
-        return itemsResponse.Items.map { it.toAudioBook() }
     }
 
     open suspend fun getInProgressBooks(forceRefresh: Boolean = false): List<Book> {
         val uid = userId ?: return emptyList()
         val libraryIds = selectedLibraryIds.value
-        val cacheKey = ApiCache.inProgressKey(libraryIds)
+        val cacheKey = scopedCacheKey(ApiCache.inProgressKey(libraryIds))
 
         // Check cache first (even in offline mode)
         if (ConnectivityState.offlineMode.value) {
@@ -352,7 +391,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
     open suspend fun getRecentlyAddedBooks(forceRefresh: Boolean = false): List<Book> {
         val uid = userId ?: return emptyList()
         val libraryIds = selectedLibraryIds.value
-        val cacheKey = ApiCache.recentKey(libraryIds)
+        val cacheKey = scopedCacheKey(ApiCache.recentKey(libraryIds))
 
         // Check cache first (even in offline mode)
         if (ConnectivityState.offlineMode.value) {
@@ -426,7 +465,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
     open suspend fun getSuggestedBooks(forceRefresh: Boolean = false): List<Book> {
         val uid = userId ?: return emptyList()
         val libraryIds = selectedLibraryIds.value
-        val cacheKey = ApiCache.suggestedKey(libraryIds)
+        val cacheKey = scopedCacheKey(ApiCache.suggestedKey(libraryIds))
 
         // Check cache first (even in offline mode)
         if (ConnectivityState.offlineMode.value) {
@@ -456,7 +495,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
 
                 if (libraryIds.isNotEmpty()) {
                     // Try to cross-reference with cached book list to filter to selected libraries
-                    val cachedBooks = ApiCache.get<List<Book>>(ApiCache.booksKey(libraryIds))
+                    val cachedBooks = ApiCache.get<List<Book>>(scopedCacheKey(ApiCache.booksKey(libraryIds)))
                     if (cachedBooks != null && cachedBooks.isNotEmpty()) {
                         val libraryBookIds = cachedBooks.map { it.id }.toSet()
                         allSuggestions
@@ -477,7 +516,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
     }
 
     open suspend fun getBook(itemId: String): Book? {
-        val cacheKey = ApiCache.bookKey(itemId)
+        val cacheKey = scopedCacheKey(ApiCache.bookKey(itemId))
 
         if (ConnectivityState.offlineMode.value) {
             // Try cache first, then fall back to download metadata
@@ -583,10 +622,9 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
             val response = client.get("$serverUrl/Inglenook/Bookshelves") {
                 withAuthentication()
             }
-            println("DEBUG fun bookshelfEndpointAvailable  ${response.status.value}")
             response.status.isSuccess()
         } catch (e: Exception) {
-            println("DEBUG fun bookshelfEndpointAvailable exception  ${e.message}")
+            if (e is CancellationException) throw e
             false
         }
     }
@@ -680,8 +718,6 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
                 ProviderId = providerId,
                 ReplaceExisting = replaceExisting
             )
-            println("DEBUG SENDING JSON: ${json.encodeToString(requestDto)}")
-
             // 2. Use formattedId in the URL instead of itemId
             val response = client.post("$serverUrl/Inglenook/$formattedId/Metadata") {
                 withAuthentication()
@@ -689,14 +725,8 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
                 setBody(requestDto)
             }
 
-            if (!response.status.isSuccess()) {
-                val errorBody = try { response.bodyAsText() } catch (e: Exception) { "Could not read error body" }
-                println("DEBUG response.status ${response.status}")
-                println("DEBUG response.body $errorBody")
-            }
             response.status.isSuccess()
         } catch (e: Exception) {
-            println("DEBUG in apply remote metadata exception: ${e.message}")
             handleNetworkException(e, false)
         }
     }
@@ -796,7 +826,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
     open suspend fun getAuthors(forceRefresh: Boolean = false): List<Author> {
         val uid = userId ?: return emptyList()
         val libraryIds = selectedLibraryIds.value
-        val cacheKey = ApiCache.authorsKey(libraryIds)
+        val cacheKey = scopedCacheKey(ApiCache.authorsKey(libraryIds))
 
         if (ConnectivityState.offlineMode.value) {
             return ApiCache.get<List<Author>>(cacheKey)
@@ -926,7 +956,31 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
             }
         }
 
-        return mergedByName.values.sortedBy { it.name }
+        val personMetadata = try {
+            val response = client.get("$serverUrl/Persons") {
+                parameter("UserId", uid)
+                parameter("Limit", 10000)
+                withAuthentication()
+            }
+            if (response.status.isSuccess()) {
+                val itemsResponse: ItemsResponse = response.body()
+                itemsResponse.Items.associateBy { it.Id }
+            } else emptyMap()
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            emptyMap()
+        }
+
+        return mergedByName.values.map { author ->
+            val metadata = author.id.split(",")
+                .asSequence()
+                .mapNotNull { personMetadata[it] }
+                .firstOrNull { it.ImageTags?.Primary != null || it.Overview != null }
+            author.copy(
+                imageId = author.imageId ?: metadata?.ImageTags?.Primary,
+                overview = author.overview ?: metadata?.Overview
+            )
+        }.sortedBy { it.name }
     }
 
     open suspend fun getAuthor(authorId: String): Author? {
@@ -1006,32 +1060,52 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
 
     open fun getImageUrl(imageId: String?, itemId: String? = null, imageType: String = "Primary"): String {
         val id = itemId ?: imageId ?: return ""
-        println("DEBUG getImageUrl id ${id} imageType $imageType")
-        return "$serverUrl/Items/$id/Images/$imageType"
+        return buildString {
+            append("$serverUrl/Items/$id/Images/$imageType")
+            accessToken?.let { append("?api_key=$it") }
+            imageId?.let {
+                append(if (contains("?")) "&" else "?")
+                append("tag=$it")
+            }
+        }
     }
 
     /**
      * Get all series from audiobooks (aggregated from books with seriesName).
      */
-    open suspend fun getAllSeries(): List<Series> {
-        val books = getAllBooks()
-        return books
-            .filter { it.seriesName != null }
-            .groupBy { it.seriesName!! }
-            .map { (seriesName, seriesBooks) ->
-                // Use the first book with a cover as the series cover
-                val coverBook = seriesBooks.firstOrNull { it.coverImageId != null }
-                Series(
-                    id = seriesBooks.first().seriesId ?: seriesName, // Use seriesId if available, else name
-                    coverBookId = coverBook?.id,
-                    name = seriesName,
-                    imageId = coverBook?.coverImageId,
-                    bookCount = seriesBooks.size,
-                    overview = null
-                )
+    open suspend fun getAllSeries(forceRefresh: Boolean = false): List<Series> {
+        val libraryIds = selectedLibraryIds.value
+        val cacheKey = scopedCacheKey(ApiCache.seriesKey(libraryIds))
+        if (ConnectivityState.offlineMode.value) {
+            return ApiCache.get<List<Series>>(cacheKey)
+                ?: ApiCache.getStale<List<Series>>(cacheKey)
+                ?: emptyList()
+        }
+
+        return try {
+            ApiCache.getOrPut(cacheKey, ApiCache.DEFAULT_TTL, forceRefresh, onError = ::reportNetworkError) {
+                seriesFromBooks(getAllBooks())
             }
-            .sortedBy { it.name }
+        } catch (e: Exception) {
+            handleNetworkException(e, emptyList())
+        }
     }
+
+    private fun seriesFromBooks(books: List<Book>): List<Series> = books
+        .filter { it.seriesName != null }
+        .groupBy { it.seriesName!! }
+        .map { (seriesName, seriesBooks) ->
+            val coverBook = seriesBooks.firstOrNull { it.coverImageId != null }
+            Series(
+                id = seriesBooks.first().seriesId ?: seriesName,
+                coverBookId = coverBook?.id,
+                name = seriesName,
+                imageId = coverBook?.coverImageId,
+                bookCount = seriesBooks.size,
+                overview = null
+            )
+        }
+        .sortedBy { it.name }
 
     /**
      * Get all books in a series by series name.
@@ -1110,85 +1184,84 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
         if (ConnectivityState.offlineMode.value) return SearchResults()
         val uid = userId ?: return SearchResults()
         val libraryIds = selectedLibraryIds.value
+        val resultLimit = limit.coerceIn(1, 100)
 
-        // Search for audiobooks and ebooks
-        val books = if (libraryIds.isNotEmpty()) {
-            // Search within each selected library using ParentId
-            val allBooks = mutableListOf<Book>()
-            for (libId in libraryIds) {
-                val url = buildString {
-                    append("$serverUrl/Users/$uid/Items")
-                    append("?SearchTerm=$query")
-                    append("&IncludeItemTypes=AudioBook,Book")
-                    append("&Recursive=true")
-                    append("&Fields=Overview,People")
-                    append("&Limit=$limit")
-                    append("&ParentId=$libId")
+        return coroutineScope {
+            val books = async {
+                if (libraryIds.isNotEmpty()) {
+                    val results = libraryIds.map { libId ->
+                        async {
+                            try {
+                                val response = client.get("$serverUrl/Users/$uid/Items") {
+                                    parameter("SearchTerm", query)
+                                    parameter("IncludeItemTypes", "AudioBook,Book")
+                                    parameter("Recursive", true)
+                                    parameter("Fields", "Overview,People")
+                                    parameter("Limit", resultLimit)
+                                    parameter("ParentId", libId)
+                                    withAuthentication()
+                                }
+                                if (response.status.isSuccess()) {
+                                    val itemsResponse: ItemsResponse = response.body()
+                                    Result.success(itemsResponse.Items.map { it.toAudioBook() })
+                                } else {
+                                    Result.success(emptyList())
+                                }
+                            } catch (e: Exception) {
+                                if (e is CancellationException) throw e
+                                Result.success(emptyList())
+                            }
+                        }
+                    }.map { it.await() }
+                    results.flatMap { it.getOrDefault(emptyList()) }
+                        .distinctBy { it.id }
+                        .take(resultLimit)
+                } else {
+                    try {
+                        val response = client.get("$serverUrl/Users/$uid/Items") {
+                            parameter("SearchTerm", query)
+                            parameter("IncludeItemTypes", "AudioBook,Book")
+                            parameter("Recursive", true)
+                            parameter("Fields", "Overview,People")
+                            parameter("Limit", resultLimit)
+                            withAuthentication()
+                        }
+                        if (response.status.isSuccess()) {
+                            val itemsResponse: ItemsResponse = response.body()
+                            itemsResponse.Items.map { it.toAudioBook() }
+                        } else emptyList()
+                    } catch (e: Exception) {
+                        if (e is CancellationException) throw e
+                        emptyList()
+                    }
                 }
+            }
+            val authors = async {
                 try {
-                    val response = client.get(url) {
+                    val response = client.get("$serverUrl/Persons") {
+                        parameter("SearchTerm", query)
+                        parameter("UserId", uid)
+                        parameter("Limit", resultLimit)
                         withAuthentication()
                     }
                     if (response.status.isSuccess()) {
                         val itemsResponse: ItemsResponse = response.body()
-                        allBooks.addAll(itemsResponse.Items.map { it.toAudioBook() })
-                    }
+                        itemsResponse.Items.map {
+                            Author(
+                                id = it.Id,
+                                name = it.Name,
+                                imageId = it.ImageTags?.Primary,
+                                overview = it.Overview
+                            )
+                        }
+                    } else emptyList()
                 } catch (e: Exception) {
-                    // Continue with other libraries
+                    if (e is CancellationException) throw e
+                    emptyList()
                 }
             }
-            allBooks.distinctBy { it.id }.take(limit)
-        } else {
-            // No libraries selected - search globally
-            val url = buildString {
-                append("$serverUrl/Users/$uid/Items")
-                append("?SearchTerm=$query")
-                append("&IncludeItemTypes=AudioBook,Book")
-                append("&Recursive=true")
-                append("&Fields=Overview,People")
-                append("&Limit=$limit")
-            }
-            try {
-                val response = client.get(url) {
-                    withAuthentication()
-                }
-                if (response.status.isSuccess()) {
-                    val itemsResponse: ItemsResponse = response.body()
-                    itemsResponse.Items.map { it.toAudioBook() }
-                } else emptyList()
-            } catch (e: Exception) {
-                emptyList()
-            }
+            SearchResults(books = books.await(), authors = authors.await())
         }
-
-        // Search for authors/people
-        val authorsUrl = buildString {
-            append("$serverUrl/Persons")
-            append("?SearchTerm=$query")
-            append("&UserId=$uid")
-            append("&Limit=$limit")
-        }
-
-        val authors = try {
-            val response = client.get(authorsUrl) {
-                withAuthentication()
-            }
-            if (response.status.isSuccess()) {
-                val itemsResponse: ItemsResponse = response.body()
-                itemsResponse.Items.map {
-                    Author(
-                        id = it.Id,
-                        name = it.Name,
-                        imageId = it.ImageTags?.Primary,
-                        overview = it.Overview
-                    )
-                }
-            } else emptyList()
-        } catch (e: Exception) {
-            emptyList()
-        }
-
-        return SearchResults(books = books, authors = authors)
     }
 
     open suspend fun reportPlaybackStart(itemId: String, positionTicks: Long) {
@@ -1199,7 +1272,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
                 setBody(PlaybackStartInfo(itemId, positionTicks))
             }
         } catch (e: Exception) {
-            // Ignore errors
+            if (e is CancellationException) throw e
         }
     }
 
@@ -1211,7 +1284,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
                 setBody(PlaybackProgressInfo(itemId, positionTicks, isPaused))
             }
         } catch (e: Exception) {
-            // Ignore errors
+            if (e is CancellationException) throw e
         }
     }
 
@@ -1223,7 +1296,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
                 setBody(PlaybackStopInfo(itemId, positionTicks))
             }
         } catch (e: Exception) {
-            // Ignore errors
+            if (e is CancellationException) throw e
         }
     }
 
@@ -1329,20 +1402,16 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
             val response = client.get("$serverUrl/Users/Me") {
                 withAuthentication()
             }
-            println("DEBUG getCanEditCollection: status=${response.status}")
             if (!response.status.isSuccess()) return false
             val rawBody = response.bodyAsText()
-            println("DEBUG getCanEditCollection: body=$rawBody")
             val user = json.decodeFromString<JellyfinUserInfoResponse>(rawBody)
             val policy = user.Policy
-            println("DEBUG getCanEditCollection: policy=$policy")
             if (policy == null) return false
             val result = policy.IsAdministrator || policy.EnableCollectionManagement || policy.EnableMediaManagement
 
-            println("DEBUG getCanEditCollection: result=$result")
             result
         } catch (e: Exception) {
-            println("DEBUG getCanEditCollection: exception=$e")
+            if (e is CancellationException) throw e
             false
         }
     }
@@ -1352,30 +1421,25 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
             val response = client.get("$serverUrl/Plugins") {
                 withAuthentication()
             }
-            println("DEBUG getPlugins: status=${response.status}")
             if (response.status.isSuccess()) {
                 val rawBody = response.bodyAsText()
-                println("DEBUG getPlugins: body=$rawBody")
                 json.decodeFromString<List<PluginInfo>>(rawBody)
             } else {
                 emptyList()
             }
         } catch (e: Exception) {
-            println("DEBUG getPlugins: exception=$e")
+            if (e is CancellationException) throw e
             emptyList()
         }
     }
 
     open suspend fun isIdentifyAvailable(): Boolean {
         val plugins = getPlugins()
-        println("DEBUG plugins ${plugins}")
         val inglenook = plugins.find { it.Name?.contains("Inglenook", ignoreCase = true) == true } ?: return false
-        println("DEBUG inglenook ${inglenook}")
         return isVersionAtLeast(inglenook.Version, "1.0.0.1")
     }
 
     private fun isVersionAtLeast(version: String?, minVersion: String): Boolean {
-        println("DEBUG version ${version}")
         if (version == null) return false
         val v1 = version.split('.').mapNotNull { it.toIntOrNull() }
         val v2 = minVersion.split('.').mapNotNull { it.toIntOrNull() }

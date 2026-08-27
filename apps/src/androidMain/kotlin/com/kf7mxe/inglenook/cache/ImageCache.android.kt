@@ -21,6 +21,7 @@ actual suspend fun fetchAndPersistImage(url: String, key: String): ImageSource? 
     return withContext(Dispatchers.IO) {
         try {
             val response = fetch(url)
+            if (!response.ok) return@withContext null
             val blob = response.blob()
             val file = File(getCacheDir(), key)
             FileOutputStream(file).use { fos ->

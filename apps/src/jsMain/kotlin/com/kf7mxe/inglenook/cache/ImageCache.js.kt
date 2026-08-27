@@ -12,6 +12,7 @@ actual suspend fun fetchAndPersistImage(url: String, key: String): ImageSource? 
     return try {
         database = database ?: getDatabase()
         val response = fetch(url)
+        if (!response.ok) return null
         val blob = response.blob()
         database?.writeTransaction("imageCache") {
             val store = objectStore("imageCache")

@@ -33,6 +33,7 @@ object PlaybackState {
     val sleepTimerMinutesRemaining = Signal<Int?>(null) // null = no timer, >0 = minutes remaining
     val sleepTimerMode = Signal<SleepTimerMode?>(null) // Tracks what mode was set
     private var sleepTimerJob: Job? = null
+    private var playbackProgressReportJob: Job? = null
 
     // Skip amounts in ticks (10,000 ticks = 1ms)
     private const val SKIP_FORWARD_TICKS = 30 * 10_000_000L // 30 seconds
@@ -137,9 +138,7 @@ object PlaybackState {
         // Report playback progress to Jellyfin
         val book = currentBook.value
         if (book != null && !ConnectivityState.offlineMode.value) {
-            AppScope.launch {
-                jellyfinClient.value?.reportPlaybackProgress(book.id, positionTicks.value, true)
-            }
+            reportPlaybackProgress(book.id, positionTicks.value, isPaused = true)
         }
     }
 
@@ -160,9 +159,7 @@ object PlaybackState {
         // Report playback progress to Jellyfin
         val book = currentBook()
         if (book != null && !ConnectivityState.offlineMode.value) {
-            AppScope.launch {
-                jellyfinClient.value?.reportPlaybackProgress(book.id, positionTicks.value, false)
-            }
+            reportPlaybackProgress(book.id, positionTicks.value, isPaused = false)
         }
     }
 
@@ -182,6 +179,8 @@ object PlaybackState {
         isPlaying.value = false
         isBuffering.value = false
         stopProgressSync()
+        playbackProgressReportJob?.cancel()
+        playbackProgressReportJob = null
 
         // Clear persisted state (user explicitly stopped)
         clearLastPlayed()
@@ -278,6 +277,13 @@ object PlaybackState {
         checkEndOfChapterSleepTimer(previousChapter, newChapter)
     }
 
+    private fun reportPlaybackProgress(itemId: String, positionTicks: Long, isPaused: Boolean) {
+        playbackProgressReportJob?.cancel()
+        playbackProgressReportJob = AppScope.launch {
+            jellyfinClient.value?.reportPlaybackProgress(itemId, positionTicks, isPaused)
+        }
+    }
+
     private fun startProgressSync() {
         progressSyncJob?.cancel()
         progressSyncJob = AppScope.launch {
@@ -320,11 +326,7 @@ object PlaybackState {
 
                     // Report to Jellyfin (if online)
                     if (!ConnectivityState.offlineMode.value) {
-                        jellyfinClient.value?.reportPlaybackProgress(
-                            book.id,
-                            positionTicks.value,
-                            !isPlaying.value
-                        )
+                        reportPlaybackProgress(book.id, positionTicks.value, !isPlaying.value)
                     }
                 }
             }

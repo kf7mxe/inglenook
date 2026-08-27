@@ -61,7 +61,7 @@ class DemoJellyfinClient : JellyfinClient(
         return DemoData.allBooks.filter { book -> book.authors.any { it.id == authorId } }
     }
 
-    override suspend fun getAllSeries(): List<Series> = emptyList()
+    override suspend fun getAllSeries(forceRefresh: Boolean): List<Series> = emptyList()
 
     override suspend fun getBooksBySeries(seriesName: String): List<Book> = emptyList()
 

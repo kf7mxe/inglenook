@@ -75,10 +75,8 @@ fun addServer(config: JellyfinServerConfig) {
 
 /** Refreshes server capabilities (permissions, plugin support) for the active server config and persists the result. */
 fun refreshServerCapabilities(config: JellyfinServerConfig) {
-    println("DEBUG config ${config}")
     AppScope.launch {
         try {
-            println("DEBUG in refreshServerCpabiltiy? ${ jellyfinClient.invoke() == null}")
             val client = jellyfinClient.invoke() ?: return@launch
             val canEditCollection = client.getCanEditCollection()
             val identifyAvailable = client.isIdentifyAvailable()
@@ -96,7 +94,7 @@ fun refreshServerCapabilities(config: JellyfinServerConfig) {
                 jellyfinServerConfig.value = updated
             }
         } catch (e: Exception) {
-            println("DEBUG refreshServerCapabilities: exception=$e")
+            if (e is kotlinx.coroutines.CancellationException) throw e
         }
     }
 }
