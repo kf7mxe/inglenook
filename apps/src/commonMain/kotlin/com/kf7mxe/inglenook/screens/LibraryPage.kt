@@ -32,8 +32,6 @@ class LibraryPage : Page {
 
 
     @QueryParameter
-    val bookSearchQuery = Signal("")
-    @QueryParameter
     val bookSelectedFilter = Signal<FilterOption?>(null)
     @QueryParameter
     val bookTypeFilter = Signal<ItemType?>(null) // null = All
@@ -84,7 +82,7 @@ class LibraryPage : Page {
                     },
                     views = {currentTab ->
                         when(currentTab) {
-                            BooksTab.Books -> with(BooksPage(bookSearchQuery,bookSelectedFilter,bookTypeFilter)) { render() }
+                            BooksTab.Books -> with(BooksPage(bookSelectedFilter, bookTypeFilter)) { render() }
                             BooksTab.Authors -> with(AuthorsPage(authorSearchQuery, bookTypeFilter)) { render() }
                             BooksTab.Series -> with(SeriesPage(seriesSearchQuery)) { render() }
                         }

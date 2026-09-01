@@ -31,6 +31,12 @@ data class JellyfinRequestMetric(
     val statusCode: Int?
 )
 
+data class BooksPage(
+    val books: List<Book>,
+    val startIndex: Int,
+    val totalCount: Int
+)
+
 private data class CapabilityResults(
     val serverInfo: ServerInfoResponse?,
     val canEditCollection: Boolean,
@@ -238,6 +244,53 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
             }
         } catch (e: Exception) {
             handleNetworkException(e, emptyList())
+        }
+    }
+
+    open suspend fun getBooksPage(startIndex: Int = 0, limit: Int = 50): BooksPage {
+        val uid = userId ?: return BooksPage(emptyList(), startIndex, 0)
+        val safeStartIndex = startIndex.coerceAtLeast(0)
+        val safeLimit = limit.coerceIn(1, 200)
+        val libraryIds = selectedLibraryIds.value
+
+        return try {
+            val results = coroutineScope {
+                val ids = libraryIds.ifEmpty { listOf<String?>(null) }
+                ids.map { libraryId ->
+                    async {
+                        val response = timedRequest("Items?page=$safeStartIndex") {
+                            client.get("$serverUrl/Users/$uid/Items") {
+                                parameter("IncludeItemTypes", "AudioBook,Book")
+                                parameter("Recursive", true)
+                                parameter("Fields", "Overview,People,ProviderIds")
+                                parameter("SortBy", "SortName")
+                                parameter("SortOrder", "Ascending")
+                                parameter("StartIndex", safeStartIndex)
+                                parameter("Limit", safeLimit)
+                                libraryId?.let { parameter("ParentId", it) }
+                                withAuthentication()
+                            }
+                        }
+                        if (!response.status.isSuccess()) {
+                            emptyList<Book>() to 0
+                        } else {
+                            val itemsResponse: ItemsResponse = response.body()
+                            itemsResponse.Items.map { it.toAudioBook() } to itemsResponse.TotalRecordCount
+                        }
+                    }
+                }.map { it.await() }
+            }
+            val totalCount = results.sumOf { it.second }
+            BooksPage(
+                books = results.flatMap { it.first }
+                    .distinctBy { it.id }
+                    .sortedBy { it.sortTitle ?: it.title }
+                    .take(safeLimit),
+                startIndex = safeStartIndex,
+                totalCount = totalCount
+            )
+        } catch (e: Exception) {
+            handleNetworkException(e, BooksPage(emptyList(), safeStartIndex, 0))
         }
     }
 

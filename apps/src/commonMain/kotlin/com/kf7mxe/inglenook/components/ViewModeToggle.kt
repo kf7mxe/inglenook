@@ -15,6 +15,7 @@ import com.lightningkite.kiteui.views.important
 import com.lightningkite.kiteui.views.l2.RecyclerViewPlacerVerticalGrid
 import com.lightningkite.kiteui.views.l2.children
 import com.lightningkite.reactive.context.invoke
+import com.lightningkite.reactive.context.reactive
 import com.lightningkite.reactive.core.Reactive
 import com.lightningkite.reactive.core.remember
 import kotlinx.coroutines.launch
@@ -43,7 +44,8 @@ fun <T : Any> ViewWriter.gridListView(
     keySelector: (T) -> Any,
     gridColumns: Int = 2,
     gridItem: ViewWriter.(Reactive<T>) -> Unit,
-    listItem: ViewWriter.(Reactive<T>) -> Unit
+    listItem: ViewWriter.(Reactive<T>) -> Unit,
+    onNearEnd: (suspend () -> Unit)? = null
 ) {
     expanding.swapView {
         swapping(
@@ -66,6 +68,11 @@ fun <T : Any> ViewWriter.gridListView(
                             children(items, keySelector) { item ->
                                 gridItem(item)
                             }
+                            reactive {
+                                if (onNearEnd != null && items.state.raw.isNotEmpty() && lastIndex.state.raw >= items.state.raw.lastIndex - 10) {
+                                    launch { onNearEnd() }
+                                }
+                            }
                         }
                     }
 
@@ -77,6 +84,11 @@ fun <T : Any> ViewWriter.gridListView(
                             }
                             children(items, keySelector) { item ->
                                 listItem(item)
+                            }
+                            reactive {
+                                if (onNearEnd != null && items.state.raw.isNotEmpty() && lastIndex.state.raw >= items.state.raw.lastIndex - 10) {
+                                    launch { onNearEnd() }
+                                }
                             }
                         }
                     }
