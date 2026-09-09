@@ -69,7 +69,9 @@ fun <T : Any> ViewWriter.gridListView(
                                 gridItem(item)
                             }
                             reactive {
-                                if (onNearEnd != null && items.state.raw.isNotEmpty() && lastIndex.state.raw >= items.state.raw.lastIndex - 10) {
+                                val currentItems = items()
+                                val currentLastIndex = lastIndex()
+                                if (onNearEnd != null && currentItems.isNotEmpty() && currentLastIndex >= currentItems.lastIndex - 10) {
                                     launch { onNearEnd() }
                                 }
                             }
@@ -86,7 +88,9 @@ fun <T : Any> ViewWriter.gridListView(
                                 listItem(item)
                             }
                             reactive {
-                                if (onNearEnd != null && items.state.raw.isNotEmpty() && lastIndex.state.raw >= items.state.raw.lastIndex - 10) {
+                                val currentItems = items()
+                                val currentLastIndex = lastIndex()
+                                if (onNearEnd != null && currentItems.isNotEmpty() && currentLastIndex >= currentItems.lastIndex - 10) {
                                     launch { onNearEnd() }
                                 }
                             }

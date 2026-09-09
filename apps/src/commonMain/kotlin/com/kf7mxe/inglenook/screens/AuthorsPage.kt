@@ -1,3 +1,4 @@
+
 package com.kf7mxe.inglenook.screens
 
 import com.lightningkite.kiteui.models.*
@@ -31,41 +32,81 @@ import com.lightningkite.reactive.core.Constant
 import com.lightningkite.reactive.core.Reactive
 import com.lightningkite.reactive.core.rememberSuspending
 import kotlinx.coroutines.launch
+import kotlinx.serialization.Serializable
+
+private const val AUTHOR_PAGE_SIZE = 50
+
+@Serializable
+enum class AuthorSortOption(val label: String, val sortBy: String, val sortOrder: String) {
+    NameAsc("Name A-Z", "SortName", "Ascending"),
+    NameDesc("Name Z-A", "SortName", "Descending"),
+    RecentlyAdded("Recent", "DateLastContentAdded", "Descending"),
+    MostPlayed("Most Played", "PlayCount", "Descending")
+}
 
 @Routable("AuthorsPage")
-class AuthorsPage(val searchQuery: Signal<String> = Signal(""),
+class AuthorsPage(val sortBy: Signal<AuthorSortOption> = Signal(AuthorSortOption.NameAsc),
                   val bookTypeFilter: Signal<ItemType?> = Signal(null)
     ) : Page {
     override val title: Reactive<String> = Constant("Authors")
 
     override fun ViewWriter.render() {
-        val filteredAuthors: Reactive<List<Author>> = rememberSuspending {
+        val loadedAuthors = Signal<List<Author>>(emptyList())
+        val nextStartIndex = Signal(0)
+        val isLoadingMore = Signal(false)
+        val hasMore = Signal(true)
+
+        val initialAuthors: Reactive<List<Author>> = rememberSuspending {
             ConnectivityState.offlineMode()
             val client = jellyfinClient()
             val bookType = bookTypeFilter()
-            val authors = if (bookType == null) {
-                client?.getAuthors() ?: emptyList()
+            val sort = sortBy()
+            val page = if (bookType == null) {
+                client?.getAuthorsPage(startIndex = 0, limit = AUTHOR_PAGE_SIZE, sortBy = sort.sortBy, sortOrder = sort.sortOrder) ?: emptyList()
             } else {
                 val books = client?.getAllBooks() ?: emptyList()
                 books.filter { it.itemType == bookType }
                     .flatMap { it.authors }
                     .distinctBy { it.id }
+                    .sortedBy { it.name.lowercase() }
+                    .take(AUTHOR_PAGE_SIZE)
             }
-            val query = searchQuery().lowercase().trim()
-            authors.filter { query.isEmpty() || it.name.lowercase().contains(query) }
-                .sortedBy { it.name.lowercase() }
+            loadedAuthors.value = page
+            nextStartIndex.value = page.size
+            hasMore.value = page.size >= AUTHOR_PAGE_SIZE
+            page
+        }
+
+        val loadNextPage: suspend () -> Unit = suspend loadNextPage@{
+            if (isLoadingMore() || !hasMore()) return@loadNextPage
+            val client = jellyfinClient() ?: return@loadNextPage
+            val bookType = bookTypeFilter()
+            val sort = sortBy()
+            isLoadingMore.value = true
+            try {
+                val page = if (bookType == null) {
+                    client.getAuthorsPage(nextStartIndex(), AUTHOR_PAGE_SIZE, sortBy = sort.sortBy, sortOrder = sort.sortOrder)
+                } else {
+                    val books = client.getAllBooks()
+                    books.filter { it.itemType == bookType }
+                        .flatMap { it.authors }
+                        .distinctBy { it.id }
+                        .sortedBy { it.name.lowercase() }
+                        .drop(nextStartIndex())
+                        .take(AUTHOR_PAGE_SIZE)
+                }
+                val existingIds = loadedAuthors().asSequence().map { it.id }.toHashSet()
+                loadedAuthors.value = loadedAuthors() + page.filter { it.id !in existingIds }
+                nextStartIndex.value += page.size
+                hasMore.value = page.size >= AUTHOR_PAGE_SIZE
+            } finally {
+                isLoadingMore.value = false
+            }
         }
 
         col {
-//            paddingByEdge = Edges(1.rem, 0.rem, 1.rem, 0.rem)
-
-            // Search bar and view toggle
+            // Type filters, sort dropdown, and view toggle
             row {
-                expanding.fieldTheme.textInput {
-                    hint = "Search authors..."
-                    keyboardHints = KeyboardHints(KeyboardCase.None, KeyboardType.Text)
-                    content bind searchQuery
-                }
                 card.button {
                     text("All")
                     onClick { bookTypeFilter.value = null }
@@ -81,6 +122,18 @@ class AuthorsPage(val searchQuery: Signal<String> = Signal(""),
                     onClick { bookTypeFilter.value = ItemType.Ebook }
                     dynamicTheme { if (bookTypeFilter() == ItemType.Ebook) ImportantSemantic else null }
                 }
+                separator()
+                card.button {
+                    row {
+                        icon(Icon.sort, "Sort")
+                        text { ::content { sortBy().label } }
+                    }
+                    onClick {
+                        val options = AuthorSortOption.entries
+                        val currentIndex = options.indexOf(sortBy())
+                        sortBy.value = options[(currentIndex + 1) % options.size]
+                    }
+                }
                 viewModeToggleButton()
             }
             sizeConstraints(height = 0.02.rem).frame() {
@@ -90,29 +143,22 @@ class AuthorsPage(val searchQuery: Signal<String> = Signal(""),
             }
 
             // Loading state
-            shownWhen { !filteredAuthors.state().ready }.centered.inglenookActivityIndicator()
+            shownWhen { !initialAuthors.state().ready }.centered.inglenookActivityIndicator()
 
             // Connection error state
-            shownWhen { filteredAuthors.state().ready && filteredAuthors().isEmpty() && ConnectivityState.lastNetworkError() != null }.connectionError {
+            shownWhen { initialAuthors.state().ready && loadedAuthors().isEmpty() && ConnectivityState.lastNetworkError() != null }.connectionError {
                 mainPageNavigator.navigate(LibraryPage())
             }
 
             // Empty state
-            shownWhen { filteredAuthors.state().ready && filteredAuthors().isEmpty() && ConnectivityState.lastNetworkError() == null }.emptyState(
+            shownWhen { initialAuthors.state().ready && loadedAuthors().isEmpty() && ConnectivityState.lastNetworkError() == null }.emptyState(
                 icon = Icon.person,
                 title = "No authors found",
                 description = "Your audiobook library has no authors"
             )
 
-            // No search results
-            shownWhen { filteredAuthors.state().ready && filteredAuthors().isNotEmpty() && filteredAuthors().isEmpty() }.centered.col {
-                icon(Icon.search.copy(width = 3.rem, height = 3.rem), "Search")
-                text("No results found")
-                subtext { ::content { "No authors match \"${searchQuery()}\"" } }
-            }
-
             gridListView(
-                items = filteredAuthors,
+                items = loadedAuthors,
                 keySelector = { it.id },
                 gridItem = { author ->
                     authorCard(author) {
@@ -125,8 +171,13 @@ class AuthorsPage(val searchQuery: Signal<String> = Signal(""),
                         lastItemViewedScrollToOnBack.set(author().id)
                         mainPageNavigator.navigate(AuthorDetailPage(author().id))
                     }
+                },
+                onNearEnd = {
+                    if (!isLoadingMore() && hasMore()) loadNextPage()
                 }
             )
+
+            shownWhen { isLoadingMore() && hasMore() }.centered.inglenookActivityIndicator()
         }
     }
 }

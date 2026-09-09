@@ -876,6 +876,51 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
     }
 
 
+    open suspend fun getAuthorsPage(startIndex: Int = 0, limit: Int = 50, sortBy: String = "SortName", sortOrder: String = "Ascending"): List<Author> {
+        val uid = userId ?: return emptyList()
+        val safeStartIndex = startIndex.coerceAtLeast(0)
+        val safeLimit = limit.coerceIn(1, 200)
+        val libraryIds = selectedLibraryIds.value
+
+        return try {
+            val results = coroutineScope {
+                val ids = libraryIds.ifEmpty { listOf<String?>(null) }
+                ids.map { libraryId ->
+                    async {
+                        try {
+                            val response = client.get("$serverUrl/Artists/AlbumArtists") {
+                                parameter("UserId", uid)
+                                parameter("SortBy", sortBy)
+                                parameter("SortOrder", sortOrder)
+                                parameter("StartIndex", safeStartIndex)
+                                parameter("Limit", safeLimit)
+                                libraryId?.let { parameter("ParentId", it) }
+                                withAuthentication()
+                            }
+                            if (response.status.isSuccess()) {
+                                val itemsResponse: ItemsResponse = response.body()
+                                itemsResponse.Items.map {
+                                    Author(
+                                        id = it.Id,
+                                        name = it.Name,
+                                        imageId = it.ImageTags?.Primary,
+                                        overview = it.Overview
+                                    )
+                                }
+                            } else emptyList()
+                        } catch (e: Exception) {
+                            if (e is CancellationException) throw e
+                            emptyList()
+                        }
+                    }
+                }.map { it.await() }
+            }
+            results.flatten().distinctBy { it.id }.take(safeLimit)
+        } catch (e: Exception) {
+            handleNetworkException(e, emptyList())
+        }
+    }
+
     open suspend fun getAuthors(forceRefresh: Boolean = false): List<Author> {
         val uid = userId ?: return emptyList()
         val libraryIds = selectedLibraryIds.value

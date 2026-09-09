@@ -9,6 +9,7 @@ import com.lightningkite.kiteui.views.expanding
 import com.lightningkite.kiteui.views.dynamicTheme
 import com.kf7mxe.inglenook.Book
 import com.kf7mxe.inglenook.ItemType
+import com.kf7mxe.inglenook.screens.AuthorSortOption
 import com.lightningkite.kiteui.QueryParameter
 import com.lightningkite.kiteui.Routable
 import com.lightningkite.kiteui.views.buttonTheme
@@ -37,7 +38,7 @@ class LibraryPage : Page {
     val bookTypeFilter = Signal<ItemType?>(null) // null = All
 
     @QueryParameter
-    val authorSearchQuery = Signal("")
+    val authorSortBy = Signal(AuthorSortOption.NameAsc)
 
     @QueryParameter
     val seriesSearchQuery = Signal("")
@@ -83,7 +84,7 @@ class LibraryPage : Page {
                     views = {currentTab ->
                         when(currentTab) {
                             BooksTab.Books -> with(BooksPage(bookSelectedFilter, bookTypeFilter)) { render() }
-                            BooksTab.Authors -> with(AuthorsPage(authorSearchQuery, bookTypeFilter)) { render() }
+                            BooksTab.Authors -> with(AuthorsPage(authorSortBy, bookTypeFilter)) { render() }
                             BooksTab.Series -> with(SeriesPage(seriesSearchQuery)) { render() }
                         }
 

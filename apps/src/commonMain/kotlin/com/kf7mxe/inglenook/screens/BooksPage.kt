@@ -176,8 +176,7 @@ class BooksPage(
             }
 
 
-            shownWhen { initialLoad.state().ready && filteredBooks().isNotEmpty() }.expanding.col {
-                expanding.swapView {
+            expanding.swapView {
                 swapping(
                     current = { viewMode() },
                     views = { mode ->
@@ -235,9 +234,9 @@ class BooksPage(
                         }
                     }
                 )
-                }
-                shownWhen { isLoading() && hasMore() }. centered.inglenookActivityIndicator()
             }
+
+            shownWhen { initialLoad.state().ready && isLoading() && hasMore() }.centered.inglenookActivityIndicator()
 
             // Books grid/list
 //            gridListView(
