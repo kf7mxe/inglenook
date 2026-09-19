@@ -136,17 +136,6 @@ data class Bookshelf(
     val updatedAt: Instant = Clock.System.now()
 )
 
-// Local playback progress (stored on device for offline tracking)
-@GenerateDataClassPaths
-@Serializable
-data class PlaybackProgress(
-    val _id: String, // bookId
-    val positionTicks: Long = 0L,
-    val lastPlayed: Instant = Clock.System.now(),
-    val duration: Long = 0L,
-    val synced: Boolean = false // Whether synced to Jellyfin
-)
-
 // Downloaded book information
 @GenerateDataClassPaths
 @Serializable

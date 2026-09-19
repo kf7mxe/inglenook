@@ -65,6 +65,36 @@ object PlaybackState {
         persistedBookPositions.value = persistedBookPositions.value + (bookId to position)
     }
 
+    // Sync local positions to server (compare-and-merge with 5-minute threshold)
+    suspend fun syncLocalPositionsToServer() {
+        val client = jellyfinClient.value ?: return
+        val positions = persistedBookPositions.value
+
+        for ((bookId, localPos) in positions) {
+            if (localPos <= 0L) continue
+
+            // Try to get server position
+            val serverBook = client.getBook(bookId)
+            val serverPos = serverBook?.userData?.playbackPositionTicks ?: 0L
+
+            // Compare and merge logic
+            if (localPos > serverPos) {
+                // Local ahead - push to server
+                client.reportPlaybackProgress(bookId, localPos, isPaused = true)
+            } else {
+                // Server ahead - check gap
+                val gap = serverPos - localPos
+                val threshold = 3 * 60 * 10_000_000L // 5 minutes in ticks
+
+                if (gap > threshold) {
+                    // Large gap (finished book + restart) - push local
+                    client.reportPlaybackProgress(bookId, localPos, isPaused = true)
+                }
+                // Small gap - server wins, don't push
+            }
+        }
+    }
+
     private fun saveLastPlayed() {
         val book = currentBook.value
         val position = positionTicks.value
@@ -132,6 +162,11 @@ object PlaybackState {
         isPlaying.value = false
         stopProgressSync()
 
+        // Read fresh position from player before saving
+        audioPlayer?.let {
+            positionTicks.value = it.getCurrentPosition()
+        }
+
         // Persist position so it survives app restart
         saveLastPlayed()
 
@@ -174,6 +209,16 @@ object PlaybackState {
     fun stop() {
         val book = currentBook.value
 
+        // Read fresh position from player before stopping
+        audioPlayer?.let {
+            positionTicks.value = it.getCurrentPosition()
+        }
+
+        // Save position to per-book store before clearing
+        if (book != null && positionTicks.value > 0L) {
+            saveBookPosition(book.id, positionTicks.value)
+        }
+
         audioPlayer?.stop()
         audioPlayer = null
         isPlaying.value = false
@@ -182,7 +227,7 @@ object PlaybackState {
         playbackProgressReportJob?.cancel()
         playbackProgressReportJob = null
 
-        // Clear persisted state (user explicitly stopped)
+        // Clear last-played state
         clearLastPlayed()
 
         // Report playback stopped to Jellyfin
@@ -203,6 +248,8 @@ object PlaybackState {
         positionTicks.value = clampedPosition
         audioPlayer?.seek(clampedPosition)
         updateCurrentChapter()
+        // Persist immediately so seek survives app crash
+        saveLastPlayed()
     }
 
     suspend fun skipForward() {
@@ -352,7 +399,8 @@ object PlaybackState {
                 jellyfinClient.value?.reportPlaybackStopped(book.id, duration.value)
             }
         }
-        stop()
+        // Pause instead of stop to preserve position for resume
+        pause()
     }
 
     // Sleep timer functions

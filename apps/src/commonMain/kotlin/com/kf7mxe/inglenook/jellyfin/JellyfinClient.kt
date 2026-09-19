@@ -626,12 +626,20 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
                 ?: ApiCache.getStale<Book>(cacheKey)
             if (cached != null) {
                 reportNetworkError(e)
-                return cached
+                // Overlay local position on cache fallback
+                val localPosition = com.kf7mxe.inglenook.playback.PlaybackState.getLocalPosition(itemId)
+                return if (localPosition > 0L) {
+                    cached.copy(userData = UserData(playbackPositionTicks = localPosition))
+                } else cached
             }
             val download = com.kf7mxe.inglenook.downloads.DownloadManager.getDownload(itemId)
             if (download != null) {
                 reportNetworkError(e)
-                return download.toAudioBook()
+                val localPosition = com.kf7mxe.inglenook.playback.PlaybackState.getLocalPosition(itemId)
+                val book = download.toAudioBook()
+                return if (localPosition > 0L) {
+                    book.copy(userData = UserData(playbackPositionTicks = localPosition))
+                } else book
             }
             handleNetworkException(e, null)
         }

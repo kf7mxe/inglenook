@@ -137,7 +137,10 @@ class PlaybackService : MediaSessionService() {
     override fun onTaskRemoved(rootIntent: Intent?) {
         val player = mediaSession?.player
         if (player != null && !player.playWhenReady) {
-            // Stop the service if playback is paused
+            // Save position before stopping service
+            val currentPosMs = player.currentPosition
+            PlaybackState.positionTicks.value = currentPosMs * 10_000 // Convert ms to ticks
+            PlaybackState.pause()
             stopSelf()
         }
     }

@@ -127,6 +127,13 @@ fun ViewWriter.app(navigator: PageNavigator, dialog: PageNavigator) {
         }
     }
 
+    // Sync local positions to server on app launch (if online)
+    if (!ConnectivityState.offlineMode.value) {
+        AppScope.launch {
+            PlaybackState.syncLocalPositionsToServer()
+        }
+    }
+
     // Check if Jellyfin is configured, if not go to setup
     AppScope.launch {
         // Restore demo mode from persistent storage if it was previously active
