@@ -65,9 +65,9 @@ class HomePage : Page {
             inProgressBooks.state().ready && recommendedBooks.state().ready && recentlyAddedBooks.state().ready
         }
 
-        unpadded.scrolling.col {
+        scrolling.col {
 //            gap = 1.rem
-
+            paddingByEdge = Edges(0.0.rem,5.rem,0.0.rem,5.rem)
             // Banner: server reachable while in manual offline mode
             shownWhen { ConnectivityState.offlineMode() && ConnectivityState.serverReachable() }.col {
                 padding = 1.rem
@@ -89,7 +89,7 @@ class HomePage : Page {
 
             // Downloaded Books section (shown when offline or has downloads)
             shownWhen { ConnectivityState.offlineMode() && downloadedBooks().isNotEmpty() }.col {
-                padded.col {
+                col {
                     row {
                         expanding.h3 { content = "Downloaded Books" }
                         link {
@@ -156,12 +156,12 @@ class HomePage : Page {
 
 
                 // Main content sections (shown online, or offline with cached data)
-                unpadded.col {
+                col {
 
                     // Continue Listening Section
                     col {
                         ::shown { inProgressBooks().isNotEmpty() || !inProgressBooks.state().ready }
-                        padded.row {
+                        row {
                             expanding.h3 { content = "Continue Listening" }
                             link {
                                 text("See All")
@@ -171,7 +171,7 @@ class HomePage : Page {
 
                         shownWhen { !inProgressBooks.state().ready }.inglenookActivityIndicator()
 
-                        scrollingHorizontally.padded.row {
+                        scrollingHorizontally.row {
                             ::shown {
                                 inProgressBooks().isNotEmpty()
                             }
@@ -188,7 +188,7 @@ class HomePage : Page {
                 col {
                     ::shown { recommendedBooks().isNotEmpty() || !recommendedBooks.state().ready }
 
-                    padded.row {
+                    row {
                         expanding.h3 { content = "Recommended For You" }
                         link {
                             text("See All")
@@ -199,7 +199,7 @@ class HomePage : Page {
                     shownWhen { !recommendedBooks.state().ready }.inglenookActivityIndicator()
 
 
-                    scrollingHorizontally.padded.row {
+                    scrollingHorizontally.row {
                         ::shown{
                             recommendedBooks().isNotEmpty()
                         }
@@ -216,7 +216,7 @@ class HomePage : Page {
                     ::shown {
                         recentlyAddedBooks().isNotEmpty()
                     }
-                    padded.row {
+                    row {
                         expanding.h3 { content = "Recently Added" }
                         link {
                             text("See All")
@@ -227,7 +227,7 @@ class HomePage : Page {
 
 
 
-                    scrollingHorizontally.padded.row {
+                    scrollingHorizontally.row {
                         forEachUpdating(recentlyAddedBooks) { book ->
                             bookCard(book) {
                                 mainPageNavigator.navigate(BookDetailPage(book.invoke().id))

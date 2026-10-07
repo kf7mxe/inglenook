@@ -310,7 +310,7 @@ class ReaderActivity : AppCompatActivity() {
         if (epubFile.exists() && epubFile.length() > 0) return@withContext epubFile
 
         val connection = URL(downloadUrl).openConnection() as HttpURLConnection
-        connection.setRequestProperty("X-Emby-Authorization", authHeader)
+        connection.setRequestProperty("Authorization", authHeader)
         connection.connectTimeout = 30000
         connection.readTimeout = 60000
         try {

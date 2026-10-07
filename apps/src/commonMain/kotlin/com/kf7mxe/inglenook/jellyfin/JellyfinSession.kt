@@ -125,7 +125,8 @@ fun switchToServer(serverId: String) {
             serverUrl = config.serverUrl,
             accessToken = config.accessToken,
             userId = config.userId,
-            deviceId = config.deviceId
+            deviceId = config.deviceId,
+            serverVersion = config.serverVersion
         )
 
         CacheRefresher.start()
@@ -175,7 +176,8 @@ fun updateServerConfig(config: JellyfinServerConfig) {
                 serverUrl = config.serverUrl,
                 accessToken = config.accessToken,
                 userId = config.userId,
-                deviceId = config.deviceId
+                deviceId = config.deviceId,
+                serverVersion = config.serverVersion
             )
         } else {
             null
@@ -197,7 +199,8 @@ fun initializeJellyfinClient() {
             serverUrl = config.serverUrl,
             accessToken = config.accessToken,
             userId = config.userId,
-            deviceId = config.deviceId
+            deviceId = config.deviceId,
+            serverVersion = config.serverVersion
         )
     } else {
         null

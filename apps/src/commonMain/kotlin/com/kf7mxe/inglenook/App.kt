@@ -23,7 +23,6 @@ import com.kf7mxe.inglenook.demo.DemoMode
 import com.kf7mxe.inglenook.demo.isDemoWebsite
 import com.kf7mxe.inglenook.components.connectivityDialog
 import com.kf7mxe.inglenook.components.getDominantColor
-import com.kf7mxe.inglenook.components.getGlowSemanticForBookBackground
 import com.kf7mxe.inglenook.components.getSemanticForBookBackground
 import com.kf7mxe.inglenook.components.nowPlayingPreview
 import com.kf7mxe.inglenook.components.offlineBanner
@@ -58,6 +57,8 @@ import com.kf7mxe.inglenook.util.extractDominantColors
 import com.kf7mxe.inglenook.util.loadResizedImagePixels
 import com.lightningkite.kiteui.Platform
 import com.lightningkite.kiteui.current
+import com.lightningkite.kiteui.views.bold
+import com.lightningkite.kiteui.views.important
 import com.lightningkite.reactive.context.invoke
 import com.lightningkite.reactive.context.reactive
 import kotlinx.coroutines.launch
@@ -119,6 +120,7 @@ fun ViewWriter.app(navigator: PageNavigator, dialog: PageNavigator) {
 
     // Restore last played book so the now-playing preview shows on relaunch
     launch {
+
         PlaybackState.restoreLastPlayed()
         println("DEBUG sumeOnOpen.value ${autoResumeOnOpen.value}")
         if (autoResumeOnOpen.value && PlaybackState.currentBook.value != null && !PlaybackState.isPlaying.value) {
@@ -155,7 +157,8 @@ fun ViewWriter.app(navigator: PageNavigator, dialog: PageNavigator) {
                 serverUrl = config.serverUrl,
                 accessToken = config.accessToken,
                 userId = config.userId,
-                deviceId = config.deviceId
+                deviceId = config.deviceId,
+                serverVersion = config.serverVersion
             )
             println("DEBUg before call refreshServerCapabailites")
             refreshServerCapabilities(config)
@@ -174,11 +177,12 @@ fun ViewWriter.app(navigator: PageNavigator, dialog: PageNavigator) {
         }
     }
 
-    OuterSemantic.onNext.appBase(navigator, dialog) {
-        applySafeInsets(bottom = false)
+    appBase(navigator, dialog) {
         coordinatorFrame {
 
             mainPageNavigator = navigator
+
+
             dialog?.let {
                 dialogPageNavigator = it
             }
@@ -256,6 +260,7 @@ fun ViewWriter.app(navigator: PageNavigator, dialog: PageNavigator) {
             }
 
 
+
             image {
                 scaleType = ImageScaleType.Crop
                 ::source { wallpaper() }
@@ -263,6 +268,8 @@ fun ViewWriter.app(navigator: PageNavigator, dialog: PageNavigator) {
                     wallpaper() != null
                 }
             }
+
+
             col {
 //                    themeChoice = ThemeDerivation.None
                 val coverDominantColor = rememberSuspending {
@@ -274,8 +281,7 @@ fun ViewWriter.app(navigator: PageNavigator, dialog: PageNavigator) {
                     }
                 }
                 dynamicTheme {
-                    getGlowSemanticForBookBackground(coverDominantColor(),appTheme().background.closestColor(),
-                        OuterSemantic)
+                    getSemanticForBookBackground(coverDominantColor(),appTheme().background.closestColor(), CardSemantic)
                 }
             }
 
@@ -288,7 +294,29 @@ fun ViewWriter.app(navigator: PageNavigator, dialog: PageNavigator) {
 
 
 
+            canvas {
+                ::delegate {
+                    val dg = CozyPatternDelegate()
+                    val background = appTheme().background.closestColor()
+                    println("DEBUG background.perceivedBrightness ${background.perceivedBrightness}")
+                    dg.lineColor = if( background.perceivedBrightness >= 0.50 ) background.darken(0.075f) else background.lighten(0.075f)
+                    dg.backgroundColor = appTheme().background
+
+
+                    dg.iconSize = 50.0
+                    dg.spacing = 75.0
+                    dg.tiltAmount = 50.0
+                    dg.tiltMode = TiltMode.RANDOM
+                    dg.randomness = 0.12
+                    dg.thickness = 2.5
+                    // dg.icons = setOf(CozyIcon.OPEN_BOOK, CozyIcon.MUG, CozyIcon.FIRE)  // optional subset
+                    dg
+                }
+            }
+//
+//
             col {
+                applySafeInsets(bottom = false)
                 gap = 0.0.rem
 
 
@@ -307,13 +335,13 @@ fun ViewWriter.app(navigator: PageNavigator, dialog: PageNavigator) {
                             mainPageNavigator.goBack()
                         }
                     }
-
-                    expanding.centered.h3 {
+//
+                    expanding.bold.centered.h3 {
                         ::content {
                             mainPageNavigator.currentPage()?.title?.invoke() ?: ""
                         }
                     }
-
+//
                     button {
                         ::visible {
                             val currentPage = mainPageNavigator.currentPage()
@@ -333,7 +361,7 @@ fun ViewWriter.app(navigator: PageNavigator, dialog: PageNavigator) {
                 offlineBanner()
 
                 // Main content area with coordinator frame for bottom sheet
-                MainContentSemantic.onNext.expanding.navigatorView(navigator)
+                expanding.navigatorView(navigator)
 
 
                 // Bottom navigation bar
@@ -435,18 +463,20 @@ fun ViewWriter.bottomBar(navItems: List<NavLink>) {
 
                                 if (matchingScreen) SelectedTab else UnSelectedTab
                             }
-                           unpadded. centered.icon {
+                                themed(ThemeDerivation.invoke { it.withoutBack }).unpadded. centered.icon {
                                dynamicTheme {
                                    // TODO fix properly at KiteUi library layer
                                    if( Platform.current == Platform.Web &&  (currentThemePreset() == ThemePreset.NeumorphismLight || currentThemePreset() == ThemePreset.NeumorphismDark)) ThemeDerivation.invoke { it.copy("neumorphismxtraPadding",
                                        cascading = false,padding = Edges(1.rem,1.rem,1.rem,1.rem),
                                        shadows =  null).withBack } else null
                                }
+
+
                                 source = navLink.icon.copy(width = 1.5.rem, height = 1.5.rem)
                                 description = navLink.title
                             }
                             }
-                        centered.subtext(navLink.title)
+                        centered.bold.subtext(navLink.title)
                         to = navLink.destination
                     }
                 }

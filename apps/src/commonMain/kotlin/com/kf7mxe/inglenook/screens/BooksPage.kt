@@ -18,6 +18,7 @@ import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.lastItemViewedScrollToOnBack
 import com.kf7mxe.inglenook.viewMode
 import com.lightningkite.kiteui.models.Align
+import com.lightningkite.kiteui.models.Edges
 import com.lightningkite.kiteui.models.Icon
 import com.lightningkite.kiteui.models.ImportantSemantic
 import com.lightningkite.kiteui.models.rem
@@ -111,7 +112,6 @@ class BooksPage(
         }
 
         col {
-
             // Book filters and view toggle
             row {
                 card.button {

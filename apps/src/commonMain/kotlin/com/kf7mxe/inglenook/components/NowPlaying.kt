@@ -155,8 +155,7 @@ fun ViewWriter.nowPlaying(onClose: () -> Unit = {}) {
             }
         }
         dynamicTheme {
-            getGlowSemanticForBookBackground(coverDominantColor(),appTheme().background.closestColor(),
-                NowPlayingSemantic)
+            getSemanticForBookBackground(coverDominantColor(),appTheme().background.closestColor(), CardSemantic)
         }
 
         blurredImage(PlaybackState.currentBook, rememberSuspending {

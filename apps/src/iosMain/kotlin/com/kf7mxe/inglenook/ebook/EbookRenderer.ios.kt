@@ -127,7 +127,7 @@ actual fun ViewWriter.ebookReader(
 
                             try {
                                 const response = await fetch(url, {
-                                    headers: { 'X-Emby-Authorization': authHeader }
+                                    headers: { 'Authorization': authHeader }
                                 });
                                 if (!response.ok) throw new Error('Failed: ' + response.status);
 

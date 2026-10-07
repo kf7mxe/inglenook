@@ -77,6 +77,7 @@ class LibraryPage : Page {
                 }
             }
             expanding.swapView{
+                paddingByEdge = Edges(0.rem, 0.2.rem, 0.rem, 0.2.rem)
                 swapping(
                     current = {
                         currentTab()

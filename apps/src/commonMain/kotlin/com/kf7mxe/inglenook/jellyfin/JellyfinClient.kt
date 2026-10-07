@@ -48,7 +48,8 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
     val serverUrl: String,
     private var accessToken: String? = null,
     private var userId: String? = null,
-    private val deviceId: String = Uuid.random().toString()
+    private val deviceId: String = Uuid.random().toString(),
+    private var serverVersion: String? = null
 ) {
     private val json = Json {
         ignoreUnknownKeys = true
@@ -95,7 +96,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
     }
 
     private fun HttpRequestBuilder.withAuthentication() {
-        header("X-Emby-Authorization", getAuthHeader())
+        header("Authorization", getAuthHeader())
     }
 
     private fun scopedCacheKey(key: String): String =
@@ -162,6 +163,8 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
             )
         }
 
+        serverVersion = serverInfo?.Version
+
         return JellyfinServerConfig(
             _id = Uuid.random(),
             serverUrl = serverUrl,
@@ -173,7 +176,8 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
             serverName = serverInfo?.ServerName,
             canEditCollection = canEditCollection,
             identifyAvailable = identifyAvailable,
-            bookshelvesAvailable = bookshelvesAvailable
+            bookshelvesAvailable = bookshelvesAvailable,
+            serverVersion = serverInfo?.Version
         )
     }
 
@@ -1168,7 +1172,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
         val id = itemId ?: imageId ?: return ""
         return buildString {
             append("$serverUrl/Items/$id/Images/$imageType")
-            accessToken?.let { append("?api_key=$it") }
+            accessToken?.let { append("?ApiKey=$it") }
             imageId?.let {
                 append(if (contains("?")) "&" else "?")
                 append("tag=$it")
@@ -1253,7 +1257,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
             append("$serverUrl/Audio/$itemId/universal")
             append("?UserId=$userId")
             append("&DeviceId=$deviceId")
-            append("&api_key=$accessToken")
+            append("&ApiKey=$accessToken")
             append("&Container=opus,webm|opus,mp3,aac,m4a|aac,m4b|aac,flac,webma,webm|webma,wav,ogg")
             append("&TranscodingContainer=ts")
             if (useHls) {
@@ -1273,7 +1277,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
      */
     open fun getDownloadUrl(book: com.kf7mxe.inglenook.Book): String {
         return if (book.itemType == com.kf7mxe.inglenook.ItemType.Ebook) {
-            "$serverUrl/Items/${book.id}/Download?api_key=$accessToken"
+            "$serverUrl/Items/${book.id}/Download?ApiKey=$accessToken"
         } else {
             getAudioStreamUrl(book.id)
         }
@@ -1413,7 +1417,12 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
      * Returns a Secret (for API calls) and Code (6-digit code to display to user).
      */
     suspend fun initiateQuickConnect(): QuickConnectResult {
-        val response = client.post("$serverUrl/QuickConnect/Initiate") {
+        val endpoint = if (serverVersionAtLeast("12.0.0")) {
+            "$serverUrl/QuickConnect/Connect"
+        } else {
+            "$serverUrl/QuickConnect/Initiate"
+        }
+        val response = client.post(endpoint) {
             withAuthentication()
         }
 
@@ -1465,6 +1474,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
 
         // Get server info for name
         val serverInfo = getServerInfo()
+        serverVersion = serverInfo?.Version
         val canEditCollection = try { getCanEditCollection() } catch (e: Exception) { false }
         val identifyAvailable = try { isIdentifyAvailable() } catch (e: Exception) { false }
         val bookshelvesAvailable = bookshelfEndpointAvailable()
@@ -1480,7 +1490,8 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
             serverName = serverInfo?.ServerName,
             canEditCollection = canEditCollection,
             identifyAvailable = identifyAvailable,
-            bookshelvesAvailable = bookshelvesAvailable
+            bookshelvesAvailable = bookshelvesAvailable,
+            serverVersion = serverInfo?.Version
         )
     }
 
@@ -1557,6 +1568,9 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
         }
         return true
     }
+
+    private fun serverVersionAtLeast(minVersion: String): Boolean =
+        isVersionAtLeast(serverVersion, minVersion)
 
     private fun JellyfinItem.toAudioBook(): Book {
         // Jellyfin uses various types for audiobook authors: Author, AlbumArtist, Artist, Writer
@@ -1661,7 +1675,7 @@ data class AuthenticateResponse(
 data class JellyfinUser(val Id: String, val Name: String)
 
 @Serializable
-data class ServerInfoResponse(val Id: String, val ServerName: String)
+data class ServerInfoResponse(val Id: String, val ServerName: String, val Version: String? = null)
 
 @Serializable
 data class ViewsResponse(val Items: List<JellyfinItem>)

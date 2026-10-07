@@ -253,7 +253,7 @@ actual fun ViewWriter.ebookReader(
                 if (loadingEl) loadingEl.textContent = "Downloading book...";
 
                 fetch(cfg.downloadUrl, {
-                    headers: { 'X-Emby-Authorization': cfg.authHeader }
+                    headers: { 'Authorization': cfg.authHeader }
                 })
                 .then(function(r) {
                     if (!r.ok) throw new Error(r.status);

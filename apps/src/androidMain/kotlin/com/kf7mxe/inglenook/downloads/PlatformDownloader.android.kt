@@ -108,7 +108,7 @@ actual object PlatformDownloader {
         val request = DownloadManager.Request(Uri.parse(streamUrl))
             .setTitle(book.title)
             .setDescription("Downloading audiobook")
-            .addRequestHeader("X-Emby-Authorization", authHeader)
+            .addRequestHeader("Authorization", authHeader)
             .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
             .setDestinationInExternalFilesDir(context, null, "audiobooks/$fileName")
         

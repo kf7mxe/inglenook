@@ -17,6 +17,7 @@ import com.lightningkite.kiteui.models.Dimension
 import com.lightningkite.kiteui.views.nav
 import kotlin.math.abs
 import kotlin.math.absoluteValue
+import kotlin.random.Random
 
 /**
  * Extension to convert hex string to Color, returning null if invalid
@@ -61,10 +62,8 @@ fun Theme.Companion.cozy(accent: Color? = null): Theme {
         gap = 0.75.rem,
         semanticOverrides = SemanticOverrides(
             OuterSemantic.override {
-                it.withBack(
-                    padding = Edges.ZERO,
+                it.withoutBack(
                     cascading = false,
-                    outlineWidth = 0.dp
                 )
             },
             CardSemantic.override {
@@ -74,16 +73,18 @@ fun Theme.Companion.cozy(accent: Color? = null): Theme {
                     outline = it.outline.closestColor().lighten(0.1f)
                 )
             },
-            BarSemantic.override { it.withBack(
-
-                cornerRadii = CornerRadii.PerCorner(1.rem,true,true,true,true),
+            BarSemantic.override { it.withoutBack(
+                cascading = true,
+                outlineWidth = 0.dp
             ) },
             MainContentSemantic.override { it.withBack(
                 cascading = false,
-                background = it.background.closestColor().lighten (0.05f),
-                padding = Edges(1.rem,0.rem,1.rem,0.rem),
-                cornerRadii = CornerRadii.Fixed(0.rem),
-                outlineWidth = 0.dp,
+                padding = Edges(1.rem, 0.2.rem, 1.rem, 0.2.rem),
+                cornerRadii = Fixed(1.rem),
+                outlineWidth = 0.25.rem,
+                elevation = 2.dp,
+//                        background = if(theme.isDarkTheme()) theme.background.lighten(0.02f) else theme.background,
+                outline = it.outline
             )},
             ImportantSemantic.override {
                 it.withBack(
@@ -117,12 +118,12 @@ fun Theme.Companion.cozy(accent: Color? = null): Theme {
                     padding = Edges(1.rem,1.rem,1.rem,1.rem)
                 )
             },
-            NavSemantic.override { it.withBack(
-                cascading = false,
-                gap=0.5.rem,
-                cornerRadii = CornerRadii.PerCorner(1.rem,true,true,false,false)) },
+            NavSemantic.override { it.withoutBack(
+                            )
+
+            },
             UnselectedSemantic.override {
-                it.withBack()
+                it.withoutBack()
             },
             ButtonSemantic.override {
                 it.copy(
@@ -156,20 +157,25 @@ fun Theme.Companion.autumnCabin(accent: Color? = null): Theme {
                     outlineWidth = 1.dp
                 )
             },
-            BarSemantic.override { it.withBack(
-
-                cornerRadii = CornerRadii.PerCorner(1.rem,true,true,true,true),
+            BarSemantic.override { it.withoutBack(
+                cascading = true,
+                outlineWidth = 0.dp
             ) },
-            NavSemantic.override { it.withBack(
+            NavSemantic.override { it.withoutBack(
+            )
+
+            },
+            MainContentSemantic.override { it.withBack(
                 cascading = false,
-                gap=0.5.rem,
-                cornerRadii = CornerRadii.PerCorner(1.rem,true,true,false,false)) },
-            MainContentSemantic.override { it.withoutBack(
-                cascading = false,
-                padding = Edges(1.rem,0.rem,1.rem,0.rem),
-                cornerRadii = CornerRadii.Fixed(0.rem),
-                outlineWidth = 0.dp,
-            )},            ImportantSemantic.override {
+                padding = Edges(1.rem, 0.2.rem, 1.rem, 0.2.rem),
+                cornerRadii = Fixed(1.rem),
+                outlineWidth = 0.25.rem,
+                elevation = 2.dp,
+//                        background = if(theme.isDarkTheme()) theme.background.lighten(0.02f) else theme.background,
+                outline = it.outline
+            )},
+
+            ImportantSemantic.override {
                 it.withBack(
                     background = primary,
                     foreground = Color.white
@@ -178,7 +184,6 @@ fun Theme.Companion.autumnCabin(accent: Color? = null): Theme {
             SelectedSemantic.override {
                 it.withBack(
                     outlineWidth = 2.dp,
-                    outline = primary,
                 )
             },
             FieldSemantic.override {
@@ -195,8 +200,6 @@ fun Theme.Companion.autumnCabin(accent: Color? = null): Theme {
             OuterSemantic.override {
                 it.withoutBack(
                     cascading = false,
-                    padding = Edges.ZERO,
-                    outlineWidth = 0.dp
                 )
             },
             DialogSemantic.override {
@@ -235,20 +238,25 @@ fun Theme.Companion.midnight(accent: Color? = null): Theme {
             OuterSemantic.override {
                 it.withoutBack(
                     cascading = false,
-                    padding = Edges.ZERO,
-                    outlineWidth = 0.dp
                 )
             },
-            BarSemantic.override { it.withBack(
-
-                cornerRadii = CornerRadii.PerCorner(1.rem,true,true,true,true),
-            ) },
-            NavSemantic.override { it.withBack(
-                gap=0.5.rem,
-                cornerRadii = CornerRadii.PerCorner(1.rem,true,true,false,false)) },            MainContentSemantic.override { it.withBack(
+            MainContentSemantic.override { it.withBack(
                 cascading = false,
-                outlineWidth = 0.dp,
+                padding = Edges(1.rem, 0.2.rem, 1.rem, 0.2.rem),
+                cornerRadii = Fixed(1.rem),
+                outlineWidth = 0.25.rem,
+                elevation = 2.dp,
+//                        background = if(theme.isDarkTheme()) theme.background.lighten(0.02f) else theme.background,
+                outline = it.outline
             )},
+            BarSemantic.override { it.withoutBack(
+                cascading = true,
+                outlineWidth = 0.dp
+            ) },
+            NavSemantic.override { it.withoutBack(
+            )
+
+            },
                 ImportantSemantic.override {
                 it.withBack(
                     background = primary,
@@ -277,6 +285,7 @@ fun Theme.Companion.sunrise(accent: Color? = null): Theme {
     val primary = accent ?: Color.fromHexString("#c67c4e")
 
     return Theme(
+//        id="test"
         id = "sunrise-${primary.toInt()}",
         font = FontAndStyle(),
         foreground = Color.gray(0.15f),
@@ -285,36 +294,34 @@ fun Theme.Companion.sunrise(accent: Color? = null): Theme {
         outlineWidth = 2.px,
         elevation = 0.dp,
         gap = 0.75.rem,
-        cornerRadii = CornerRadii.RatioOfSpacing(0.5f),
         semanticOverrides = SemanticOverrides(
+            OuterSemantic.override {
+                it.withoutBack(cascading = false)
+            },
             CardSemantic.override {
                 it.withBack(
                     background = Color.white,
-                    elevation = 1.dp
                 )
             },
-            OuterSemantic.override {
+            BarSemantic.override {
                 it.withoutBack(
-
-                    cascading = false,
-                    padding = Edges.ZERO,
+                    cascading = true,
                     outlineWidth = 0.dp
                 )
             },
-            MainContentSemantic.override { it.withoutBack(
-                outlineWidth = 0.dp
-            )},
-            BarSemantic.override { it.withBack(
-
-                cornerRadii = CornerRadii.PerCorner(1.rem,true,true,true,true),
-            ) },
-            NavSemantic.override { it.withBack(
-                cascading = false,
-                gap=0.5.rem,
-                cornerRadii = CornerRadii.PerCorner(1.rem,true,true,true,true)) },            MainContentSemantic.override { it.withBack },
+            MainContentSemantic.override {
+                it.withBack(
+                    cascading = false,
+                    padding = Edges(1.rem, 0.2.rem, 1.rem, 0.2.rem),
+                    cornerRadii = CornerRadii.Fixed(1.rem),
+                    outlineWidth = 0.25.rem,
+                    elevation = 2.dp,
+                    outline = it.outline
+                )
+            },
             ImportantSemantic.override {
                 it.withBack(
-                    background = primary,
+                    background = it.outline,
                     foreground = Color.white
                 )
             },
@@ -331,7 +338,34 @@ fun Theme.Companion.sunrise(accent: Color? = null): Theme {
                     background = Color.white
                 )
             },
-        )
+            ImageSemantic.override {
+                it.withBack(
+                    cornerRadii = CornerRadii.Fixed(1.rem),
+                    padding = Edges.ZERO,
+                    outline = null,
+                    outlineWidth = 0.dp
+                )
+            },
+            DialogSemantic.override {
+                it.withBack(
+                    cornerRadii = CornerRadii.Fixed(1.rem),
+                    padding = Edges(1.rem, 1.rem, 1.rem, 1.rem)
+                )
+            },
+            NavSemantic.override {
+                it.withoutBack()
+            },
+            UnselectedSemantic.override {
+                it.withoutBack()
+            },
+            ButtonSemantic.override {
+                it.copy(
+                    id = "buttonSemantic",
+                    outlineWidth = 0.dp
+                ).withBack
+            }
+        ),
+        cornerRadii = CornerRadii.RatioOfSpacing(0.5f)
     )
 }
 
@@ -477,6 +511,7 @@ fun Theme.Companion.hackerman(accent: Color? = null): Theme {
         outline = primary,
         outlineWidth = 1.px,
         gap = 0.5.rem,
+        elevation = 0.dp,
         padding = Edges(0.5.rem),
         cornerRadii = CornerRadii.Fixed(0.px),
         semanticOverrides = SemanticOverrides(
@@ -497,7 +532,10 @@ fun Theme.Companion.hackerman(accent: Color? = null): Theme {
                 cascading = false,
                 outlineWidth = 0.dp,
             )},
-            MainContentSemantic.override { it.withoutBack },
+            MainContentSemantic.override { it.withBack(
+                cascading = false,
+                outlineWidth = 0.dp,
+            )},
             FieldSemantic.override { it.withBack(outlineWidth = 1.px, outline = primary) },
             CardSemantic.override { it.withBack(outlineWidth = 1.px, outline = primary.darken(0.7f)) },
             HoverSemantic.override { it.withBack(outlineWidth = 1.px, outline = primary) },
@@ -515,6 +553,7 @@ fun Theme.Companion.hackerman(accent: Color? = null): Theme {
 }
 
 // Clouds theme - Soft rounded style
+// Clouds theme - Soft rounded style
 fun Theme.Companion.clouds(accent: Color? = null): Theme {
     val primary = accent ?: HSPColor(hue = 0.6.turns, saturation = 0.7f, brightness = 0.6f).toRGB()
 
@@ -523,14 +562,35 @@ fun Theme.Companion.clouds(accent: Color? = null): Theme {
         font = FontAndStyle(),
         foreground = Color.gray(0.2f),
         background = Color.gray(0.95f),
+        outline = primary.darken(0.1f),
         outlineWidth = 1.px,
-        elevation = 0.px,
-        cornerRadii = CornerRadii.Fixed(1.rem),
+        elevation = 0.dp,
+        gap = 0.75.rem,
         semanticOverrides = SemanticOverrides(
-            CardSemantic.override { it.withBack(elevation = 1.dp, background = Color.white) },
-            BarSemantic.override { it[CardSemantic] },
-            NavSemantic.override { it[CardSemantic] },
-            MainContentSemantic.override { it.withoutBack },
+
+            OuterSemantic.override {
+                it.withoutBack(
+                    cascading = false,
+                )
+            },
+            // FIXED: Replaced unsafe it[CardSemantic] delegation with explicit constraints to prevent rendering crashes
+            BarSemantic.override { it.withoutBack(
+                cascading = true,
+                outlineWidth = 0.dp
+            ) },
+            NavSemantic.override { it.withoutBack(
+            )
+
+            },
+            MainContentSemantic.override { it.withBack(
+                cascading = false,
+                padding = Edges(1.rem, 0.2.rem, 1.rem, 0.2.rem),
+                cornerRadii = Fixed(1.rem),
+                outlineWidth = 0.25.rem,
+                elevation = 2.dp,
+//                        background = if(theme.isDarkTheme()) theme.background.lighten(0.02f) else theme.background,
+                outline = it.outline
+            )},
             ImportantSemantic.override {
                 val primaryFixed = primary.darken(0.3f)
                 it.withBack(
@@ -556,10 +616,11 @@ fun Theme.Companion.clouds(accent: Color? = null): Theme {
                 it.withBack(
                     background = it.background.darken(0.25f),
                     cornerRadii = CornerRadii.Fixed(1.rem),
-                    padding = Edges(1.rem,0.25.rem),
+                    padding = Edges(1.rem, 0.25.rem),
                 )
             }
-        )
+        ),
+        cornerRadii = CornerRadii.Fixed(1.rem)
     )
 }
 
@@ -585,17 +646,25 @@ fun Theme.Companion.obsidian(accent: Color? = null): Theme {
                     outline = Color.fromHexString("#3b3b4d")
                 )
             },
-            BarSemantic.override { it.withBack(
-
-                cornerRadii = CornerRadii.PerCorner(1.rem,true,true,true,true),
+            BarSemantic.override { it.withoutBack(
+                cascading = true,
+                outlineWidth = 0.dp
             ) },
-            NavSemantic.override { it.withBack(
-                gap=0.5.rem,
-                cornerRadii = CornerRadii.PerCorner(1.rem,true,true,false,false)) },            MainContentSemantic.override { it.withBack(
+            NavSemantic.override { it.withoutBack(
+            )
+
+            },
+
+            MainContentSemantic.override { it.withBack(
                 cascading = false,
-                outlineWidth = 0.dp,
+                padding = Edges(1.rem, 0.2.rem, 1.rem, 0.2.rem),
+                cornerRadii = Fixed(1.rem),
+                outlineWidth = 0.25.rem,
+                elevation = 2.dp,
+//                        background = if(theme.isDarkTheme()) theme.background.lighten(0.02f) else theme.background,
+                outline = it.outline
             )},
-            MainContentSemantic.override { it.withoutBack },
+
             ImportantSemantic.override {
                 it.withBack(
                     background = primary,
@@ -612,8 +681,6 @@ fun Theme.Companion.obsidian(accent: Color? = null): Theme {
             OuterSemantic.override {
                 it.withoutBack(
                     cascading = false,
-                    padding = Edges.ZERO,
-                    outlineWidth = 0.dp
                 )
             },
             FieldSemantic.override {

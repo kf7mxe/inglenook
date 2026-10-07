@@ -104,7 +104,7 @@ actual object PlatformDownloader {
             // Fetch the audio file with authentication
             val fetchOptions = js("{}")
             fetchOptions["headers"] = js("{}")
-            fetchOptions["headers"]["X-Emby-Authorization"] = client.getAuthHeader()
+            fetchOptions["headers"]["Authorization"] = client.getAuthHeader()
 
             val response = kotlinx.browser.window.fetch(streamUrl, fetchOptions).await<Response>()
 

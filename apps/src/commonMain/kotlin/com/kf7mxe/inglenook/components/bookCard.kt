@@ -41,7 +41,7 @@ fun ViewWriter.featuredBookCard(
         }
         centered.col {
             dynamicTheme {
-                getGlowSemanticForBookBackground(coverDominantColor(),appTheme().background.closestColor(), CardSemantic)
+                getSemanticForBookBackground(coverDominantColor(),appTheme().background.closestColor(), CardSemantic)
             }
             sizeConstraints(width = 25.rem, height = 25.rem).button {
                 centered.coverImage(
@@ -128,27 +128,27 @@ suspend fun getDominantColor(book: Book): RgbColor?{
 }
 
 /** Radial "glow" background: strongest near the center (cover) fading into the card's background color at the edges. */
-fun getGlowSemanticForBookBackground(coverDominantColor: RgbColor?, bgColor: Color, defaultThemeDerivation: Semantic): Semantic {
-    val dominantRgb = coverDominantColor ?: return defaultThemeDerivation
-    val dominantColor = Color.fromHexString(dominantRgb.toHexString())
-    return object : Semantic("book-glow-${dominantColor.toInt()}") {
-        override fun default(theme: Theme): ThemeAndBack {
-            val radialGradient =  RadialGradient(
-                stops = listOf(
-                    GradientStop(0f, dominantColor),
-                    GradientStop(0.5f, Color.interpolate(dominantColor, bgColor, 0.5f)),
-                    GradientStop(1f, bgColor),
-                ),
-            )
-            return theme.copy(
-                id = key,
-                cascading = false,
-                outline = radialGradient,
-                background =radialGradient
-            ).withBack
-        }
-    }
-}
+//fun getGlowSemanticForBookBackground(coverDominantColor: RgbColor?, bgColor: Color, defaultThemeDerivation: Semantic): Semantic {
+//    val dominantRgb = coverDominantColor ?: return defaultThemeDerivation
+//    val dominantColor = Color.fromHexString(dominantRgb.toHexString())
+//    return object : Semantic("book-glow-${dominantColor.toInt()}") {
+//        override fun default(theme: Theme): ThemeAndBack {
+//            val radialGradient =  RadialGradient(
+//                stops = listOf(
+//                    GradientStop(0f, dominantColor),
+//                    GradientStop(0.5f, Color.interpolate(dominantColor, bgColor, 0.5f)),
+//                    GradientStop(1f, bgColor),
+//                ),
+//            )
+//            return theme.copy(
+//                id = key,
+//                cascading = false,
+//                outline = radialGradient,
+//                background =radialGradient
+//            ).withBack
+//        }
+//    }
+//}
 
  fun getSemanticForBookBackground(coverDominantColor: RgbColor?,bgColor:Color,defaultThemeDerivation: Semantic): Semantic {
     val dominantRgb = coverDominantColor ?: return defaultThemeDerivation
@@ -178,7 +178,7 @@ fun ViewWriter.bookCard(
 
     sizeConstraints(width = 15.rem, height = 25.rem).col {
         dynamicTheme {
-            getGlowSemanticForBookBackground(coverDominantColor(),appTheme().background.closestColor(), CardSemantic)
+            getSemanticForBookBackground(coverDominantColor(),appTheme().background.closestColor(), CardSemantic)
         }
         // Cover image with click
         button {
