@@ -110,7 +110,8 @@ class SeriesDetailPage(val seriesName: String) : Page {
                             mainPageNavigator.navigate(BookDetailPage(bookReactive().id))
                         }
                     )
-                }
+                },
+                restorePosition = false
             )
         }
     }

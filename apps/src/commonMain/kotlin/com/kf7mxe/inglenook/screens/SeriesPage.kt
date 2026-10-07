@@ -34,9 +34,15 @@ class SeriesPage(val searchQuery: Signal<String> = Signal("")) : Page {
     override val title: Reactive<String> = Constant("Series")
 
     override fun ViewWriter.render() {
+        val allSeriesComplete = Signal(false)
         val allSeries = rememberSuspending {
-            ConnectivityState.offlineMode()
-            jellyfinClient()?.getAllSeries() ?: emptyList()
+            allSeriesComplete.value = false
+            try {
+                ConnectivityState.offlineMode()
+                jellyfinClient()?.getAllSeries() ?: emptyList()
+            } finally {
+                allSeriesComplete.value = true
+            }
         }
 
         val filteredSeries = remember {
@@ -95,7 +101,9 @@ class SeriesPage(val searchQuery: Signal<String> = Signal("")) : Page {
                         lastItemViewedScrollToOnBack.set(seriesReactive().id)
                         mainPageNavigator.navigate(SeriesDetailPage(seriesReactive().name))
                     }
-                }
+                },
+                restoreReady = { allSeriesComplete() },
+                restoreTargetExistsOutsideItems = { id -> allSeries().any { it.id == id } }
             )
         }
     }

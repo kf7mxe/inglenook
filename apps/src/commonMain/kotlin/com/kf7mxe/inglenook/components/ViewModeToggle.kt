@@ -1,6 +1,5 @@
 package com.kf7mxe.inglenook.components
 
-import com.kf7mxe.inglenook.HasId
 import com.kf7mxe.inglenook.ViewMode
 import com.kf7mxe.inglenook.dashboard
 import com.kf7mxe.inglenook.lastItemViewedScrollToOnBack
@@ -12,12 +11,13 @@ import com.lightningkite.kiteui.views.card
 import com.lightningkite.kiteui.views.direct.*
 import com.lightningkite.kiteui.views.expanding
 import com.lightningkite.kiteui.views.important
+import com.lightningkite.kiteui.views.l2.Recycler2
 import com.lightningkite.kiteui.views.l2.RecyclerViewPlacerVerticalGrid
 import com.lightningkite.kiteui.views.l2.children
 import com.lightningkite.reactive.context.invoke
 import com.lightningkite.reactive.context.reactive
 import com.lightningkite.reactive.core.Reactive
-import com.lightningkite.reactive.core.remember
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
@@ -35,6 +35,49 @@ fun ViewWriter.viewModeToggleButton() {
     }
 }
 
+suspend fun <T : Any> Recycler2.restoreLastViewedItem(
+    items: suspend () -> List<T>,
+    itemId: (T) -> String,
+    isReady: suspend () -> Boolean = { true },
+    isLoading: suspend () -> Boolean = { false },
+    hasMore: suspend () -> Boolean = { false },
+    loadedCount: suspend () -> Int = { items().size },
+    loadMore: (suspend () -> Unit)? = null,
+    targetExistsOutsideItems: suspend (String) -> Boolean = { false }
+) {
+    val targetId = lastItemViewedScrollToOnBack() ?: return
+
+    while (!isReady() || isLoading()) {
+        delay(25)
+    }
+
+    while (true) {
+        while (isLoading()) {
+            delay(25)
+        }
+
+        val currentItems = items()
+        val index = currentItems.indexOfFirst { itemId(it) == targetId }
+        if (index >= 0) {
+            scrollToIndex(index, Align.Start, false)
+            lastItemViewedScrollToOnBack.set(null)
+            return
+        }
+
+        if (targetExistsOutsideItems(targetId) || !hasMore() || loadMore == null) {
+            lastItemViewedScrollToOnBack.set(null)
+            return
+        }
+
+        val countBeforeLoad = loadedCount()
+        loadMore()
+        if (hasMore() && loadedCount() == countBeforeLoad && !isLoading()) {
+            lastItemViewedScrollToOnBack.set(null)
+            return
+        }
+    }
+}
+
 /**
  * Reusable grid/list swap view. Switches between a grid RecyclerView and a list RecyclerView
  * based on the current viewMode.
@@ -45,25 +88,36 @@ fun <T : Any> ViewWriter.gridListView(
     gridColumns: Int = 2,
     gridItem: ViewWriter.(Reactive<T>) -> Unit,
     listItem: ViewWriter.(Reactive<T>) -> Unit,
-    onNearEnd: (suspend () -> Unit)? = null
+    onNearEnd: (suspend () -> Unit)? = null,
+    restoreReady: suspend () -> Boolean = { true },
+    restoreIsLoading: suspend () -> Boolean = { false },
+    restoreHasMore: suspend () -> Boolean = { false },
+    restoreLoadedCount: suspend () -> Int = { items().size },
+    restoreTargetExistsOutsideItems: suspend (String) -> Boolean = { false },
+    restorePosition: Boolean = true
 ) {
+
     expanding.swapView {
         swapping(
             current = { viewMode() },
             views = { mode ->
-                val scrollTo = remember {
-                    if (lastItemViewedScrollToOnBack() == null) return@remember 0
-                    items().indexOfFirst { (it as HasId).id == lastItemViewedScrollToOnBack() }.takeIf { it != -1 }
-                        ?: return@remember 0
-                }
-
                 when (mode) {
                     ViewMode.Grid -> {
                         expanding.recyclerView {
                             ::placer { RecyclerViewPlacerVerticalGrid(gridColumns) }
                             launch {
-                                if (lastItemViewedScrollToOnBack() == null) return@launch
-                                scrollToIndex(scrollTo(), Align.Start, false)
+                                if (restorePosition) {
+                                    restoreLastViewedItem(
+                                        items = { items() },
+                                        itemId = { keySelector(it).toString() },
+                                        isReady = restoreReady,
+                                        isLoading = restoreIsLoading,
+                                        hasMore = restoreHasMore,
+                                        loadedCount = restoreLoadedCount,
+                                        loadMore = onNearEnd,
+                                        targetExistsOutsideItems = restoreTargetExistsOutsideItems
+                                    )
+                                }
                             }
                             children(items, keySelector) { item ->
                                 gridItem(item)
@@ -81,8 +135,18 @@ fun <T : Any> ViewWriter.gridListView(
                     ViewMode.List -> {
                         expanding.recyclerView {
                             launch {
-                                if (lastItemViewedScrollToOnBack() == null) return@launch
-                                scrollToIndex(scrollTo(), Align.Start, false)
+                                if (restorePosition) {
+                                    restoreLastViewedItem(
+                                        items = { items() },
+                                        itemId = { keySelector(it).toString() },
+                                        isReady = restoreReady,
+                                        isLoading = restoreIsLoading,
+                                        hasMore = restoreHasMore,
+                                        loadedCount = restoreLoadedCount,
+                                        loadMore = onNearEnd,
+                                        targetExistsOutsideItems = restoreTargetExistsOutsideItems
+                                    )
+                                }
                             }
                             children(items, keySelector) { item ->
                                 listItem(item)

@@ -17,6 +17,7 @@ import com.kf7mxe.inglenook.cache.fetchCoverImage
 import com.kf7mxe.inglenook.components.bookCard
 import com.kf7mxe.inglenook.components.bookListItem
 import com.kf7mxe.inglenook.components.inglenookActivityIndicator
+import com.kf7mxe.inglenook.components.restoreLastViewedItem
 import com.kf7mxe.inglenook.components.viewModeToggleButton
 import com.kf7mxe.inglenook.searchOff
 import com.kf7mxe.inglenook.connectivity.ConnectivityState
@@ -59,40 +60,42 @@ class SearchPage : Page {
     override fun ViewWriter.render() {
 
         val isLoading = Signal(false)
-
+        val searchResultsReady = Signal(false)
 
         val searchResults = rememberSuspending {
-            val query = searchQuery()
-            if(query.isBlank()) return@rememberSuspending emptyList<HasId>()
-            if (ConnectivityState.offlineMode.value) {
-                val lowerQuery = query.lowercase()
-                val matchingBooks = DownloadManager.getDownloads()
-                    .filter { download ->
-                        download.title.lowercase().contains(lowerQuery) ||
-                                download.authors.any { it.name.lowercase().contains(lowerQuery) }
-                    }
-                    .map { it.toAudioBook() }
-//                searchResults.value = SearchResults(books = matchingBooks, authors = emptyList())
-                return@rememberSuspending matchingBooks
-            }
-
+            isLoading.value = true
+            searchResultsReady.value = false
             try {
+                val query = searchQuery()
+                if (query.isBlank()) return@rememberSuspending emptyList<HasId>()
+                if (ConnectivityState.offlineMode.value) {
+                    val lowerQuery = query.lowercase()
+                    return@rememberSuspending DownloadManager.getDownloads()
+                        .filter { download ->
+                            download.title.lowercase().contains(lowerQuery) ||
+                                    download.authors.any { it.name.lowercase().contains(lowerQuery) }
+                        }
+                        .map { it.toAudioBook() }
+                }
+
                 val client = jellyfinClient.value
                 if (client != null) {
-                    val searchResults = client.search(query)
-                    val books = searchResults.books
-                    val authors = searchResults.authors
+                    val results = client.search(query)
+                    val books = results.books
+                    val authors = results.authors
                     return@rememberSuspending books.zip(authors) { book, author -> listOf(book, author) }
                         .flatten() +
                             books.drop(authors.size) +
                             authors.drop(books.size)
                 }
+                emptyList()
             } catch (e: Exception) {
                 ConnectivityState.onNetworkError(e.message ?: "Search failed")
+                emptyList()
             } finally {
                 isLoading.value = false
+                searchResultsReady.value = true
             }
-            return@rememberSuspending emptyList()
         }
 
         col {
@@ -137,6 +140,14 @@ class SearchPage : Page {
                             when(viewMode) {
                                 ViewMode.Grid -> recyclerView {
                                     ::placer { RecyclerViewPlacerVerticalGrid(2) }
+                                    launch {
+                                        restoreLastViewedItem(
+                                            items = { searchResults() },
+                                            itemId = { it.id },
+                                            isReady = { searchResultsReady() },
+                                            isLoading = { isLoading() }
+                                        )
+                                    }
 
                                     childrenMultipleTypes(items = searchResults, id ={ it.id },
                                         renderers = {
@@ -155,6 +166,14 @@ class SearchPage : Page {
                                         })
                                 }
                                 ViewMode.List -> recyclerView {
+                                    launch {
+                                        restoreLastViewedItem(
+                                            items = { searchResults() },
+                                            itemId = { it.id },
+                                            isReady = { searchResultsReady() },
+                                            isLoading = { isLoading() }
+                                        )
+                                    }
                                     childrenMultipleTypes(items = searchResults, id ={ it.id },
                                         renderers = {
                                             elementsMatching { it is Book } renderedAs { book ->

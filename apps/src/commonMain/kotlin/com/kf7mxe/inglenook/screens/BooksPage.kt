@@ -1,7 +1,6 @@
 package com.kf7mxe.inglenook.screens
 
 import com.kf7mxe.inglenook.Book
-import com.kf7mxe.inglenook.HasId
 import com.kf7mxe.inglenook.ItemType
 import com.kf7mxe.inglenook.ThemePreset
 import com.kf7mxe.inglenook.ViewMode
@@ -12,12 +11,12 @@ import com.kf7mxe.inglenook.components.emptyState
 import com.kf7mxe.inglenook.components.viewModeToggleButton
 import com.kf7mxe.inglenook.components.connectionError
 import com.kf7mxe.inglenook.components.inglenookActivityIndicator
+import com.kf7mxe.inglenook.components.restoreLastViewedItem
 import com.kf7mxe.inglenook.connectivity.ConnectivityState
 import com.kf7mxe.inglenook.currentThemePreset
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.lastItemViewedScrollToOnBack
 import com.kf7mxe.inglenook.viewMode
-import com.lightningkite.kiteui.models.Align
 import com.lightningkite.kiteui.models.Edges
 import com.lightningkite.kiteui.models.Icon
 import com.lightningkite.kiteui.models.ImportantSemantic
@@ -63,8 +62,10 @@ class BooksPage(
         val books = Signal<List<Book>>(emptyList())
         val nextStartIndex = Signal(0)
         val isLoading = Signal(false)
+        val initialLoadComplete = Signal(false)
         val hasMore = Signal(true)
         val initialLoad = rememberSuspending {
+            initialLoadComplete.value = false
             ConnectivityState.offlineMode()
             isLoading.value = true
             try {
@@ -76,6 +77,7 @@ class BooksPage(
                 true
             } finally {
                 isLoading.value = false
+                initialLoadComplete.value = true
             }
         }
 
@@ -180,26 +182,29 @@ class BooksPage(
                 swapping(
                     current = { viewMode() },
                     views = { mode ->
-                        val scrollTo = remember {
-                            if (lastItemViewedScrollToOnBack() == null) return@remember 0
-                            filteredBooks().indexOfFirst { (it as HasId).id == lastItemViewedScrollToOnBack() }.takeIf { it != -1 }
-                                ?: return@remember 0
-                        }
-
                         when (mode) {
                             ViewMode.Grid -> {
                                 expanding.recyclerView {
                                     ::placer { RecyclerViewPlacerVerticalGrid(2) }
                                     launch {
-                                        if (lastItemViewedScrollToOnBack() == null) return@launch
-                                        scrollToIndex(scrollTo(), Align.Start, false)
+                                        restoreLastViewedItem(
+                                            items = { filteredBooks() },
+                                            itemId = { it.id },
+                                            isReady = { initialLoadComplete() },
+                                            isLoading = { isLoading() },
+                                            hasMore = { hasMore() },
+                                            loadedCount = { nextStartIndex() },
+                                            loadMore = loadNextPage,
+                                            targetExistsOutsideItems = { id -> books().any { it.id == id } }
+                                        )
                                     }
                                      children(filteredBooks, {it.id}) { book ->
                                          bookCard(book) {
                                              lastItemViewedScrollToOnBack.set(book().id)
                                              mainPageNavigator.navigate(BookDetailPage(book.invoke().id))
                                          }
-                                     }
+                                      }
+
                                      reactive {
                                          if (hasMore() && (filteredBooks().isEmpty() ||
                                              (filteredBooks().isNotEmpty() && lastIndex() >= filteredBooks().lastIndex - 10))) {
@@ -213,14 +218,23 @@ class BooksPage(
                             ViewMode.List -> {
                                 expanding.recyclerView {
                                     launch {
-                                        if (lastItemViewedScrollToOnBack() == null) return@launch
-                                        scrollToIndex(scrollTo(), Align.Start, false)
+                                        restoreLastViewedItem(
+                                            items = { filteredBooks() },
+                                            itemId = { it.id },
+                                            isReady = { initialLoadComplete() },
+                                            isLoading = { isLoading() },
+                                            hasMore = { hasMore() },
+                                            loadedCount = { nextStartIndex() },
+                                            loadMore = loadNextPage,
+                                            targetExistsOutsideItems = { id -> books().any { it.id == id } }
+                                        )
                                     }
                                      children(filteredBooks, { it.id }) { book ->
-                                         bookListItem(book) {
-                                             lastItemViewedScrollToOnBack.set(book().id)
-                                             mainPageNavigator.navigate(BookDetailPage(book.invoke().id))
-                                         }
+                                          bookListItem(book) {
+                                              lastItemViewedScrollToOnBack.set(book().id)
+                                              mainPageNavigator.navigate(BookDetailPage(book.invoke().id))
+                                          }
+
                                      }
                                      reactive {
                                          if (hasMore() && (filteredBooks().isEmpty() ||

@@ -101,7 +101,8 @@ class AuthorDetailPage(val authorId: String) : Page {
                     bookListItem(book) {
                         mainPageNavigator.navigate(BookDetailPage(book.invoke().id))
                     }
-                }
+                },
+                restorePosition = false
             )
         }
     }

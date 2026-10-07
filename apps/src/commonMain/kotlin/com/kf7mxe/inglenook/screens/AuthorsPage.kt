@@ -55,26 +55,32 @@ class AuthorsPage(val sortBy: Signal<AuthorSortOption> = Signal(AuthorSortOption
         val nextStartIndex = Signal(0)
         val isLoadingMore = Signal(false)
         val hasMore = Signal(true)
+        val initialAuthorsComplete = Signal(false)
 
         val initialAuthors: Reactive<List<Author>> = rememberSuspending {
-            ConnectivityState.offlineMode()
-            val client = jellyfinClient()
-            val bookType = bookTypeFilter()
-            val sort = sortBy()
-            val page = if (bookType == null) {
-                client?.getAuthorsPage(startIndex = 0, limit = AUTHOR_PAGE_SIZE, sortBy = sort.sortBy, sortOrder = sort.sortOrder) ?: emptyList()
-            } else {
-                val books = client?.getAllBooks() ?: emptyList()
-                books.filter { it.itemType == bookType }
-                    .flatMap { it.authors }
-                    .distinctBy { it.id }
-                    .sortedBy { it.name.lowercase() }
-                    .take(AUTHOR_PAGE_SIZE)
+            initialAuthorsComplete.value = false
+            try {
+                ConnectivityState.offlineMode()
+                val client = jellyfinClient()
+                val bookType = bookTypeFilter()
+                val sort = sortBy()
+                val page = if (bookType == null) {
+                    client?.getAuthorsPage(startIndex = 0, limit = AUTHOR_PAGE_SIZE, sortBy = sort.sortBy, sortOrder = sort.sortOrder) ?: emptyList()
+                } else {
+                    val books = client?.getAllBooks() ?: emptyList()
+                    books.filter { it.itemType == bookType }
+                        .flatMap { it.authors }
+                        .distinctBy { it.id }
+                        .sortedBy { it.name.lowercase() }
+                        .take(AUTHOR_PAGE_SIZE)
+                }
+                loadedAuthors.value = page
+                nextStartIndex.value = page.size
+                hasMore.value = page.size >= AUTHOR_PAGE_SIZE
+                page
+            } finally {
+                initialAuthorsComplete.value = true
             }
-            loadedAuthors.value = page
-            nextStartIndex.value = page.size
-            hasMore.value = page.size >= AUTHOR_PAGE_SIZE
-            page
         }
 
         val loadNextPage: suspend () -> Unit = suspend loadNextPage@{
@@ -174,7 +180,11 @@ class AuthorsPage(val sortBy: Signal<AuthorSortOption> = Signal(AuthorSortOption
                 },
                 onNearEnd = {
                     if (!isLoadingMore() && hasMore()) loadNextPage()
-                }
+                },
+                restoreReady = { initialAuthorsComplete() },
+                restoreIsLoading = { isLoadingMore() },
+                restoreHasMore = { hasMore() },
+                restoreLoadedCount = { nextStartIndex() }
             )
 
             shownWhen { isLoadingMore() && hasMore() }.centered.inglenookActivityIndicator()
