@@ -288,9 +288,7 @@ fun ViewWriter.app(navigator: PageNavigator, dialog: PageNavigator) {
             blurredImage(PlaybackState.currentBook, remember {
                 PlaybackState.currentBook() != null && persistedThemeSettings().showPlayingBookCoverAsWallpaper
             })
-            blurredImage(bookToShowBlurredBackgroundCoverOf, remember {
-                mainPageNavigator.currentPage() is BookDetailPage && persistedThemeSettings().showPlayingBookCoverOnNowPlayingAndBookDetail
-            })
+
 
 
 

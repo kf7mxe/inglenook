@@ -15,10 +15,13 @@ import com.kf7mxe.inglenook.components.connectionError
 import com.kf7mxe.inglenook.connectivity.ConnectivityState
 import com.lightningkite.reactive.context.invoke
 import com.kf7mxe.inglenook.components.BookshelfPickerDialog
+import com.kf7mxe.inglenook.components.blurredImage
 import com.kf7mxe.inglenook.components.identifyDialog
 import com.kf7mxe.inglenook.components.seriesDialog
 import com.kf7mxe.inglenook.components.bookmarksList
 import com.kf7mxe.inglenook.components.chaptersList
+import com.kf7mxe.inglenook.components.getDominantColor
+import com.kf7mxe.inglenook.components.getSemanticForBookBackground
 import com.kf7mxe.inglenook.ebook.ebookReader
 import com.lightningkite.kiteui.views.l2.coordinatorFrame
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
@@ -36,6 +39,8 @@ import com.lightningkite.kiteui.current
 import com.lightningkite.kiteui.views.buttonTheme
 import com.lightningkite.kiteui.views.forEach
 import com.lightningkite.kiteui.views.card
+import com.lightningkite.kiteui.views.dynamicTheme
+import com.lightningkite.reactive.context.invoke
 import com.lightningkite.reactive.core.Signal
 import com.lightningkite.reactive.core.Reactive
 import com.lightningkite.reactive.core.remember
@@ -63,15 +68,31 @@ class BookDetailPage(val bookId: String) : Page {
 
     override fun ViewWriter.render() {
         val showChapters = Signal(false)
-
-        // Scrollable content
-        padded.expanding.scrolling.col {
-            paddingByEdge = Edges(0.rem,1.rem)
-
-            // Connection error state (book failed to load due to network)
-            shownWhen { book.state().ready && book() == null && ConnectivityState.lastNetworkError() != null }.expanding.connectionError {
-                mainPageNavigator.navigate(BookDetailPage(bookId))
+        val coverDominantColor = rememberSuspending {
+            book()?.let{book ->
+                getDominantColor(book)
             }
+        }
+
+        frame {
+            paddingByEdge = Edges(0.rem,0.rem,0.rem,0.rem)
+
+            dynamicTheme {
+                getSemanticForBookBackground(coverDominantColor(),appTheme().background.closestColor(), CardSemantic)
+            }
+
+            blurredImage(bookToShowBlurredBackgroundCoverOf, remember {
+                mainPageNavigator.currentPage() is BookDetailPage && persistedThemeSettings().showPlayingBookCoverOnNowPlayingAndBookDetail
+            })
+
+            // Scrollable content
+            padded.expanding.scrolling.col {
+                paddingByEdge = Edges(0.rem, 1.rem)
+
+                // Connection error state (book failed to load due to network)
+                shownWhen { book.state().ready && book() == null && ConnectivityState.lastNetworkError() != null }.expanding.connectionError {
+                    mainPageNavigator.navigate(BookDetailPage(bookId))
+                }
 
                 row {
 
@@ -206,12 +227,7 @@ class BookDetailPage(val bookId: String) : Page {
                         onClick {
                             val currentBook = book()
                             if (currentBook != null) {
-                                if (PlaybackState.currentBook.value?.id == currentBook.id && PlaybackState.isPlaying.value) {
-                                    PlaybackState.pause()
-                                } else {
-                                    val startPosition = currentBook.userData?.playbackPositionTicks ?: 0L
-                                    PlaybackState.play(currentBook, startPosition)
-                                }
+                                PlaybackState.playOrToggle(currentBook)
                             }
                         }
                         themeChoice += ImportantSemantic
@@ -430,7 +446,7 @@ class BookDetailPage(val bookId: String) : Page {
                 }
 
                 // Description section
-                shownWhen { book()?.description.takeIf { it?.isNotBlank()==true } != null }.col {
+                shownWhen { book()?.description.takeIf { it?.isNotBlank() == true } != null }.col {
                     h3 { content = "Description" }
                     padded.text { ::setBasicHtmlContent { book()?.description ?: "" } }
                 }
@@ -440,59 +456,60 @@ class BookDetailPage(val bookId: String) : Page {
                     val b = book()
                     b?.itemType == ItemType.AudioBook && (b.chapters.size) > 0
                 }.unpadded.button {
-                       row {
-                            expanding.h3 {
-                                ::content { "Chapters (${book()?.chapters?.size ?: 0})" }
-                            }
-                            icon {
-                                ::source { if (showChapters()) Icon.unfoldLess else Icon.unfoldMore }
-                                description = "Toggle chapters"
-                            }
+                    row {
+                        expanding.h3 {
+                            ::content { "Chapters (${book()?.chapters?.size ?: 0})" }
                         }
-                        onClick { showChapters.value = !showChapters.value }
+                        icon {
+                            ::source { if (showChapters()) Icon.unfoldLess else Icon.unfoldMore }
+                            description = "Toggle chapters"
+                        }
                     }
-
-
-            shownWhen { showChapters() }.unpadded.col {
-                // Render chapters with reactive updates using forEachUpdating
-                val chapters = remember {
-                    book()?.chapters ?: emptyList()
+                    onClick { showChapters.value = !showChapters.value }
                 }
 
-                chaptersList(chapters) { chapter ->
-                    val currentBook = book()
-                    if (currentBook != null) {
-                        PlaybackState.play(currentBook, chapter.startPositionTicks)
+
+                shownWhen { showChapters() }.unpadded.col {
+                    // Render chapters with reactive updates using forEachUpdating
+                    val chapters = remember {
+                        book()?.chapters ?: emptyList()
+                    }
+
+                    chaptersList(chapters) { chapter ->
+                        val currentBook = book()
+                        if (currentBook != null) {
+                            PlaybackState.play(currentBook, chapter.startPositionTicks)
+                        }
                     }
                 }
-            }
 
                 // Bookmarks section
                 val showBookmarks = Signal(false)
                 val bookmarks = Signal(BookmarkRepository.getBookmarksForBook(bookId))
 
                 shownWhen { bookmarks().isNotEmpty() }.button {
-                        row {
-                            expanding.h3 {
-                                ::content { "Bookmarks (${bookmarks().size})" }
-                            }
-                            icon {
-                                ::source { if (showBookmarks()) Icon.unfoldLess else Icon.unfoldMore }
-                                description = "Toggle bookmarks"
-                            }
+                    row {
+                        expanding.h3 {
+                            ::content { "Bookmarks (${bookmarks().size})" }
                         }
-                        onClick { showBookmarks.value = !showBookmarks.value }
+                        icon {
+                            ::source { if (showBookmarks()) Icon.unfoldLess else Icon.unfoldMore }
+                            description = "Toggle bookmarks"
+                        }
+                    }
+                    onClick { showBookmarks.value = !showBookmarks.value }
 
                 }
-            shownWhen { showBookmarks() }.col {
-                bookmarksList(bookId, bookmarks) { positionTicks ->
-                    book()?.let { currentBook ->
-                        PlaybackState.play(currentBook, positionTicks)
+                shownWhen { showBookmarks() }.col {
+                    bookmarksList(bookId, bookmarks) { positionTicks ->
+                        book()?.let { currentBook ->
+                            PlaybackState.play(currentBook, positionTicks)
+                        }
                     }
                 }
+
+
             }
-
-
         }
 
     }

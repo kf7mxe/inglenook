@@ -138,8 +138,8 @@ android {
         applicationId = "com.kf7mxe.inglenook"
         minSdk = 26
         targetSdk = 36
-        versionCode = 11
-        versionName = "1.0.9"
+        versionCode = 15
+        versionName = "1.1.3"
 
         testInstrumentationRunner = "android.support.test.runner.AndroidJUnitRunner"
     }
@@ -166,12 +166,13 @@ android {
                 keyPassword = props.getProperty("signingAliasPassword")
             }
         }
-        buildTypes {
-            this.getByName("release") {
-                this.isMinifyEnabled = false
-                this.proguardFiles(getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro")
-                this.signingConfig = signingConfigs.getByName("release")
-            }
+    }
+    buildTypes {
+        this.getByName("release") {
+            this.isMinifyEnabled = true
+            this.isShrinkResources = true
+            this.proguardFiles(getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro")
+//            this.signingConfig = signingConfigs.getByName("release")
         }
     }
 

@@ -72,14 +72,7 @@ fun ViewWriter.featuredBookCard(
                         if (book().itemType == ItemType.Ebook)
                             openEbook(currentBook.id, this@button)
                         else {
-                            if (currentBook == PlaybackState.currentBook && PlaybackState.isPlaying()) {
-                                println("DEBUG bookcard pause")
-                                PlaybackState.pause()
-                            } else {
-                                println("DEBUG play bookCard")
-                                val startPosition = currentBook.userData?.playbackPositionTicks ?: 0
-                                PlaybackState.play(currentBook, startPosition)
-                            }
+                            PlaybackState.playOrToggle(currentBook)
                         }
                     }
                 }
@@ -236,12 +229,7 @@ fun ViewWriter.bookCard(
                         if (book().itemType == ItemType.Ebook)
                             openEbook(currentBook.id, this@button)
                         else {
-                            if (currentBook == PlaybackState.currentBook() && PlaybackState.isPlaying()) {
-                                PlaybackState.pause()
-                            } else {
-                                val startPosition = currentBook.userData?.playbackPositionTicks ?: 0
-                                PlaybackState.play(currentBook, startPosition)
-                            }
+                            PlaybackState.playOrToggle(currentBook)
                         }
                     }
                 }

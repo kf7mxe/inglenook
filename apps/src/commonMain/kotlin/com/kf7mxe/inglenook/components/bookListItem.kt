@@ -50,12 +50,7 @@ fun ViewWriter.bookListItem(
                         val currentBook = book.invoke()
                         openEbook(currentBook.id, this@bookListItem)
                     } else {
-                        if (book() == PlaybackState.currentBook && PlaybackState.isPlaying()) {
-                            PlaybackState.pause()
-                        } else {
-                            val startPosition = book().userData?.playbackPositionTicks ?: 0
-                            PlaybackState.play(book(), startPosition)
-                        }
+                        PlaybackState.playOrToggle(book())
                     }
                 }
             }

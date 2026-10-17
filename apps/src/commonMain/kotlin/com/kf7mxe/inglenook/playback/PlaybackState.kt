@@ -15,6 +15,22 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
+internal enum class BookPlaybackAction {
+    Pause,
+    Resume,
+    Start
+}
+
+internal fun resolveBookPlaybackAction(
+    clickedBookId: String,
+    currentBookId: String?,
+    isPlaying: Boolean
+): BookPlaybackAction = when {
+    currentBookId != clickedBookId -> BookPlaybackAction.Start
+    isPlaying -> BookPlaybackAction.Pause
+    else -> BookPlaybackAction.Resume
+}
+
 object PlaybackState {
     // Current book being played
     val currentBook = Signal<Book?>(null)
@@ -203,6 +219,15 @@ object PlaybackState {
             pause()
         } else {
             resume()
+        }
+    }
+
+    /** Toggle the selected book, resuming it in-place when it is already loaded. */
+    suspend fun playOrToggle(book: Book) {
+        when (resolveBookPlaybackAction(book.id, currentBook.value?.id, isPlaying.value)) {
+            BookPlaybackAction.Pause -> pause()
+            BookPlaybackAction.Resume -> resume()
+            BookPlaybackAction.Start -> play(book, book.userData?.playbackPositionTicks ?: 0L)
         }
     }
 
