@@ -1,10 +1,13 @@
 package com.kf7mxe.inglenook.ebook
 
+import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
 import android.graphics.PorterDuff
+import android.net.Uri
 import android.os.Bundle
+import android.os.SystemClock
 import android.text.InputType
 import android.view.ActionMode
 import android.view.Gravity
@@ -19,6 +22,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.commitNow
 import androidx.lifecycle.lifecycleScope
+import com.google.android.material.card.MaterialCardView
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.kf7mxe.inglenook.R
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
@@ -40,6 +44,9 @@ import org.readium.r2.navigator.epub.EpubDefaults
 import org.readium.r2.navigator.epub.EpubNavigatorFactory
 import org.readium.r2.navigator.epub.EpubNavigatorFragment
 import org.readium.r2.navigator.epub.EpubPreferences
+import org.readium.r2.navigator.input.InputListener
+import org.readium.r2.navigator.input.TapEvent
+import org.readium.r2.navigator.preferences.Theme
 import org.readium.r2.navigator.util.DirectionalNavigationAdapter
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.Publication
@@ -55,7 +62,9 @@ import java.net.URL
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.core.view.updatePadding
+import kotlin.math.abs
 import kotlin.time.ExperimentalTime
 import kotlin.uuid.ExperimentalUuidApi
 
@@ -67,6 +76,8 @@ class ReaderActivity : AppCompatActivity() {
         private const val EXTRA_DOWNLOAD_URL = "download_url"
         private const val EXTRA_AUTH_HEADER = "auth_header"
         private const val NAVIGATOR_TAG = "epub_navigator"
+        private const val DOUBLE_TAP_TIMEOUT_MS = 300L
+        private const val DOUBLE_TAP_SLOP_PX = 100f
 
         fun createIntent(
             context: Context,
@@ -116,12 +127,38 @@ class ReaderActivity : AppCompatActivity() {
     private var currentPositionTicks: Long = 0L
     private var bookmarksForBook: List<com.kf7mxe.inglenook.Bookmark> = emptyList()
 
+    private var isFullScreen = false
+    private var readerForegroundColor: Int = Color.BLACK
+    private var lastTapTime = 0L
+    private var lastTapX = 0f
+    private var lastTapY = 0f
+
+    // Toggles fullscreen on a double tap in the center of the viewport. Registered after
+    // DirectionalNavigationAdapter, so edge taps (which turn pages) never reach this listener.
+    private val doubleTapListener = object : InputListener {
+        override fun onTap(event: TapEvent): Boolean {
+            val now = SystemClock.uptimeMillis()
+            val isDoubleTap = now - lastTapTime < DOUBLE_TAP_TIMEOUT_MS &&
+                abs(event.point.x - lastTapX) < DOUBLE_TAP_SLOP_PX &&
+                abs(event.point.y - lastTapY) < DOUBLE_TAP_SLOP_PX
+            lastTapTime = now
+            lastTapX = event.point.x
+            lastTapY = event.point.y
+            if (isDoubleTap) {
+                toggleFullScreen()
+                return true
+            }
+            return false
+        }
+    }
+
     private val selectionActionModeCallback = object : ActionMode.Callback {
         override fun onCreateActionMode(mode: ActionMode, menu: android.view.Menu): Boolean {
             menu.add(0, 1, 0, "Copy")
             menu.add(0, 2, 1, "Select All")
             menu.add(0, 3, 2, "Highlight")
             menu.add(0, 4, 3, "Note")
+            menu.add(0, 5, 4, "Define")
             selectionActionMode = mode
             return true
         }
@@ -134,6 +171,7 @@ class ReaderActivity : AppCompatActivity() {
                 2 -> { navigator?.lifecycleScope?.launch { navigator?.evaluateJavascript("document.execCommand('selectAll')") }; mode.finish(); return true }
                 3 -> { mode.finish(); onHighlightAction(); return true }
                 4 -> { mode.finish(); onNoteAction(); return true }
+                5 -> { mode.finish(); onDefineAction(); return true }
             }
             return false
         }
@@ -169,6 +207,7 @@ class ReaderActivity : AppCompatActivity() {
         WindowCompat.setDecorFitsSystemWindows(window, false)
         setContentView(R.layout.activity_reader)
         setupWindowInsets()
+        applyReaderChrome()
 
         bookId = intent.getStringExtra(EXTRA_BOOK_ID) ?: run { finish(); return }
         downloadUrl = intent.getStringExtra(EXTRA_DOWNLOAD_URL) ?: run { finish(); return }
@@ -198,6 +237,7 @@ class ReaderActivity : AppCompatActivity() {
                 showReaderContent()
                 startPositionTracking()
                 registerHighlightListener()
+                registerDoubleTapListener()
                 loadHighlightsForBook()
             } else {
                 downloadAndOpenBook()
@@ -217,6 +257,42 @@ class ReaderActivity : AppCompatActivity() {
             )
             WindowInsetsCompat.CONSUMED
         }
+    }
+
+    // System bars stay visible in fullscreen; setupWindowInsets() keeps the content padded
+    // below them, so text never slides under the status bar camera or the navigation bar.
+    private fun toggleFullScreen() {
+        isFullScreen = !isFullScreen
+        findViewById<View>(R.id.reader_toolbar).visibility =
+            if (isFullScreen) View.GONE else View.VISIBLE
+    }
+
+    // Paints the (always transparent on Android 15+) system bar strips and the toolbar with
+    // the current reader theme colors, and keeps their icons readable on them.
+    private fun applyReaderChrome() {
+        val theme = currentPreferences.theme ?: Theme.LIGHT
+        val background = when (theme) {
+            Theme.DARK -> Color.BLACK
+            Theme.SEPIA -> Color.parseColor("#FAF4E8")
+            else -> Color.WHITE
+        }
+        // Readium's own text colors per theme, so the toolbar blends with the page.
+        readerForegroundColor = when (theme) {
+            Theme.DARK -> Color.parseColor("#FEFEFE")
+            Theme.SEPIA -> Color.parseColor("#121212")
+            else -> Color.BLACK
+        }
+        findViewById<View>(android.R.id.content).setBackgroundColor(background)
+        findViewById<MaterialCardView>(R.id.reader_toolbar).setCardBackgroundColor(background)
+        findViewById<TextView>(R.id.toolbar_title).setTextColor(readerForegroundColor)
+        for (id in listOf(R.id.btn_back, R.id.btn_toc, R.id.btn_highlight, R.id.btn_settings)) {
+            findViewById<ImageButton>(id).setColorFilter(readerForegroundColor, PorterDuff.Mode.SRC_IN)
+        }
+        updateBookmarkIcon()
+        val controller = WindowInsetsControllerCompat(window, window.decorView)
+        val darkIcons = theme != Theme.DARK
+        controller.isAppearanceLightStatusBars = darkIcons
+        controller.isAppearanceLightNavigationBars = darkIcons
     }
 
     private fun setupToolbar() {
@@ -284,9 +360,7 @@ class ReaderActivity : AppCompatActivity() {
     private fun updateBookmarkIcon() {
         val btnBookmark = findViewById<ImageButton>(R.id.btn_bookmark)
         val isBookmarked = bookmarksForBook.any { it.positionTicks == currentPositionTicks }
-        val tintColor = if (isBookmarked) Color.parseColor("#FFD700") else {
-            androidx.core.content.ContextCompat.getColor(this, R.color.on_surface_dim)
-        }
+        val tintColor = if (isBookmarked) Color.parseColor("#FFD700") else readerForegroundColor
         btnBookmark.setColorFilter(tintColor, PorterDuff.Mode.SRC_IN)
     }
 
@@ -386,6 +460,7 @@ class ReaderActivity : AppCompatActivity() {
             showReaderContent()
             startPositionTracking()
             registerHighlightListener()
+            registerDoubleTapListener()
             loadHighlightsForBook()
             reportPlaybackStart()
         }
@@ -393,6 +468,10 @@ class ReaderActivity : AppCompatActivity() {
 
     private fun registerHighlightListener() {
         navigator?.addDecorationListener("highlights", highlightListener)
+    }
+
+    private fun registerDoubleTapListener() {
+        navigator?.addInputListener(doubleTapListener)
     }
 
     private fun restoreSavedLocator(pub: Publication): Locator? {
@@ -498,6 +577,122 @@ class ReaderActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+
+    fun onDefineAction() {
+        val nav = navigator ?: return
+        lifecycleScope.launch {
+            try {
+                val selected = nav.evaluateJavascript(
+                    """(function(){var s=window.getSelection();if(!s||s.isCollapsed||!s.rangeCount)return null;return s.toString()})()"""
+                )?.trim('"')?.takeIf { it.isNotBlank() && it != "null" }
+                if (selected != null) {
+                    showDefineDialog(selected)
+                } else {
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(this@ReaderActivity, "Select a word first", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@ReaderActivity, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    private fun showDefineDialog(word: String) {
+        val loading = MaterialAlertDialogBuilder(this)
+            .setTitle("Define")
+            .setMessage("Looking up \"$word\"…")
+            .setNegativeButton("Cancel", null)
+            .show()
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            val senses = try {
+                Dictionary.lookup(this@ReaderActivity, word)
+            } catch (e: Exception) {
+                null
+            }
+            withContext(Dispatchers.Main) {
+                if (!loading.isShowing) return@withContext
+                loading.dismiss()
+                when (senses) {
+                    null -> MaterialAlertDialogBuilder(this@ReaderActivity)
+                        .setTitle("Define")
+                        .setMessage("Couldn't read the dictionary data.")
+                        .setPositiveButton("OK", null)
+                        .show()
+                    else -> if (senses.isEmpty()) {
+                        webSearch(word)
+                    } else {
+                        MaterialAlertDialogBuilder(this@ReaderActivity)
+                            .setTitle(word)
+                            .setMessage(formatSenses(senses))
+                            .setPositiveButton("OK", null)
+                            .show()
+                    }
+                }
+            }
+        }
+    }
+
+    // Groups senses under part-of-speech headings: "noun\n1. definition\n   "example"".
+    private fun formatSenses(senses: List<Dictionary.Sense>): String = buildString {
+        senses.firstOrNull { it.pronunciation.isNotBlank() }?.let {
+            append('/').append(it.pronunciation).append('\n')
+        }
+        var currentPos = ""
+        var number = 0
+        for (sense in senses) {
+            if (sense.pos != currentPos) {
+                if (isNotEmpty()) append('\n')
+                append(sense.pos).append('\n')
+                currentPos = sense.pos
+                number = 0
+            }
+            number++
+            append(number).append(". ").append(sense.definition)
+            sense.example?.let { append("\n   \"").append(it).append('"') }
+            append('\n')
+        }
+    }.trimEnd()
+
+    // Opens "define <word>" in the user's chosen search engine (browser or search app).
+    private fun webSearch(word: String) {
+        val prefs = getSharedPreferences("reader_prefs", MODE_PRIVATE)
+        val engine = SearchEngine.entries.firstOrNull { it.name == prefs.getString("search_engine", "Google") }
+            ?: SearchEngine.Google
+        val custom = prefs.getString("search_engine_custom", "") ?: ""
+        val url = searchUrl(engine, custom, "define $word")
+        try {
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+        } catch (e: ActivityNotFoundException) {
+            Toast.makeText(this, "No app available to open the search", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun promptForCustomSearchUrl(current: String, onSaved: (String) -> Unit) {
+        val input = EditText(this).apply {
+            setText(current)
+            hint = "https://example.com/search?q=%s"
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_URI
+            setPadding(dpToPx(16), dpToPx(12), dpToPx(16), dpToPx(12))
+        }
+        MaterialAlertDialogBuilder(this)
+            .setTitle("Custom Search Engine")
+            .setMessage("Use %s where the query goes. If omitted, the query is appended.")
+            .setView(input)
+            .setPositiveButton("Save") { _, _ ->
+                val url = input.text.toString().trim()
+                if (isValidSearchTemplate(url)) {
+                    onSaved(url)
+                } else {
+                    Toast.makeText(this, "URL must start with http:// or https://", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 
     @OptIn(ExperimentalUuidApi::class)
@@ -1067,10 +1262,69 @@ class ReaderActivity : AppCompatActivity() {
                             currentPreferences = editor.preferences
                             nav.submitPreferences(currentPreferences)
                             savePreferences()
+                            applyReaderChrome()
                         }
                     })
                 }
             })
+
+            addView(TextView(context).apply {
+                text = "Search Engine for Dictionary lookups"
+                textSize = 16f
+                setPadding(0, 24, 0, 8)
+            })
+
+            run {
+                val enginePrefs = getSharedPreferences("reader_prefs", MODE_PRIVATE)
+                var selected = enginePrefs.getString("search_engine", SearchEngine.Google.name)
+                    ?: SearchEngine.Google.name
+                val storedCustom = enginePrefs.getString("search_engine_custom", "") ?: ""
+                if (selected == SearchEngine.Custom.name && !isValidSearchTemplate(storedCustom)) {
+                    selected = SearchEngine.Google.name
+                }
+                val engineButtons = ArrayList<Pair<SearchEngine, android.widget.Button>>()
+                fun renderEngineButtons() {
+                    for ((engine, button) in engineButtons) {
+                        button.alpha = if (engine.name == selected) 1.0f else 0.4f
+                    }
+                }
+                fun addButton(row: LinearLayout, engine: SearchEngine) {
+                    val button = android.widget.Button(context).apply {
+                        text = engine.displayName
+                        setOnClickListener {
+                            if (engine == SearchEngine.Custom) {
+                                val currentTemplate =
+                                    enginePrefs.getString("search_engine_custom", "") ?: ""
+                                promptForCustomSearchUrl(currentTemplate) { url ->
+                                    enginePrefs.edit()
+                                        .putString("search_engine_custom", url)
+                                        .putString("search_engine", SearchEngine.Custom.name)
+                                        .apply()
+                                    selected = SearchEngine.Custom.name
+                                    renderEngineButtons()
+                                }
+                            } else {
+                                selected = engine.name
+                                enginePrefs.edit().putString("search_engine", engine.name).apply()
+                                renderEngineButtons()
+                            }
+                        }
+                    }
+                    engineButtons.add(engine to button)
+                    row.addView(button)
+                }
+
+                val presetRow = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL }
+                for (engine in SearchEngine.entries.filter { it != SearchEngine.Custom }) {
+                    addButton(presetRow, engine)
+                }
+                addView(presetRow)
+
+                val customRow = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL }
+                addButton(customRow, SearchEngine.Custom)
+                addView(customRow)
+                renderEngineButtons()
+            }
 
             addView(LinearLayout(context).apply {
                 orientation = LinearLayout.HORIZONTAL

@@ -17,5 +17,6 @@ xcuserdata
 local.properties
 version.js
 kotlin-js-store
+dict-source/
 plan.tfplan
 .terraform

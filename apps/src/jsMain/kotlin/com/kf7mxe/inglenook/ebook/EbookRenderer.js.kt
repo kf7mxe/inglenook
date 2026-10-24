@@ -119,6 +119,10 @@ actual fun ViewWriter.ebookReader(
         bottomBar.appendChild(nextBtn)
 
 
+        val engineButtonsHtml = SearchEngine.entries.joinToString("\n                    ") { engine ->
+            """<button id="$readerId-engine-${engine.name.lowercase()}" style="padding:5px 10px; background:#fff; border:1px solid #ccc; cursor:pointer;">${engine.displayName}</button>"""
+        }
+
         val settingsPanel = createDiv("$readerId-settings-panel").apply {
             style.cssText = "display:none; position:absolute; top:50px; right:10px; background:white; border:1px solid #ccc; padding:15px; border-radius:4px; box-shadow:0 4px 12px rgba(0,0,0,0.15); z-index:50;"
             innerHtmlUnsafe = """
@@ -127,6 +131,10 @@ actual fun ViewWriter.ebookReader(
                     <button id="$readerId-theme-light" style="padding:5px 10px; background:#fff; border:1px solid #ccc;">Light</button>
                     <button id="$readerId-theme-dark" style="padding:5px 10px; background:#333; color:#fff; border:1px solid #333;">Dark</button>
                     <button id="$readerId-theme-sepia" style="padding:5px 10px; background:#f4ecd8; border:1px solid #dcb;">Sepia</button>
+                </div>
+                <div style="margin-bottom:10px; margin-top:12px; font-weight:bold;">Search Engine for Dictionary lookups</div>
+                <div style="display:flex; gap:5px; flex-wrap:wrap;">
+                    $engineButtonsHtml
                 </div>
             """.trimIndent()
         }
@@ -151,6 +159,7 @@ actual fun ViewWriter.ebookReader(
                     <button data-color="#FFA500" style="width:28px; height:28px; background:#FFA500; border:2px solid #ccc; border-radius:4px; cursor:pointer;"></button>
                 </div>
                 <div style="display:flex; gap:6px;">
+                    <button id="$readerId-highlight-define" style="flex:1; padding:6px; font-size:12px; background:#f0f0f0; border:1px solid #ccc; border-radius:4px; cursor:pointer;">Define</button>
                     <button id="$readerId-highlight-note-btn" style="flex:1; padding:6px; font-size:12px; background:#f0f0f0; border:1px solid #ccc; border-radius:4px; cursor:pointer;">Add Note</button>
                     <button id="$readerId-highlight-cancel" style="flex:1; padding:6px; font-size:12px; background:#f0f0f0; border:1px solid #ccc; border-radius:4px; cursor:pointer;">Cancel</button>
                 </div>
@@ -208,6 +217,12 @@ actual fun ViewWriter.ebookReader(
         window.asDynamic()["__isBookmarked_$readerId"] = { ticksStr: String ->
             val idsObj = window.asDynamic()["__bookmarkIds_$readerId"]
             idsObj[ticksStr] != undefined
+        }
+
+        // URL building stays in commonMain so web and Android search URLs can't drift.
+        window.asDynamic()["__searchUrl_$readerId"] = { engineName: String, customTemplate: String, query: String ->
+            val engine = SearchEngine.entries.firstOrNull { it.name == engineName } ?: SearchEngine.Google
+            searchUrl(engine, customTemplate, query)
         }
 
         GlobalScope.launch {
@@ -434,6 +449,22 @@ actual fun ViewWriter.ebookReader(
                         });
                     }
 
+                    /* --- Define Button (opens the chosen search engine in a new tab) --- */
+                    var highlightDefine = document.getElementById(rid + '-highlight-define');
+                    if (highlightDefine) {
+                        highlightDefine.addEventListener('click', function(e) {
+                            e.stopPropagation();
+                            var text = (pendingHighlightText || '').trim();
+                            highlightMenu.style.display = 'none';
+                            pendingHighlightCfiRange = null;
+                            pendingHighlightText = null;
+                            if (!text) return;
+                            var engine = localStorage.getItem('ebook_search_engine') || 'Google';
+                            var custom = localStorage.getItem('ebook_search_engine_custom') || '';
+                            window.open(window['__searchUrl_' + rid](engine, custom, 'define ' + text), '_blank');
+                        });
+                    }
+
                     /* --- Bookmark Button --- */
                     if (bookmarkBtn) {
                         bookmarkBtn.addEventListener('click', function() {
@@ -457,6 +488,70 @@ actual fun ViewWriter.ebookReader(
                     if(tLight) tLight.addEventListener('click', function() { rendition.themes.select('light'); });
                     if(tDark) tDark.addEventListener('click', function() { rendition.themes.select('dark'); });
                     if(tSepia) tSepia.addEventListener('click', function() { rendition.themes.select('sepia'); });
+
+                    /* --- Search engine selection --- */
+                    var engineKeys = ['google', 'duckduckgo', 'bing', 'custom'];
+                    var engineNames = { 'google': 'Google', 'duckduckgo': 'DuckDuckGo', 'bing': 'Bing', 'custom': 'Custom' };
+                    function refreshEngineButtons() {
+                        var current = localStorage.getItem('ebook_search_engine') || 'Google';
+                        var template = localStorage.getItem('ebook_search_engine_custom') || '';
+                        if (current === 'Custom' && template.indexOf('http') !== 0) current = 'Google';
+                        for (var i = 0; i < engineKeys.length; i++) {
+                            var b = document.getElementById(rid + '-engine-' + engineKeys[i]);
+                            if (!b) continue;
+                            var active = engineNames[engineKeys[i]] === current;
+                            b.style.background = active ? '#333' : '#fff';
+                            b.style.color = active ? '#fff' : '#000';
+                        }
+                    }
+                    for (var ei = 0; ei < engineKeys.length; ei++) {
+                        (function(key, name) {
+                            var b = document.getElementById(rid + '-engine-' + key);
+                            if (!b) return;
+                            b.addEventListener('click', function(e) {
+                                e.stopPropagation();
+                                if (name === 'Custom') {
+                                    var current = localStorage.getItem('ebook_search_engine_custom') || '';
+                                    var input = prompt('Enter the search URL.\nUse %s where the query goes (appended if omitted):', current);
+                                    if (input === null) return;
+                                    input = input.trim();
+                                    if (input.indexOf('http://') !== 0 && input.indexOf('https://') !== 0) {
+                                        alert('URL must start with http:// or https://');
+                                        return;
+                                    }
+                                    localStorage.setItem('ebook_search_engine_custom', input);
+                                }
+                                localStorage.setItem('ebook_search_engine', name);
+                                refreshEngineButtons();
+                            });
+                        })(engineKeys[ei], engineNames[engineKeys[ei]]);
+                    }
+                    refreshEngineButtons();
+
+                    /* --- Double-click to toggle fullscreen (hide/show chrome bars) --- */
+                    var topBarEl = document.getElementById(rid + '-topbar');
+                    var bottomBarEl = document.getElementById(rid + '-bottombar');
+                    var chromeVisible = true;
+                    var lastClickTime = 0;
+                    var lastClickX = 0;
+                    var lastClickY = 0;
+                    rendition.on('click', function(e) {
+                        var now = Date.now();
+                        var x = e.pageX || e.clientX || 0;
+                        var y = e.pageY || e.clientY || 0;
+                        var isDoubleClick = now - lastClickTime < 300 &&
+                            Math.abs(x - lastClickX) < 100 &&
+                            Math.abs(y - lastClickY) < 100;
+                        lastClickTime = now;
+                        lastClickX = x;
+                        lastClickY = y;
+                        if (isDoubleClick) {
+                            chromeVisible = !chromeVisible;
+                            var barDisplay = chromeVisible ? 'flex' : 'none';
+                            if (topBarEl) topBarEl.style.display = barDisplay;
+                            if (bottomBarEl) bottomBarEl.style.display = barDisplay;
+                        }
+                    });
 
                     document.addEventListener('keyup', function(e) {
                         if ((e.keyCode || e.which) == 37) rendition.prev();
