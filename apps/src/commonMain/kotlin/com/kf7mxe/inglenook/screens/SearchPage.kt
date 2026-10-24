@@ -65,6 +65,7 @@ class SearchPage : Page {
         val searchResults = rememberSuspending {
             isLoading.value = true
             searchResultsReady.value = false
+            val client = jellyfinClient.value
             try {
                 val query = searchQuery()
                 if (query.isBlank()) return@rememberSuspending emptyList<HasId>()
@@ -78,7 +79,6 @@ class SearchPage : Page {
                         .map { it.toAudioBook() }
                 }
 
-                val client = jellyfinClient.value
                 if (client != null) {
                     val results = client.search(query)
                     val books = results.books
@@ -90,7 +90,7 @@ class SearchPage : Page {
                 }
                 emptyList()
             } catch (e: Exception) {
-                ConnectivityState.onNetworkError(e.message ?: "Search failed")
+                ConnectivityState.onNetworkError(e.message ?: "Search failed", source = client)
                 emptyList()
             } finally {
                 isLoading.value = false

@@ -2,6 +2,7 @@ package com.kf7mxe.inglenook.connectivity
 
 import com.kf7mxe.inglenook.cache.ApiCache
 import com.kf7mxe.inglenook.cache.CacheRefresher
+import com.kf7mxe.inglenook.jellyfin.JellyfinClient
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.playback.PlaybackState
 import com.lightningkite.kiteui.Connectivity
@@ -40,7 +41,11 @@ object ConnectivityState {
             return needed
         }
 
-    fun onNetworkError(errorMessage: String) {
+    // [source] is the client that failed; errors from a client we already switched
+    // away from are stale (e.g. a request timing out on the old server after a
+    // server switch) and must not resurface the connectivity dialog for the new server.
+    fun onNetworkError(errorMessage: String, source: JellyfinClient? = null) {
+        if (source != null && source !== jellyfinClient.value) return
         lastNetworkError.value = errorMessage
         if (!offlineMode.value && !showingConnectivityDialog.value) {
             showingConnectivityDialog.value = true
@@ -139,7 +144,7 @@ object ConnectivityState {
                         // to avoid false positives from device sleep/wake transitions.
                         // The number of failures is derived from the user's timeout setting.
                         if (consecutiveFailures >= failuresBeforeDialog) {
-                            onNetworkError("Unable to reach Jellyfin server")
+                            onNetworkError("Unable to reach Jellyfin server", source = client)
                         }
                     }
                 }

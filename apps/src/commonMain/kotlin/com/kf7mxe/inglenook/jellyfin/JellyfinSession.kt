@@ -116,11 +116,11 @@ fun switchToServer(serverId: String) {
     activeServerId.value = serverId
     jellyfinServerConfig.value = config
 
-    // Reset connectivity state so the new server gets a clean slate
-    ConnectivityState.exitOfflineMode()
-
+    // Install the new client BEFORE exiting offline mode: exitOfflineMode() and
+    // CacheRefresher trigger reactive reloads, and those must never fetch with the
+    // closed old client (its failures get coalesced into ApiCache in-flight entries
+    // that later reloads would join, leaving sections empty or stuck loading).
     if (config.accessToken != null) {
-        // Reinitialize client
         jellyfinClient.value = JellyfinClient(
             serverUrl = config.serverUrl,
             accessToken = config.accessToken,
@@ -128,13 +128,18 @@ fun switchToServer(serverId: String) {
             deviceId = config.deviceId,
             serverVersion = config.serverVersion
         )
-
-        CacheRefresher.start()
-
-        refreshServerCapabilities(config)
     } else {
         // Logged-out server: no client to make authenticated requests with
         jellyfinClient.value = null
+    }
+
+    // Reset connectivity state so the new server gets a clean slate
+    ConnectivityState.exitOfflineMode()
+
+    if (config.accessToken != null) {
+        CacheRefresher.start()
+        refreshServerCapabilities(config)
+    } else {
         CacheRefresher.stop()
     }
 }

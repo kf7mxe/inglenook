@@ -222,7 +222,7 @@ open class JellyfinClient @OptIn(ExperimentalUuidApi::class) constructor(
                 e is IllegalArgumentException ||
                 e is IllegalStateException
         if (!isNonNetworkError) {
-            ConnectivityState.onNetworkError(e.message ?: "Network error")
+            ConnectivityState.onNetworkError(e.message ?: "Network error", source = this)
         }
     }
 

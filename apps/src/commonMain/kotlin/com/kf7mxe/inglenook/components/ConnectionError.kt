@@ -95,7 +95,6 @@ fun ViewWriter.connectionError(onRetrySuccess: () -> Unit) {
                             } else {
                                 mainPageNavigator.navigate(HomePage())
                             }
-                            onRetrySuccess()
                         }
                         themeChoice += ImportantSemantic
                     }
@@ -130,7 +129,6 @@ fun ViewWriter.connectionError(onRetrySuccess: () -> Unit) {
                         } else {
                             mainPageNavigator.navigate(HomePage())
                         }
-                        onRetrySuccess()
                     }
                 }
                 separator()

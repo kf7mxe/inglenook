@@ -42,8 +42,8 @@ fun ViewWriter.addBookDialog(
         }
         
         println("DEBUG AddBookDialog: searching for '$query'")
+        val client = jellyfinClient.value
         try {
-            val client = jellyfinClient.value
             if (client != null) {
                 val searchResults = client.search(query)
                 val results = searchResults.books
@@ -55,7 +55,7 @@ fun ViewWriter.addBookDialog(
         } catch (e: Exception) {
             println("DEBUG AddBookDialog: search exception: $e")
             e.printStackTrace()
-            ConnectivityState.onNetworkError(e.message ?: "Search failed")
+            ConnectivityState.onNetworkError(e.message ?: "Search failed", source = client)
         }
         return@rememberSuspending emptyList()
     }

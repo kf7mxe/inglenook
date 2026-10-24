@@ -4,6 +4,8 @@ package com.kf7mxe.inglenook.cache
 
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlin.time.Clock
@@ -123,8 +125,14 @@ object ApiCache {
         if (!isOwner) {
             return try {
                 deferred.await() as T
+            } catch (e: CancellationException) {
+                // Propagate OUR cancellation; otherwise the owner's request was cancelled
+                // (e.g. clear() during a server switch). Retry as a fresh owner — rethrowing
+                // here would kill this load silently and leave its reactive state stuck
+                // at "not ready" forever.
+                currentCoroutineContext().ensureActive()
+                getOrPut(key, ttl, forceRefresh, onError, compute)
             } catch (e: Exception) {
-                if (e is CancellationException) throw e
                 onError?.invoke(e)
                 val stale = mutex.withLock { getStale<T>(key) }
                 if (stale != null) stale else throw e
