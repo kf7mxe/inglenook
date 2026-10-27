@@ -4,6 +4,8 @@ package com.kf7mxe.inglenook.ebook
 
 import EpubModule
 import JsZipModule
+import com.kf7mxe.inglenook.components.ExportedHighlight
+import com.kf7mxe.inglenook.components.highlightsToMarkdown
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.storage.BookmarkRepository
 import com.kf7mxe.inglenook.storage.HighlightRepository
@@ -21,6 +23,11 @@ import kotlinx.coroutines.isActive
 import org.w3c.dom.HTMLButtonElement
 import org.w3c.dom.HTMLDivElement
 import org.w3c.dom.HTMLElement
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 
 @OptIn(kotlin.uuid.ExperimentalUuidApi::class)
 actual fun ViewWriter.ebookReader(
@@ -65,6 +72,14 @@ actual fun ViewWriter.ebookReader(
             it.style.cssText = "padding:4px 10px; cursor:pointer;"
         }
         topBtnContainer.appendChild(tocBtn)
+
+        val searchBtn = FutureElement().also {
+            it.tag = "button"
+            it.id = "$readerId-btn-search"
+            it.content = "Search"
+            it.style.cssText = "padding:4px 10px; cursor:pointer;"
+        }
+        topBtnContainer.appendChild(searchBtn)
 
         val settingsBtn = FutureElement().also {
             it.tag = "button"
@@ -136,9 +151,17 @@ actual fun ViewWriter.ebookReader(
                 <div style="display:flex; gap:5px; flex-wrap:wrap;">
                     $engineButtonsHtml
                 </div>
+                <div style="margin-bottom:10px; margin-top:12px; font-weight:bold;">Highlights</div>
+                <button id="$readerId-export-highlights" style="padding:5px 10px; background:#fff; border:1px solid #ccc; cursor:pointer;">Export as Markdown</button>
             """.trimIndent()
         }
         wrapper.appendChild(settingsPanel)
+
+        // Floating results panel for "Search in book"
+        val searchPanel = createDiv("$readerId-search-panel").apply {
+            style.cssText = "display:none; position:absolute; top:50px; left:10px; right:10px; max-height:60vh; overflow:auto; background:white; border:1px solid #ccc; border-radius:4px; box-shadow:0 4px 12px rgba(0,0,0,0.15); z-index:60;"
+        }
+        wrapper.appendChild(searchPanel)
 
         val loadingOverlay = createDiv("$readerId-loading").apply {
             style.cssText = "position:absolute; top:0; left:0; right:0; bottom:0; display:flex; justify-content:center; align-items:center; background:rgba(255,255,255,0.9); z-index:30; font-size:16px; color:#333;"
@@ -223,6 +246,45 @@ actual fun ViewWriter.ebookReader(
         window.asDynamic()["__searchUrl_$readerId"] = { engineName: String, customTemplate: String, query: String ->
             val engine = SearchEngine.entries.firstOrNull { it.name == engineName } ?: SearchEngine.Google
             searchUrl(engine, customTemplate, query)
+        }
+
+        // The web reader stores highlights in localStorage (not HighlightRepository),
+        // so export reads them from there and downloads the Markdown directly.
+        window.asDynamic()["__exportHighlights_$readerId"] = {
+            try {
+                val stored = window.localStorage.getItem("ebook_highlights_$bookId")
+                val elements = try {
+                    Json.parseToJsonElement(stored ?: "[]").jsonArray
+                } catch (e: Exception) {
+                    emptyList<kotlinx.serialization.json.JsonElement>()
+                }
+                val exported = elements.mapNotNull { element ->
+                    val obj = element.jsonObject
+                    val text = obj["text"]?.jsonPrimitive?.contentOrNull
+                    if (text.isNullOrBlank()) null
+                    else ExportedHighlight(
+                        chapter = null,
+                        text = text,
+                        note = obj["note"]?.jsonPrimitive?.contentOrNull
+                    )
+                }
+                if (exported.isEmpty()) {
+                    window.alert("No highlights to export")
+                } else {
+                    val title = (document.getElementById("$readerId-title") as? HTMLElement)
+                        ?.textContent?.trim()?.takeIf { it.isNotEmpty() } ?: "Book"
+                    val markdown = highlightsToMarkdown(title, exported)
+                    val blob = js("new Blob([markdown], { type: 'text/markdown' })")
+                    val url = js("URL.createObjectURL(blob)")
+                    val anchor = document.createElement("a")
+                    anchor.asDynamic().href = url
+                    anchor.asDynamic().download = title.replace(Regex("[^A-Za-z0-9 .-]"), "_") + " - highlights.md"
+                    anchor.asDynamic().click()
+                    js("URL.revokeObjectURL(url)")
+                }
+            } catch (e: Exception) {
+                window.alert("Couldn't export highlights: ${e.message}")
+            }
         }
 
         GlobalScope.launch {
@@ -527,6 +589,74 @@ actual fun ViewWriter.ebookReader(
                         })(engineKeys[ei], engineNames[engineKeys[ei]]);
                     }
                     refreshEngineButtons();
+
+                    /* --- Export highlights button --- */
+                    var exportHighlightsBtn = document.getElementById(rid + '-export-highlights');
+                    if (exportHighlightsBtn) {
+                        exportHighlightsBtn.addEventListener('click', function(e) {
+                            e.stopPropagation();
+                            window['__exportHighlights_' + rid]();
+                        });
+                    }
+
+                    /* --- Search in book (walks the spine, epub.js section.find) --- */
+                    var searchBtn = document.getElementById(rid + '-btn-search');
+                    var searchPanel = document.getElementById(rid + '-search-panel');
+                    if (searchBtn && searchPanel) {
+                        searchBtn.addEventListener('click', function() {
+                            var query = prompt('Search in this book:');
+                            if (!query) return;
+                            query = query.trim();
+                            if (!query) return;
+                            searchPanel.style.display = 'block';
+                            searchPanel.innerHTML = '';
+                            var searching = document.createElement('div');
+                            searching.style.cssText = 'padding:10px; font-size:13px; color:#666;';
+                            searching.textContent = 'Searching\u2026';
+                            searchPanel.appendChild(searching);
+                            var items = book.spine.spineItems;
+                            var found = [];
+                            var index = 0;
+                            function showResults() {
+                                searchPanel.innerHTML = '';
+                                if (!found.length) {
+                                    var none = document.createElement('div');
+                                    none.style.cssText = 'padding:10px; font-size:13px; color:#666;';
+                                    none.textContent = 'No results for "' + query + '"';
+                                    searchPanel.appendChild(none);
+                                    return;
+                                }
+                                var header = document.createElement('div');
+                                header.style.cssText = 'padding:8px 10px; font-size:12px; font-weight:bold; border-bottom:1px solid #eee;';
+                                header.textContent = 'Results (' + found.length + (found.length >= 50 ? '+' : '') + ')';
+                                searchPanel.appendChild(header);
+                                found.forEach(function(r) {
+                                    var b = document.createElement('button');
+                                    b.style.cssText = 'display:block; width:100%; text-align:left; padding:8px 10px; font-size:12px; border:none; border-bottom:1px solid #eee; background:#fff; cursor:pointer;';
+                                    b.textContent = r.excerpt || r.cfi;
+                                    b.addEventListener('click', function() {
+                                        rendition.display(r.cfi);
+                                        searchPanel.style.display = 'none';
+                                    });
+                                    searchPanel.appendChild(b);
+                                });
+                            }
+                            function step() {
+                                if (index >= items.length || found.length >= 50) { showResults(); return; }
+                                var item = items[index++];
+                                item.load(book.load.bind(book)).then(function(section) {
+                                    var matches = section.find(query) || [];
+                                    for (var m = 0; m < matches.length; m++) {
+                                        found.push(matches[m]);
+                                        if (found.length >= 50) break;
+                                    }
+                                    try { item.unload(); } catch (err) {}
+                                    step();
+                                }).catch(function() { step(); });
+                            }
+                            step();
+                        });
+                    }
 
                     /* --- Double-click to toggle fullscreen (hide/show chrome bars) --- */
                     var topBarEl = document.getElementById(rid + '-topbar');

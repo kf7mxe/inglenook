@@ -7,6 +7,7 @@ import com.kf7mxe.inglenook.connectivity.ConnectivityState
 import com.kf7mxe.inglenook.downloads.DownloadManager
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.jellyfin.serverScopedProperty
+import com.lightningkite.kiteui.reactive.PersistentProperty
 import com.lightningkite.reactive.context.invoke
 import com.lightningkite.reactive.core.Signal
 import com.lightningkite.reactive.core.AppScope
@@ -44,6 +45,9 @@ object PlaybackState {
 
     // Current chapter tracking
     val currentChapter = Signal<Chapter?>(null)
+
+    // Continuous play: start the next book in the series when the current one ends
+    val autoPlayNextInSeries = PersistentProperty("autoPlayNextInSeries", true)
 
     // Sleep timer
     val sleepTimerMinutesRemaining = Signal<Int?>(null) // null = no timer, >0 = minutes remaining
@@ -426,6 +430,27 @@ object PlaybackState {
         }
         // Pause instead of stop to preserve position for resume
         pause()
+        playNextInSeries(book)
+    }
+
+    // Continuous play: after a book finishes, play the next one in its series
+    // (getBooksBySeries is sorted by series index), resuming from its saved position.
+    private fun playNextInSeries(book: Book?) {
+        val seriesName = book?.seriesName ?: return
+        if (!autoPlayNextInSeries.value) return
+        if (ConnectivityState.offlineMode.value) return
+        AppScope.launch {
+            try {
+                val client = jellyfinClient.value ?: return@launch
+                val books = client.getBooksBySeries(seriesName)
+                val currentIndex = books.indexOfFirst { it.id == book.id }
+                if (currentIndex == -1) return@launch
+                val next = books.getOrNull(currentIndex + 1) ?: return@launch
+                play(next, getLocalPosition(next.id))
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+            }
+        }
     }
 
     // Sleep timer functions

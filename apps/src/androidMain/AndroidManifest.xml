@@ -64,6 +64,9 @@
             tools:ignore="ExportedService">
             <intent-filter>
                 <action android:name="androidx.media3.session.MediaSessionService"/>
+                <!-- Android Auto discovery -->
+                <action android:name="android.media.browse.MediaLibraryService"/>
+                <action android:name="android.media.browse.MediaLibrarySessionService"/>
             </intent-filter>
         </service>
 

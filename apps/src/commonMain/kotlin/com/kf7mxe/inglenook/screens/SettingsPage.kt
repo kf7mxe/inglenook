@@ -25,6 +25,7 @@ import com.kf7mxe.inglenook.jellyfin.switchToServer
 import com.kf7mxe.inglenook.jellyfin.removeServer
 import com.kf7mxe.inglenook.jellyfin.logout
 import com.kf7mxe.inglenook.jellyfin.selectedLibraryIds
+import com.kf7mxe.inglenook.playback.PlaybackState
 import com.kf7mxe.inglenook.util.openUrl
 import com.lightningkite.kiteui.Routable
 import com.lightningkite.kiteui.reactive.AppState
@@ -296,6 +297,16 @@ class SettingsPage : Page {
                         }
                         switch {
                             checked bind autoResumeOnOpen
+                        }
+                    }
+                    separator()
+                    row {
+                        expanding.col {
+                            text("Play next in series")
+                            subtext("When a book ends, continue with the next book in the series")
+                        }
+                        switch {
+                            checked bind PlaybackState.autoPlayNextInSeries
                         }
                     }
                 }

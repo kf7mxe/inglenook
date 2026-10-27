@@ -7,6 +7,7 @@ import android.graphics.Color
 import android.graphics.PorterDuff
 import android.net.Uri
 import android.os.Bundle
+import android.os.Looper
 import android.os.SystemClock
 import android.text.InputType
 import android.view.ActionMode
@@ -17,6 +18,7 @@ import android.view.View
 import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.LinearLayout
+import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -25,6 +27,8 @@ import androidx.lifecycle.lifecycleScope
 import com.google.android.material.card.MaterialCardView
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.kf7mxe.inglenook.R
+import com.kf7mxe.inglenook.components.highlightsToMarkdown
+import com.kf7mxe.inglenook.components.toExportedHighlight
 import com.kf7mxe.inglenook.jellyfin.jellyfinClient
 import com.kf7mxe.inglenook.storage.BookmarkRepository
 import com.kf7mxe.inglenook.storage.HighlightRepository
@@ -48,8 +52,12 @@ import org.readium.r2.navigator.input.InputListener
 import org.readium.r2.navigator.input.TapEvent
 import org.readium.r2.navigator.preferences.Theme
 import org.readium.r2.navigator.util.DirectionalNavigationAdapter
+import org.readium.r2.shared.ExperimentalReadiumApi
 import org.readium.r2.shared.publication.Locator
 import org.readium.r2.shared.publication.Publication
+import org.readium.r2.shared.publication.services.search.StringSearchService
+import org.readium.r2.shared.publication.services.search.search
+import org.readium.r2.shared.publication.services.search.searchServiceFactory
 import org.readium.r2.shared.util.getOrElse
 import org.readium.r2.streamer.PublicationOpener
 import org.readium.r2.streamer.parser.DefaultPublicationParser
@@ -68,7 +76,7 @@ import kotlin.math.abs
 import kotlin.time.ExperimentalTime
 import kotlin.uuid.ExperimentalUuidApi
 
-@OptIn(ExperimentalUuidApi::class, ExperimentalTime::class)
+@OptIn(ExperimentalUuidApi::class, ExperimentalTime::class, ExperimentalReadiumApi::class)
 class ReaderActivity : AppCompatActivity() {
 
     companion object {
@@ -116,14 +124,6 @@ class ReaderActivity : AppCompatActivity() {
         "#FF9800" to Color.parseColor("#FF9800")
     )
 
-    private val highlightColorNames = mapOf(
-        "#FFFFEB3B" to "Yellow",
-        "#4CAF50" to "Green",
-        "#2196F3" to "Blue",
-        "#E91E63" to "Pink",
-        "#FF9800" to "Orange"
-    )
-
     private var currentPositionTicks: Long = 0L
     private var bookmarksForBook: List<com.kf7mxe.inglenook.Bookmark> = emptyList()
 
@@ -159,6 +159,7 @@ class ReaderActivity : AppCompatActivity() {
             menu.add(0, 3, 2, "Highlight")
             menu.add(0, 4, 3, "Note")
             menu.add(0, 5, 4, "Define")
+            menu.add(0, 6, 5, "Edit")
             selectionActionMode = mode
             return true
         }
@@ -167,11 +168,20 @@ class ReaderActivity : AppCompatActivity() {
 
         override fun onActionItemClicked(mode: ActionMode, item: MenuItem): Boolean {
             when (item.itemId) {
-                1 -> { navigator?.lifecycleScope?.launch { navigator?.evaluateJavascript("document.execCommand('copy')") }; mode.finish(); return true }
+                1 -> {
+                    navigator?.lifecycleScope?.launch {
+                        navigator?.evaluateJavascript("document.execCommand('copy')")
+                        // Selection is no longer needed; a lingering one blocks later taps.
+                        (navigator as? SelectableNavigator)?.clearSelection()
+                    }
+                    mode.finish()
+                    return true
+                }
                 2 -> { navigator?.lifecycleScope?.launch { navigator?.evaluateJavascript("document.execCommand('selectAll')") }; mode.finish(); return true }
                 3 -> { mode.finish(); onHighlightAction(); return true }
                 4 -> { mode.finish(); onNoteAction(); return true }
                 5 -> { mode.finish(); onDefineAction(); return true }
+                6 -> { mode.finish(); onEditAction(); return true }
             }
             return false
         }
@@ -184,8 +194,69 @@ class ReaderActivity : AppCompatActivity() {
     private val highlightListener = object : DecorableNavigator.Listener {
         override fun onDecorationActivated(event: DecorableNavigator.OnActivatedEvent): Boolean {
             val highlightId = event.decoration.extras["highlightId"] as? String ?: return false
-            showHighlightTapDialog(highlightId)
+            println("DEBUG decoration activated: $highlightId")
+            showHighlightDetailDialog(highlightId)
             return true
+        }
+    }
+
+    // Installs an idempotent capture-phase click handler inside the WebView that
+    // hit-tests decorations in CSS pixels (the same space as clientX/clientY — unlike
+    // TapEvent.point, which is physical pixels) and forwards hits through Readium's
+    // decoration bridge, bypassing its selection gates and the page-turn zones.
+    private val highlightTapHandlerScript = """
+        (function() {
+            if (window.__hlTapInstalled) return 'already';
+            window.__hlTapInstalled = true;
+            document.addEventListener('click', function(e) {
+                if (!window.getSelection().isCollapsed) return;
+                var h = window.readium && window.readium.getDecorations ? window.readium.getDecorations('highlights') : null;
+                if (!h || !h.items) return;
+                for (var i = 0; i < h.items.length; i++) {
+                    var item = h.items[i];
+                    var extras = item.decoration && item.decoration.extras;
+                    var id = (item.decoration && item.decoration.id) || (extras && extras.highlightId);
+                    if (!id) continue;
+                    var r = null;
+                    var els = item.clickableElements || (item.container ? item.container.children : []);
+                    for (var j = 0; j < els.length; j++) {
+                        var b = els[j].getBoundingClientRect();
+                        if (e.clientX >= b.left && e.clientX <= b.right && e.clientY >= b.top && e.clientY <= b.bottom) { r = b; break; }
+                    }
+                    if (!r && item.range) {
+                        var rb = item.range.getBoundingClientRect();
+                        if (e.clientX >= rb.left && e.clientX <= rb.right && e.clientY >= rb.top && e.clientY <= rb.bottom) r = rb;
+                    }
+                    if (!r) continue;
+                    var handled = Android.onDecorationActivated(JSON.stringify({
+                        id: id,
+                        group: 'highlights',
+                        rect: { left: r.left, top: r.top, right: r.right, bottom: r.bottom },
+                        click: { defaultPrevented: false, x: e.clientX, y: e.clientY, targetElement: '' }
+                    }));
+                    if (handled) { e.stopPropagation(); e.preventDefault(); }
+                    return;
+                }
+            }, true);
+            return 'installed';
+        })()
+    """.trimIndent()
+
+    // (Re)installs the handler on the current page — every page load creates a fresh
+    // document without the listener. Runs twice (immediately, then after a short delay)
+    // to cover navigation timing and reflows settling async.
+    private fun installHighlightTapHandler() {
+        val nav = navigator ?: return
+        lifecycleScope.launch(Dispatchers.Main) {
+            for (attempt in 0..1) {
+                if (attempt == 1) delay(400)
+                try {
+                    val result = nav.evaluateJavascript(highlightTapHandlerScript)
+                    println("DEBUG highlight tap handler: $result")
+                } catch (e: Exception) {
+                    println("DEBUG highlight tap handler failed: ${e.message}")
+                }
+            }
         }
     }
 
@@ -239,6 +310,7 @@ class ReaderActivity : AppCompatActivity() {
                 registerHighlightListener()
                 registerDoubleTapListener()
                 loadHighlightsForBook()
+                installHighlightTapHandler()
             } else {
                 downloadAndOpenBook()
             }
@@ -285,7 +357,7 @@ class ReaderActivity : AppCompatActivity() {
         findViewById<View>(android.R.id.content).setBackgroundColor(background)
         findViewById<MaterialCardView>(R.id.reader_toolbar).setCardBackgroundColor(background)
         findViewById<TextView>(R.id.toolbar_title).setTextColor(readerForegroundColor)
-        for (id in listOf(R.id.btn_back, R.id.btn_toc, R.id.btn_highlight, R.id.btn_settings)) {
+        for (id in listOf(R.id.btn_back, R.id.btn_toc, R.id.btn_highlight, R.id.btn_settings, R.id.btn_search)) {
             findViewById<ImageButton>(id).setColorFilter(readerForegroundColor, PorterDuff.Mode.SRC_IN)
         }
         updateBookmarkIcon()
@@ -315,7 +387,7 @@ class ReaderActivity : AppCompatActivity() {
         }
 
         findViewById<ImageButton>(R.id.btn_highlight).setOnClickListener {
-            onHighlightAction()
+            showNotesListDialog()
         }
         findViewById<ImageButton>(R.id.btn_highlight).setOnLongClickListener {
             showHighlightsList()
@@ -324,6 +396,10 @@ class ReaderActivity : AppCompatActivity() {
 
         findViewById<ImageButton>(R.id.btn_settings).setOnClickListener {
             showReaderSettings()
+        }
+
+        findViewById<ImageButton>(R.id.btn_search).setOnClickListener {
+            showSearchDialog()
         }
 
         updateBookmarkIcon()
@@ -420,8 +496,14 @@ class ReaderActivity : AppCompatActivity() {
         val asset = assetRetriever.retrieve(url!!)
             .getOrElse { throw Exception("Failed to retrieve asset: $it") }
 
-        val pub = publicationOpener.open(asset, allowUserInteraction = true)
-            .getOrElse { throw Exception("Failed to open publication: $it") }
+        val pub = publicationOpener.open(
+            asset,
+            allowUserInteraction = true,
+            onCreatePublication = {
+                // Register Readium's default search service so "Search in book" works.
+                servicesBuilder.searchServiceFactory = StringSearchService.createDefaultFactory()
+            }
+        ).getOrElse { throw Exception("Failed to open publication: $it") }
 
         publication = pub
 
@@ -462,6 +544,7 @@ class ReaderActivity : AppCompatActivity() {
             registerHighlightListener()
             registerDoubleTapListener()
             loadHighlightsForBook()
+            installHighlightTapHandler()
             reportPlaybackStart()
         }
     }
@@ -525,56 +608,105 @@ class ReaderActivity : AppCompatActivity() {
 
     // --- Highlights ---
 
+    // Reads the current WebView selection, or null when nothing is selected.
+    private suspend fun selectedText(nav: EpubNavigatorFragment): String? =
+        nav.evaluateJavascript(
+            """(function(){var s=window.getSelection();if(!s||s.isCollapsed||!s.rangeCount)return null;return s.toString()})()"""
+        )?.trim('"')?.takeIf { it.isNotBlank() && it != "null" }
+
+    private fun lastHighlightColor(): String =
+        getSharedPreferences("reader_prefs", MODE_PRIVATE)
+            .getString("last_highlight_color", null) ?: highlightColors.first().first
+
+    private fun saveLastHighlightColor(hex: String) {
+        getSharedPreferences("reader_prefs", MODE_PRIVATE)
+            .edit().putString("last_highlight_color", hex).apply()
+    }
+
+    private fun highlightQuotedText(highlight: com.kf7mxe.inglenook.Highlight): String = try {
+        Locator.fromJSON(org.json.JSONObject(highlight.locator))?.text?.highlight ?: ""
+    } catch (_: Exception) { "" }
+
+    // Finds an existing highlight whose quoted text matches the given selection.
+    private fun findHighlightByText(text: String): com.kf7mxe.inglenook.Highlight? =
+        HighlightRepository.getHighlightsForBook(bookId).firstOrNull {
+            highlightQuotedText(it).trim() == text.trim()
+        }
+
+    private fun selectionFor(nav: EpubNavigatorFragment, text: String): Selection = Selection(
+        locator = nav.currentLocator.value.copy(
+            text = Locator.Text(highlight = text)
+        ),
+        rect = null
+    )
+
+    // Instantly highlights the selection with the last-used color — no dialogs.
+    // If the text is already highlighted, opens its detail dialog instead of duplicating.
     fun onHighlightAction() {
         val nav = navigator ?: return
         lifecycleScope.launch {
             try {
-                val locator = nav.currentLocator.value
-                val selText = nav.evaluateJavascript(
-                    """(function(){var s=window.getSelection();if(!s||s.isCollapsed||!s.rangeCount)return null;return s.toString()})()"""
-                )?.trim('"')?.takeIf { it.isNotBlank() }
-                if (selText != null) {
-                    val selection = Selection(
-                        locator = locator.copy(text = org.readium.r2.shared.publication.Locator.Text(highlight = selText)),
-                        rect = null
-                    )
-                    showHighlightDialog(selection)
-                } else {
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(this@ReaderActivity, "Select some text first", Toast.LENGTH_SHORT).show()
-                    }
+                val selText = selectedText(nav)
+                if (selText == null) {
+                    Toast.makeText(this@ReaderActivity, "Select some text first", Toast.LENGTH_SHORT).show()
+                    return@launch
                 }
+                (nav as? SelectableNavigator)?.clearSelection()
+                val existing = findHighlightByText(selText)
+                if (existing != null) {
+                    showHighlightDetailDialog(existing._id.toString())
+                    return@launch
+                }
+                val color = lastHighlightColor()
+                createHighlight(selectionFor(nav, selText), Color.parseColor(color), color, null)
             } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(this@ReaderActivity, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
-                }
+                Toast.makeText(this@ReaderActivity, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
             }
         }
     }
 
+    // Ensures the selection is highlighted (last-used color), then opens the shared
+    // detail dialog where the note can be added or edited.
     fun onNoteAction() {
         val nav = navigator ?: return
         lifecycleScope.launch {
             try {
-                val locator = nav.currentLocator.value
-                val selText = nav.evaluateJavascript(
-                    """(function(){var s=window.getSelection();if(!s||s.isCollapsed||!s.rangeCount)return null;return s.toString()})()"""
-                )?.trim('"')?.takeIf { it.isNotBlank() }
-                if (selText != null) {
-                    val selection = Selection(
-                        locator = locator.copy(text = org.readium.r2.shared.publication.Locator.Text(highlight = selText)),
-                        rect = null
-                    )
-                    showHighlightDialog(selection, showNoteInput = true)
-                } else {
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(this@ReaderActivity, "Select some text first", Toast.LENGTH_SHORT).show()
-                    }
+                val selText = selectedText(nav)
+                if (selText == null) {
+                    Toast.makeText(this@ReaderActivity, "Select some text first", Toast.LENGTH_SHORT).show()
+                    return@launch
+                }
+                (nav as? SelectableNavigator)?.clearSelection()
+                val existing = findHighlightByText(selText)
+                    ?: createHighlight(selectionFor(nav, selText), Color.parseColor(lastHighlightColor()), lastHighlightColor(), null)
+                if (existing != null) {
+                    showHighlightDetailDialog(existing._id.toString())
                 }
             } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(this@ReaderActivity, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this@ReaderActivity, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    // Opens the shared detail dialog for a selection that is already highlighted.
+    fun onEditAction() {
+        val nav = navigator ?: return
+        lifecycleScope.launch {
+            try {
+                val selText = selectedText(nav)
+                if (selText == null) {
+                    Toast.makeText(this@ReaderActivity, "Select some text first", Toast.LENGTH_SHORT).show()
+                    return@launch
                 }
+                (nav as? SelectableNavigator)?.clearSelection()
+                val existing = findHighlightByText(selText)
+                if (existing != null) {
+                    showHighlightDetailDialog(existing._id.toString())
+                } else {
+                    Toast.makeText(this@ReaderActivity, "This text isn't highlighted yet", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(this@ReaderActivity, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -583,20 +715,16 @@ class ReaderActivity : AppCompatActivity() {
         val nav = navigator ?: return
         lifecycleScope.launch {
             try {
-                val selected = nav.evaluateJavascript(
-                    """(function(){var s=window.getSelection();if(!s||s.isCollapsed||!s.rangeCount)return null;return s.toString()})()"""
-                )?.trim('"')?.takeIf { it.isNotBlank() && it != "null" }
+                val selected = selectedText(nav)
                 if (selected != null) {
+                    // Selection is no longer needed; a lingering one blocks later taps.
+                    (nav as? SelectableNavigator)?.clearSelection()
                     showDefineDialog(selected)
                 } else {
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(this@ReaderActivity, "Select a word first", Toast.LENGTH_SHORT).show()
-                    }
+                    Toast.makeText(this@ReaderActivity, "Select a word first", Toast.LENGTH_SHORT).show()
                 }
             } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(this@ReaderActivity, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
-                }
+                Toast.makeText(this@ReaderActivity, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -696,86 +824,15 @@ class ReaderActivity : AppCompatActivity() {
     }
 
     @OptIn(ExperimentalUuidApi::class)
-    private fun showHighlightDialog(selection: Selection, showNoteInput: Boolean = false) {
-        if (showNoteInput) {
-            showNoteDialog(selection, highlightColors.first().second, highlightColors.first().first)
-            return
-        }
-
-        val circleSize = dpToPx(42)
-        val rootView = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = android.view.Gravity.CENTER
-            setPadding(dpToPx(8), dpToPx(8), dpToPx(8), dpToPx(8))
-        }
-
-        for ((hex, colorInt) in highlightColors) {
-            val circle = View(this).apply {
-                layoutParams = LinearLayout.LayoutParams(circleSize, circleSize).apply {
-                    marginStart = dpToPx(6)
-                    marginEnd = dpToPx(6)
-                }
-                setBackgroundResource(R.drawable.color_circle)
-                backgroundTintList = android.content.res.ColorStateList.valueOf(colorInt)
-                setOnClickListener {
-                    showNoteDialog(selection, colorInt, hex)
-                }
-            }
-            rootView.addView(circle)
-        }
-
-        MaterialAlertDialogBuilder(this)
-            .setTitle("Highlight Color")
-            .setView(rootView)
-            .setNeutralButton("Cancel") { _, _ ->
-                (navigator as? SelectableNavigator)?.clearSelection()
-            }
-            .setOnCancelListener {
-                (navigator as? SelectableNavigator)?.clearSelection()
-            }
-            .show()
-    }
-
-    @OptIn(ExperimentalUuidApi::class)
-    private fun showNoteDialog(selection: Selection, colorInt: Int, colorHex: String) {
-        val input = EditText(this).apply {
-            hint = "Note (optional)"
-            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE
-            setPadding(dpToPx(16), dpToPx(12), dpToPx(16), dpToPx(12))
-            minLines = 2
-            maxLines = 4
-            textSize = 14f
-        }
-
-        MaterialAlertDialogBuilder(this)
-            .setTitle("Add Note")
-            .setView(input)
-            .setPositiveButton("Save") { _, _ ->
-                val note = input.text.toString().takeIf { it.isNotBlank() }
-                createHighlight(selection, colorInt, colorHex, note)
-            }
-            .setNegativeButton("Skip") { _, _ ->
-                createHighlight(selection, colorInt, colorHex, null)
-            }
-            .setNeutralButton("Cancel") { _, _ ->
-                (navigator as? SelectableNavigator)?.clearSelection()
-            }
-            .setOnCancelListener {
-                (navigator as? SelectableNavigator)?.clearSelection()
-            }
-            .show()
-    }
-
-    @OptIn(ExperimentalUuidApi::class)
-    private fun createHighlight(selection: Selection, colorInt: Int, colorHex: String, note: String?) {
-        val nav = navigator ?: return
-        val selectNav = nav as? SelectableNavigator ?: return
-        val decorNav = nav as? DecorableNavigator ?: return
+    private fun createHighlight(selection: Selection, colorInt: Int, colorHex: String, note: String?): com.kf7mxe.inglenook.Highlight? {
+        val nav = navigator ?: return null
+        val selectNav = nav as? SelectableNavigator ?: return null
+        val decorNav = nav as? DecorableNavigator ?: return null
 
         val locator = selection.locator
         val locatorJson = locator.toJSON().toString()
 
-        HighlightRepository.createHighlight(
+        val created = HighlightRepository.createHighlight(
             bookId = bookId,
             locator = locatorJson,
             color = colorHex,
@@ -786,6 +843,7 @@ class ReaderActivity : AppCompatActivity() {
         applyAllHighlights(decorNav)
         selectNav.clearSelection()
         Toast.makeText(this, "Highlight added", Toast.LENGTH_SHORT).show()
+        return created
     }
 
     @OptIn(ExperimentalUuidApi::class)
@@ -809,6 +867,7 @@ class ReaderActivity : AppCompatActivity() {
             }
             withContext(Dispatchers.Main) {
                 decorNav.applyDecorations(decorations, "highlights")
+                installHighlightTapHandler()
             }
         }
     }
@@ -820,112 +879,260 @@ class ReaderActivity : AppCompatActivity() {
         applyAllHighlights(decorNav)
     }
 
-    private fun showHighlightTapDialog(highlightId: String) {
+    // Shared view/edit dialog for a highlight: quoted text, editable note field and
+    // color swatches with Save/Cancel/Delete. Opened by tapping a highlight and by the
+    // Note/Edit selection actions.
+    @OptIn(ExperimentalUuidApi::class)
+    private fun showHighlightDetailDialog(highlightId: String) {
+        // Reached from WebView's JavaBridge thread via @JavascriptInterface — dialogs
+        // must be shown on the main thread.
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            runOnUiThread { showHighlightDetailDialog(highlightId) }
+            return
+        }
         val highlight = try {
             HighlightRepository.getHighlight(kotlin.uuid.Uuid.parse(highlightId))
         } catch (e: Exception) { null }
-
         if (highlight == null) {
             Toast.makeText(this, "Highlight not found", Toast.LENGTH_SHORT).show()
             return
         }
 
-        val snippet = try {
-            val loc = Locator.fromJSON(org.json.JSONObject(highlight.locator))
-            loc?.text?.highlight?.take(100) ?: ""
-        } catch (_: Exception) { "" }
+        val quoted = highlightQuotedText(highlight)
+        var selectedColor = highlight.color
 
-        val name = highlightColorNames[highlight.color] ?: "Unknown"
-        MaterialAlertDialogBuilder(this)
-            .setTitle("$name Highlight")
-            .setMessage(if (snippet.isNotBlank()) "\"$snippet\"" else null)
-            .setItems(highlight.actions()) { _, which ->
-                when (highlight.actions()[which]) {
-                    "View Note" -> showViewNoteDialog(highlight)
-                    "Edit Note" -> showEditNoteDialog(highlight)
-                    "Change Color" -> showChangeColorDialog(highlight)
-                    "View All" -> showHighlightsList()
-                    "Delete" -> deleteHighlight(highlight._id)
-                }
-            }
-            .setNegativeButton("Close", null)
-            .show()
-    }
-
-    private fun com.kf7mxe.inglenook.Highlight.actions(): Array<String> {
-        val list = mutableListOf<String>()
-        if (note != null) list.add("View Note")
-        list.add("Edit Note")
-        list.add("Change Color")
-        list.add("View All")
-        list.add("Delete")
-        return list.toTypedArray()
-    }
-
-    private fun showViewNoteDialog(highlight: com.kf7mxe.inglenook.Highlight) {
-        MaterialAlertDialogBuilder(this)
-            .setTitle("Note")
-            .setMessage(highlight.note ?: "No note")
-            .setPositiveButton("OK", null)
-            .show()
-    }
-
-    @OptIn(ExperimentalUuidApi::class)
-    private fun showEditNoteDialog(highlight: com.kf7mxe.inglenook.Highlight) {
-        val input = EditText(this).apply {
-            setText(highlight.note ?: "")
-            hint = "Note"
-            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE
-            setPadding(dpToPx(16), dpToPx(12), dpToPx(16), dpToPx(12))
-            minLines = 2
-            maxLines = 4
-            textSize = 14f
+        val view = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dpToPx(20), dpToPx(8), dpToPx(20), dpToPx(8))
         }
+        if (quoted.isNotBlank()) {
+            view.addView(TextView(this).apply {
+                text = "\"$quoted\""
+                textSize = 14f
+                typeface = android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.ITALIC)
+            })
+        }
+        view.addView(TextView(this).apply {
+            text = "Note"
+            textSize = 14f
+            setPadding(0, dpToPx(12), 0, dpToPx(4))
+        })
+        val noteInput = EditText(this).apply {
+            setText(highlight.note ?: "")
+            hint = "Add a note"
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE
+            textSize = 14f
+            minLines = 2
+            maxLines = 5
+            setPadding(dpToPx(16), dpToPx(12), dpToPx(16), dpToPx(12))
+        }
+        view.addView(
+            noteInput,
+            LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+        )
+        view.addView(TextView(this).apply {
+            text = "Color"
+            textSize = 14f
+            setPadding(0, dpToPx(12), 0, dpToPx(4))
+        })
 
-        MaterialAlertDialogBuilder(this)
-            .setTitle("Edit Note")
-            .setView(input)
-            .setPositiveButton("Save") { _, _ ->
-                val note = input.text.toString().takeIf { it.isNotBlank() }
-                HighlightRepository.updateHighlight(highlight.copy(note = note))
-            }
-            .setNegativeButton("Cancel", null)
-            .show()
-    }
-
-    @OptIn(ExperimentalUuidApi::class)
-    private fun showChangeColorDialog(highlight: com.kf7mxe.inglenook.Highlight) {
+        // Swatch row: the checkmark marks the selection; colors only commit on Save.
         val circleSize = dpToPx(42)
-        val rootView = LinearLayout(this).apply {
+        val checks = LinkedHashMap<String, TextView>()
+        val swatchRow = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = android.view.Gravity.CENTER
-            setPadding(dpToPx(8), dpToPx(8), dpToPx(8), dpToPx(8))
-        }
-
-        val dialog = MaterialAlertDialogBuilder(this)
-            .setTitle("Change Color")
-            .setView(rootView)
-            .setNegativeButton("Cancel", null)
-            .show()
-
-        for ((hex, colorInt) in highlightColors) {
-            val isSelected = highlight.color.equals(hex, ignoreCase = true)
-            val circle = View(this).apply {
-                layoutParams = LinearLayout.LayoutParams(circleSize, circleSize).apply {
-                    marginStart = dpToPx(6)
-                    marginEnd = dpToPx(6)
+            setPadding(0, dpToPx(4), 0, 0)
+            for ((hex, colorInt) in highlightColors) {
+                val check = TextView(this@ReaderActivity).apply {
+                    text = "✓"
+                    textSize = 16f
+                    gravity = android.view.Gravity.CENTER
+                    setTextColor(contrastingTextColor(colorInt))
+                    visibility = if (hex.equals(selectedColor, ignoreCase = true)) View.VISIBLE else View.INVISIBLE
                 }
-                setBackgroundResource(R.drawable.color_circle)
-                backgroundTintList = android.content.res.ColorStateList.valueOf(colorInt)
-                alpha = if (isSelected) 1.0f else 0.4f
-                setOnClickListener {
-                    HighlightRepository.updateHighlight(highlight.copy(color = hex))
-                    loadHighlightsForBook()
-                    dialog.dismiss()
+                checks[hex] = check
+                addView(android.widget.FrameLayout(this@ReaderActivity).apply {
+                    layoutParams = LinearLayout.LayoutParams(circleSize, circleSize).apply {
+                        marginStart = dpToPx(6)
+                        marginEnd = dpToPx(6)
+                    }
+                    addView(View(this@ReaderActivity).apply {
+                        layoutParams = android.widget.FrameLayout.LayoutParams(
+                            android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                            android.view.ViewGroup.LayoutParams.MATCH_PARENT
+                        )
+                        setBackgroundResource(R.drawable.color_circle)
+                        backgroundTintList = android.content.res.ColorStateList.valueOf(colorInt)
+                    })
+                    addView(
+                        check,
+                        android.widget.FrameLayout.LayoutParams(
+                            android.view.ViewGroup.LayoutParams.WRAP_CONTENT,
+                            android.view.ViewGroup.LayoutParams.WRAP_CONTENT,
+                            android.view.Gravity.CENTER
+                        )
+                    )
+                    setOnClickListener {
+                        selectedColor = hex
+                        checks.forEach { (h, c) ->
+                            c.visibility = if (h.equals(hex, ignoreCase = true)) View.VISIBLE else View.INVISIBLE
+                        }
+                    }
+                })
+            }
+        }
+        view.addView(swatchRow)
+
+        MaterialAlertDialogBuilder(this)
+            .setTitle(if (highlight.note.isNullOrBlank()) "Highlight" else "Note")
+            .setView(view)
+            .setPositiveButton("Save") { _, _ ->
+                val note = noteInput.text.toString().trim().ifBlank { null }
+                HighlightRepository.updateHighlight(highlight.copy(note = note, color = selectedColor))
+                saveLastHighlightColor(selectedColor)
+                loadHighlightsForBook()
+                Toast.makeText(this, "Saved", Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("Cancel", null)
+            .setNeutralButton("Delete") { _, _ ->
+                MaterialAlertDialogBuilder(this)
+                    .setTitle("Delete")
+                    .setMessage(
+                        if (highlight.note.isNullOrBlank()) "Delete this highlight?"
+                        else "Delete this highlight and its note?"
+                    )
+                    .setPositiveButton("Delete") { _, _ ->
+                        deleteHighlight(highlight._id)
+                    }
+                    .setNegativeButton("Cancel", null)
+                    .show()
+            }
+            .show()
+    }
+
+    // Black or white — whichever reads on [colorInt]; used for the swatch checkmark.
+    private fun contrastingTextColor(colorInt: Int): Int {
+        val luminance = Color.red(colorInt) * 0.299 + Color.green(colorInt) * 0.588 + Color.blue(colorInt) * 0.114
+        return if (luminance > 150) Color.BLACK else Color.WHITE
+    }
+
+    // --- Notes List ---
+
+    // All notes in the book, nearest to the current reading position first, with the
+    // list opened scrolled to the closest one. Tapping a row opens the detail dialog.
+    private fun showNotesListDialog() {
+        lifecycleScope.launch(Dispatchers.IO) {
+            val notes = HighlightRepository.getHighlightsForBook(bookId)
+                .filter { !it.note.isNullOrBlank() }
+            withContext(Dispatchers.Main) {
+                if (notes.isEmpty()) {
+                    MaterialAlertDialogBuilder(this@ReaderActivity)
+                        .setTitle("Notes")
+                        .setMessage("No notes yet.")
+                        .setPositiveButton("OK", null)
+                        .show()
+                    return@withContext
+                }
+                val (ordered, nearestIndex) = notesNearestFirst(notes)
+
+                val rowViews = ArrayList<View>()
+                val container = LinearLayout(this@ReaderActivity).apply {
+                    orientation = LinearLayout.VERTICAL
+                }
+                for (highlight in ordered) {
+                    val row = LinearLayout(this@ReaderActivity).apply {
+                        orientation = LinearLayout.HORIZONTAL
+                        gravity = android.view.Gravity.CENTER_VERTICAL
+                        setPadding(dpToPx(12), dpToPx(8), dpToPx(12), dpToPx(8))
+                        isClickable = true
+                        setOnClickListener { navigateToHighlight(highlight) }
+                    }
+                    val textColumn = LinearLayout(this@ReaderActivity).apply {
+                        orientation = LinearLayout.VERTICAL
+                        layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                    }
+                    val snippet = highlightQuotedText(highlight).replace('\n', ' ')
+                    textColumn.addView(TextView(this@ReaderActivity).apply {
+                        text = if (snippet.isBlank()) (highlight.note ?: "") else "“$snippet”"
+                        textSize = 14f
+                        maxLines = 1
+                        ellipsize = android.text.TextUtils.TruncateAt.END
+                    })
+                    textColumn.addView(TextView(this@ReaderActivity).apply {
+                        text = highlight.note ?: ""
+                        textSize = 13f
+                        maxLines = 2
+                        ellipsize = android.text.TextUtils.TruncateAt.END
+                        setPadding(0, dpToPx(2), 0, 0)
+                    })
+                    highlight.chapterName?.takeIf { it.isNotBlank() }?.let { chapter ->
+                        textColumn.addView(TextView(this@ReaderActivity).apply {
+                            text = chapter
+                            textSize = 11f
+                            setTextColor(Color.parseColor("#999999"))
+                            maxLines = 1
+                            setPadding(0, dpToPx(2), 0, 0)
+                        })
+                    }
+                    row.addView(textColumn)
+                    row.addView(android.widget.Button(this@ReaderActivity).apply {
+                        text = "Edit"
+                        setOnClickListener {
+                            showHighlightDetailDialog(highlight._id.toString())
+                        }
+                    })
+                    container.addView(row)
+                    container.addView(View(this@ReaderActivity).apply {
+                        layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 1)
+                        setBackgroundColor(Color.parseColor("#E0E0E0"))
+                    })
+                    rowViews.add(row)
+                }
+
+                val scrollView = ScrollView(this@ReaderActivity).apply { addView(container) }
+
+                MaterialAlertDialogBuilder(this@ReaderActivity)
+                    .setTitle("Notes (${ordered.size})")
+                    .setMessage("Tap a note to jump to it.")
+                    .setView(scrollView)
+                    .setPositiveButton("Close", null)
+                    .show()
+
+                container.post {
+                    // Cap the height so a long list can't push the Close button off-screen.
+                    val max = dpToPx(480)
+                    if (container.height > max) {
+                        scrollView.layoutParams?.let {
+                            it.height = max
+                            scrollView.layoutParams = it
+                        }
+                    }
+                    rowViews.getOrNull(nearestIndex)?.let { scrollView.scrollTo(0, it.top) }
                 }
             }
-            rootView.addView(circle)
         }
+    }
+
+    // Sorts notes by distance from the current reading position — locator progression
+    // when available, current-chapter match as fallback — returning the nearest index.
+    private fun notesNearestFirst(notes: List<com.kf7mxe.inglenook.Highlight>): Pair<List<com.kf7mxe.inglenook.Highlight>, Int> {
+        val currentProgression =
+            if (bookDuration > 0) currentPositionTicks.toDouble() / bookDuration else null
+        val currentChapter = lastReportedLocator?.title
+
+        fun distance(highlight: com.kf7mxe.inglenook.Highlight): Double {
+            val progression = try {
+                Locator.fromJSON(org.json.JSONObject(highlight.locator))?.locations?.totalProgression
+            } catch (e: Exception) { null }
+            if (progression != null && currentProgression != null) return abs(progression - currentProgression)
+            if (currentChapter != null && highlight.chapterName == currentChapter) return 0.0
+            return 1.0
+        }
+
+        val sorted = notes.sortedBy { distance(it) }
+        val nearest = sorted.indexOfFirst { distance(it) < 1.0 }.let { if (it >= 0) it else 0 }
+        return sorted to nearest
     }
 
     @OptIn(ExperimentalUuidApi::class)
@@ -1050,6 +1257,7 @@ class ReaderActivity : AppCompatActivity() {
                     .setTitle("Highlights (${highlights.size})")
                     .setView(container)
                     .setPositiveButton("Close", null)
+                    .setNegativeButton("Export") { _, _ -> exportHighlights() }
                     .setNeutralButton("Clear All") { _, _ ->
                         MaterialAlertDialogBuilder(this@ReaderActivity)
                             .setTitle("Clear All Highlights")
@@ -1200,6 +1408,102 @@ class ReaderActivity : AppCompatActivity() {
         }
     }
 
+    // Shares this book's highlights and notes as Markdown via the system share sheet.
+    private fun exportHighlights() {
+        val title = bookTitle
+        val highlights = HighlightRepository.getHighlightsForBook(bookId)
+            .mapNotNull { it.toExportedHighlight() }
+        if (highlights.isEmpty()) {
+            Toast.makeText(this, "No highlights to export", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val markdown = highlightsToMarkdown(title, highlights)
+        val send = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_SUBJECT, "$title — highlights")
+            putExtra(Intent.EXTRA_TEXT, markdown)
+        }
+        try {
+            startActivity(Intent.createChooser(send, "Export highlights"))
+        } catch (e: ActivityNotFoundException) {
+            Toast.makeText(this, "No app available to share", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    // --- Search in book ---
+
+    private fun showSearchDialog() {
+        val input = EditText(this).apply {
+            hint = "Search in this book"
+            inputType = InputType.TYPE_CLASS_TEXT
+            setPadding(dpToPx(16), dpToPx(12), dpToPx(16), dpToPx(12))
+        }
+        MaterialAlertDialogBuilder(this)
+            .setTitle("Search")
+            .setView(input)
+            .setPositiveButton("Search") { _, _ -> runBookSearch(input.text.toString()) }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    // Searches the whole book via Readium's SearchService and shows up to 50 matches.
+    private fun runBookSearch(query: String) {
+        val pub = publication ?: return
+        if (query.isBlank()) return
+        val loading = MaterialAlertDialogBuilder(this)
+            .setTitle("Search")
+            .setMessage("Searching for \"$query\"…")
+            .setNegativeButton("Cancel", null)
+            .show()
+        lifecycleScope.launch(Dispatchers.IO) {
+            val results = ArrayList<Locator>()
+            val iterator = pub.search(query)
+            if (iterator == null) {
+                withContext(Dispatchers.Main) {
+                    if (loading.isShowing) {
+                        loading.dismiss()
+                        Toast.makeText(this@ReaderActivity, "Search is not available for this book", Toast.LENGTH_SHORT).show()
+                    }
+                }
+                return@launch
+            }
+            try {
+                while (results.size < 50) {
+                    val page = iterator.next().getOrNull() ?: break
+                    results.addAll(page.locators)
+                }
+            } finally {
+                iterator.close()
+            }
+            withContext(Dispatchers.Main) {
+                // Skip if the user cancelled while the search was running.
+                if (!loading.isShowing) return@withContext
+                loading.dismiss()
+                showSearchResults(results)
+            }
+        }
+    }
+
+    private fun showSearchResults(results: List<Locator>) {
+        if (results.isEmpty()) {
+            Toast.makeText(this, "No results found", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val labels = results.map { locator ->
+            listOfNotNull(locator.title, locator.text?.highlight)
+                .joinToString(" — ")
+                .ifBlank { "Result" }
+        }.toTypedArray()
+        MaterialAlertDialogBuilder(this)
+            .setTitle("Results (${results.size})")
+            .setItems(labels) { _, which ->
+                val locator = results[which]
+                lifecycleScope.launch { navigator?.go(locator) }
+            }
+            .setPositiveButton("Close", null)
+            .show()
+    }
+
     private fun dpToPx(dp: Int): Int {
         return (dp * resources.displayMetrics.density).toInt()
     }
@@ -1209,6 +1513,8 @@ class ReaderActivity : AppCompatActivity() {
     private fun showReaderSettings() {
         val nav = navigator ?: return
         val editor = navigatorFactory?.createPreferencesEditor(currentPreferences) ?: return
+
+        var settingsDialog: androidx.appcompat.app.AlertDialog? = null
 
         val dialogView = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -1229,6 +1535,7 @@ class ReaderActivity : AppCompatActivity() {
                         currentPreferences = editor.preferences
                         nav.submitPreferences(currentPreferences)
                         savePreferences()
+                        installHighlightTapHandler()
                     }
                 })
                 addView(android.widget.Button(context).apply {
@@ -1238,6 +1545,7 @@ class ReaderActivity : AppCompatActivity() {
                         currentPreferences = editor.preferences
                         nav.submitPreferences(currentPreferences)
                         savePreferences()
+                        installHighlightTapHandler()
                     }
                 })
             })
@@ -1263,6 +1571,7 @@ class ReaderActivity : AppCompatActivity() {
                             nav.submitPreferences(currentPreferences)
                             savePreferences()
                             applyReaderChrome()
+                            installHighlightTapHandler()
                         }
                     })
                 }
@@ -1340,12 +1649,21 @@ class ReaderActivity : AppCompatActivity() {
                         currentPreferences = editor.preferences
                         nav.submitPreferences(currentPreferences)
                         savePreferences()
+                        installHighlightTapHandler()
                     }
                 })
             })
+
+            addView(android.widget.Button(context).apply {
+                text = "Highlights & Notes"
+                setOnClickListener {
+                    settingsDialog?.dismiss()
+                    showHighlightsList()
+                }
+            })
         }
 
-        MaterialAlertDialogBuilder(this)
+        settingsDialog = MaterialAlertDialogBuilder(this)
             .setTitle("Reader Settings")
             .setView(dialogView)
             .setPositiveButton("Done", null)
@@ -1373,6 +1691,7 @@ class ReaderActivity : AppCompatActivity() {
                         findViewById<TextView>(R.id.toolbar_title)?.text = chapterTitle
                     }
                     updateBookmarkIcon()
+                    installHighlightTapHandler()
                 }
                 .launchIn(this)
 
